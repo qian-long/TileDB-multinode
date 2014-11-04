@@ -12,6 +12,8 @@ SRCS := $(wildcard $(SRC_DIR)/*.cc)
 HEADS := $(wildcard $(HEAD_DIR)/*.h)
 OBJS := $(patsubst $(SRC_DIR)/%.cc, $(OBJ_DIR)/%.o, $(SRCS))
 MPI_EXEC = mpi_main
+EXAMPLE_OBJS := $(patsubst $(EXAMPLE_DIR)/%.cc, $(EXAMPLE_OBJ_DIR)/%.o, $(wildcard $(EXAMPLE_DIR)/*.cc))
+TEST_OBJS := $(patsubst $(TEST_DIR)/%.cc, $(TEST_OBJ_DIR)/%.o, $(wildcard $(TEST_DIR)/*.cc))
 
 .PHONY: clean all compile-all doc
 
@@ -45,6 +47,10 @@ $(TEST_OBJ_DIR)/%.o: $(TEST_DIR)/%.cc
 $(EXAMPLE_OBJ_DIR)/%.o: $(EXAMPLE_DIR)/%.cc
 	test -d $(EXAMPLE_OBJ_DIR) || mkdir -p $(EXAMPLE_OBJ_DIR)
 	$(CXX) $(INCLUDE_PATHS) -c $< -o $@
+
+# don't delete intermediate object files
+.SECONDARY: $(EXAMPLE_OBJS)
+.SECONDARY: $(TEST_OBJS)
 
 # Link each test and example binary
 $(BIN_DIR)/%: $(TEST_OBJ_DIR)/%.o $(OBJS)
