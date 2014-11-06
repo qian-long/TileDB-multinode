@@ -1,0 +1,14 @@
+# vim stuff
+*.swp
+
+# object files
+source/obj
+source/example/obj
+source/test/obj
+
+# documentation
+doc/
+
+# executables
+source/bin
+mpi_main

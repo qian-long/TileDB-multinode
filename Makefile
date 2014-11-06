@@ -1,4 +1,4 @@
-CXX = g++
+CXX = mpic++
 SRC_DIR = source/src
 OBJ_DIR = source/obj
 TEST_DIR = source/test
@@ -11,10 +11,11 @@ INCLUDE_PATHS = -I$(HEAD_DIR)
 SRCS := $(wildcard $(SRC_DIR)/*.cc)
 HEADS := $(wildcard $(HEAD_DIR)/*.h)
 OBJS := $(patsubst $(SRC_DIR)/%.cc, $(OBJ_DIR)/%.o, $(SRCS))
+MPI_EXEC = mpi_main
 
 .PHONY: clean all compile-all doc
 
-all: compile-all examples
+all: compile-all examples $(MPI_EXEC)
 
 tests: tile_test storage_manager_test csv_file_test array_schema_test loader_test query_processor_test
 
@@ -28,7 +29,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc $(HEADS)
 	$(CXX) $(INCLUDE_PATHS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ_DIR)/* $(BIN_DIR)/* $(TEST_OBJ_DIR)/* $(EXAMPLE_OBJ_DIR)/*
+	rm -f $(OBJ_DIR)/* $(BIN_DIR)/* $(TEST_OBJ_DIR)/* $(EXAMPLE_OBJ_DIR)/* $(MPI_EXEC)
 
 
 ####################
@@ -75,6 +76,16 @@ loader_example: $(BIN_DIR)/loader_example
 # Query processor test and example
 query_processor_test: $(BIN_DIR)/query_processor_test
 query_processor_example: $(BIN_DIR)/query_processor_example
+
+
+#############
+# MPI Stuff #
+#############
+$(MPI_EXEC): $(OBJS)
+	$(CXX) $(INCLUDE_PATHS) $(OBJS) -o $@
+
+mpi: $(MPI_EXEC)
+	mpiexec -f machinefile ./$(MPI_EXEC)
 
 #########################
 # Documentation doxygen #
