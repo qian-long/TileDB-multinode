@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <mpi.h>
 #include "debug.h"
+#include "coordinator_node.h"
+#include "worker_node.h"
 
 #define MASTER 0
 
@@ -13,10 +15,13 @@ int main(int argc, char** argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
   if (myrank == MASTER) {
-    DEBUG_MSG("I am the master node");
+    CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs);
+    coordinator->run();
   } else {
-    DEBUG_MSG("I am a worker node");
+    WorkerNode * worker = new WorkerNode(myrank, nprocs);
+    worker->run();
   }
+
   MPI_Finalize();
   return 0;
 }

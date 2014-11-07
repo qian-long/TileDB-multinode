@@ -4,7 +4,7 @@
 #ifdef DEBUG
 
 #define DEBUG_MSG(msg) \
-int myrank, nproc; \
+int myrank, nprocs; \
 MPI_Comm_size(MPI_COMM_WORLD, &nprocs); \
 MPI_Comm_rank(MPI_COMM_WORLD, &myrank); \
 std::stringstream ss; \
