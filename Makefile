@@ -1,4 +1,5 @@
 CXX = mpic++
+DFLAGS = -DDEBUG
 SRC_DIR = source/src
 OBJ_DIR = source/obj
 TEST_DIR = source/test
@@ -87,6 +88,10 @@ query_processor_example: $(BIN_DIR)/query_processor_example
 #############
 # MPI Stuff #
 #############
+# prints out debug messages
+mpi-debug: CXX += -DDEBUG -g
+mpi-debug: mpi
+
 $(MPI_EXEC): $(OBJS)
 	$(CXX) $(INCLUDE_PATHS) $(OBJS) -o $@
 

@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <mpi.h>
+#include "debug.h"
 
 #define MASTER 0
 
+// This is the user
 int main(int argc, char** argv) {
   int myrank, nprocs;
 
@@ -11,9 +13,9 @@ int main(int argc, char** argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
   if (myrank == MASTER) {
-    printf("Hello from processor %d of %d. I am the master node\n", myrank, nprocs);
+    DEBUG_MSG("I am the master node");
   } else {
-    printf("Hello from processor %d of %d. I am a worker node\n", myrank, nprocs);
+    DEBUG_MSG("I am a worker node");
   }
   MPI_Finalize();
   return 0;
