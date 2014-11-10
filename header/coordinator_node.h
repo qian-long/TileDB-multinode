@@ -17,6 +17,9 @@ class CoordinatorNode {
     /** Runs coordinator. Shouldn't return */
     void run();
 
+    void partition_initial_file();
+
+
   private:
     // PRIVATE ATTRIBUTES
     int myrank_; // should be 0
