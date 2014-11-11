@@ -3,8 +3,8 @@
 #include "debug.h"
 #include "coordinator_node.h"
 #include "worker_node.h"
+#include "constants.h"
 
-#define MASTER 0
 
 // This is the user
 int main(int argc, char** argv) {

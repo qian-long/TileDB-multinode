@@ -1,5 +1,6 @@
 # vim stuff
 *.swp
+*.swo
 
 # object files
 source/obj

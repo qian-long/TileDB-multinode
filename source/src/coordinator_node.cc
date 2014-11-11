@@ -1,5 +1,6 @@
 #include <mpi.h>
 #include <string>
+#include "assert.h"
 #include <sstream>
 #include "coordinator_node.h"
 #include "debug.h"
@@ -15,9 +16,53 @@ CoordinatorNode::~CoordinatorNode() {}
 
 void CoordinatorNode::run() {
   DEBUG_MSG("I am the master node");
-  partition_initial_file();
+  send_all("hello", DEF_TAG);
+  DEBUG_MSG("calling get");
+  send_and_receive("partition_test", GET_TAG);
+
+  quit_all();
 }
 
+
+void CoordinatorNode::send_all(std::string content, int tag) {
+  assert( content.length() < MAX_DATA);
+  // TODO make asynchronous
+  for (int i = 1; i < nprocs_; i++) {
+    MPI_Send(content.c_str(), content.length(), MPI::CHAR, i, tag, MPI_COMM_WORLD);
+  }
+}
+
+void CoordinatorNode::send_and_receive(std::string msg, int tag) {
+  send_all(msg, tag);
+  switch(tag) {
+    case GET_TAG:
+      handle_get();
+    default:
+      // don't do anything
+      break;
+  }
+
+}
+
+// TODO make asynchronous
+void CoordinatorNode::handle_get() {
+  std::stringstream ss;
+  for (int i = 0; i < nprocs_ - 1; i++) {
+    MPI_Status status;
+    int nodeid = i + 1;
+    char *buf = new char[MAX_DATA];
+    int length;
+    MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, GET_TAG, MPI_COMM_WORLD, &status);
+    MPI_Get_count(&status, MPI_CHAR, &length);
+    ss << std::string(buf, length);
+  }
+
+  std::cout << ss.str();
+}
+
+void CoordinatorNode::quit_all() {
+  send_all("quit", 0);
+}
 // TODO: make it better
 // round robin style
 // does everything in memory
