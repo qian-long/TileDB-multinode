@@ -20,6 +20,40 @@ void CoordinatorNode::run() {
   DEBUG_MSG("calling get");
   send_and_receive("partition_test", GET_TAG);
 
+  // Set attribute names
+  std::vector<std::string> attribute_names;
+  attribute_names.push_back("attr1"); 
+  attribute_names.push_back("attr2"); 
+
+  // Set attribute types
+  std::vector<ArraySchema::DataType> attribute_types;
+  attribute_types.push_back(ArraySchema::INT);
+  attribute_types.push_back(ArraySchema::FLOAT);
+  
+  // Set dimension names
+  std::vector<std::string> dim_names;
+  dim_names.push_back("i"); 
+  dim_names.push_back("j"); 
+ 
+  // Set dimension type 
+  ArraySchema::DataType dim_type = ArraySchema::INT64_T;
+  
+  // Set dimension domains
+  std::vector<std::pair<double,double> > dim_domains;
+  dim_domains.push_back(std::pair<double,double>(0, 7));
+  dim_domains.push_back(std::pair<double,double>(0, 12));
+  // Create an array with irregular tiles
+  ArraySchema * array_schema = new ArraySchema("A",
+    attribute_names,
+    attribute_types,
+    dim_domains,
+    dim_names,
+    dim_type);
+
+  DEBUG_MSG("sending array schema to all workers");
+  send_array_schema(*array_schema);
+  delete array_schema;
+  
   quit_all();
 }
 
@@ -38,6 +72,10 @@ void CoordinatorNode::send_and_receive(std::string msg, int tag) {
     case GET_TAG:
       handle_get();
       break;
+    case INIT_TAG:
+      break;
+    case ARRAY_SCHEMA_TAG:
+      break;
     case LOAD_TAG:
       handle_load();
       break; 
@@ -46,6 +84,10 @@ void CoordinatorNode::send_and_receive(std::string msg, int tag) {
       break;
   }
 
+}
+
+void CoordinatorNode::send_array_schema(ArraySchema & array_schema) {
+  send_all(array_schema.serialize(), ARRAY_SCHEMA_TAG);
 }
 
 void CoordinatorNode::handle_load() {

@@ -330,7 +330,7 @@ std::string datatype_to_string(ArraySchema::DataType type) {
   return "";
 
 }
-void ArraySchema::print() {
+std::string ArraySchema::to_string() {
   std::stringstream ss;
   ss << "ARRAY_SCHEMA" << "\n";
   ss << "array_name: " << array_name_ << "\n";
@@ -370,9 +370,12 @@ void ArraySchema::print() {
     }
   }
   ss << "END ARRAY_SCHEMA\n";
-  std::cout << ss.str();
+  return ss.str();
 }
 
+void ArraySchema::print() {
+  std::cout << this->to_string();
+}
 std::string ArraySchema::serialize() {
   std::stringstream ss;
   int array_name_size = array_name_.size();

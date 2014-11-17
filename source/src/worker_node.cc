@@ -5,6 +5,7 @@
 #include "worker_node.h"
 #include "debug.h"
 #include "csv_file.h"
+#include "array_schema.h"
 
 
 WorkerNode::WorkerNode(int rank, int nprocs) {
@@ -40,7 +41,11 @@ void WorkerNode::run() {
           loop = false;
           break;
         case GET_TAG:
-          result = get(std::string(buf, length));
+          result = receive_get(std::string(buf, length));
+          assert(result);
+          break;
+        case ARRAY_SCHEMA_TAG:
+          result = receive_array_schema(std::string(buf, length));
           assert(result);
           break;
         case LOAD_TAG: // TODO
@@ -64,7 +69,7 @@ void WorkerNode::run() {
 */
 }
 
-int WorkerNode::get(std::string arrayname) {
+int WorkerNode::receive_get(std::string arrayname) {
   //std::stringstream ss;
   //ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
   CSVFile file(get_arrayname(arrayname), CSVFile::READ, MAX_DATA);
@@ -81,6 +86,13 @@ int WorkerNode::get(std::string arrayname) {
   }
 
   MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, GET_TAG, MPI_COMM_WORLD);
+  return 1;
+}
+
+// TODO do something with array schema
+int WorkerNode::receive_array_schema(std::string serial_str) {
+  ArraySchema * array_schema = ArraySchema::deserialize(serial_str.c_str(), serial_str.size());
+  DEBUG_MSG(array_schema->to_string());
   return 1;
 }
 

@@ -23,7 +23,8 @@ class WorkerNode {
     /** Runs worker. Listens for instructions from Coordinator. Shouldn't return */
     void run();
 
-    int get(std::string);
+    int receive_get(std::string);
+    int receive_array_schema(std::string);
     void subarray();
     std::string get_arrayname(std::string);
 

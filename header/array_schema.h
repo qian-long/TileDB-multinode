@@ -149,6 +149,7 @@ class ArraySchema {
 
 
   /** Print array schema **/
+  std::string to_string();
   void print();
   /** Serialize array schema object into char array **/
   std::string serialize();

@@ -6,6 +6,7 @@
 #ifndef COORDINATORNODE_H
 #define COORDINATORNODE_H
 #include "constants.h"
+#include "array_schema.h"
 
 class CoordinatorNode {
   public:
@@ -23,7 +24,8 @@ class CoordinatorNode {
     void handle_get();
     void handle_load();
     void send_and_receive(std::string, int);
-    void send_all(std::string content, int tag);
+    void send_all(std::string, int);
+    void send_array_schema(ArraySchema &);
 
 
   private:
