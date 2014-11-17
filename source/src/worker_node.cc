@@ -11,6 +11,7 @@ WorkerNode::WorkerNode(int rank, int nprocs) {
   this->myrank_ = rank;
   this->nprocs_ = nprocs;
   std::stringstream workspace;
+  // TODO put in config file
   workspace << "./workspaces/workspace-" << myrank_;
   this->my_workspace_ = workspace.str();
   this->storage_manager_ = new StorageManager(my_workspace_);
@@ -29,16 +30,20 @@ void WorkerNode::run() {
   MPI_Status status;
   char *buf = new char[MAX_DATA];
   int length;
-  bool again = true;
-  while (again) {
+  int loop = true;
+  int result;
+  while (loop) {
       MPI_Recv(buf, MAX_DATA, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
       switch (status.MPI_TAG) {
         case QUIT_TAG:
-          again = 0;
+          loop = false;
           break;
         case GET_TAG:
-          assert(get(std::string(buf, length)));
+          result = get(std::string(buf, length));
+          assert(result);
+          break;
+        case LOAD_TAG: // TODO
           break;
         default:
           std::string content(buf, length);
@@ -60,9 +65,9 @@ void WorkerNode::run() {
 }
 
 int WorkerNode::get(std::string arrayname) {
-  std::stringstream ss;
-  ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
-  CSVFile file(ss.str(), CSVFile::READ, MAX_DATA);
+  //std::stringstream ss;
+  //ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
+  CSVFile file(get_arrayname(arrayname), CSVFile::READ, MAX_DATA);
   CSVLine line;
 
   // TODO make it better, right now everything is in one string
@@ -78,6 +83,20 @@ int WorkerNode::get(std::string arrayname) {
   MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, GET_TAG, MPI_COMM_WORLD);
   return 1;
 }
-void subarray() {
+
+/*
+int WorkerNode::load(std::string global_arrayname, ArraySchema& array_schema, Order order) {
 
 }
+*/
+
+
+/******************************************************
+ ****************** HELPER FUNCTIONS ******************
+ ******************************************************/
+std::string WorkerNode::get_arrayname(std::string arrayname) {
+  std::stringstream ss;
+  ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
+  return ss.str();
+}
+

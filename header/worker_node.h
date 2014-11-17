@@ -25,6 +25,7 @@ class WorkerNode {
 
     int get(std::string);
     void subarray();
+    std::string get_arrayname(std::string);
 
   private:
     // PRIVATE ATTRIBUTES

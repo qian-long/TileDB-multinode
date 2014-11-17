@@ -73,9 +73,28 @@ int main() {
               << B.tile_id_column_major(coordinates_2) << "\n";
     std::cout << "Hilbert tile id of (41,90) in B: " 
               << B.tile_id_hilbert(coordinates_2) << "\n";
-  }catch(ArraySchemaException& ase) { // Catch exceptions
+
+
+    // Serialization
+    std::cout << "Serialization irregular array\n";
+    std::cout << "printing A\n";
+    A.print();
+    std::string serial = A.serialize();
+    ArraySchema * Aprime = ArraySchema::deserialize(serial.c_str(), serial.size());
+    std::cout << "print Aprime\n";
+    Aprime->print(); 
+
+    std::cout << "Serialization regular array\n";
+    std::cout << "printing B\n";
+    B.print();
+    std::string serialB = B.serialize();
+    ArraySchema * Bprime = ArraySchema::deserialize(serialB.c_str(), serialB.size());
+    std::cout << "printing B prime\n";
+    Bprime->print();
+
+  } catch(ArraySchemaException& ase) { // Catch exceptions
     std::cout << ase.what() << "\n";
-  } 
+  }
 
   return 0;
 }

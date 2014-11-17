@@ -37,11 +37,19 @@ void CoordinatorNode::send_and_receive(std::string msg, int tag) {
   switch(tag) {
     case GET_TAG:
       handle_get();
+      break;
+    case LOAD_TAG:
+      handle_load();
+      break; 
     default:
       // don't do anything
       break;
   }
 
+}
+
+void CoordinatorNode::handle_load() {
+  // TODO print ok message to user
 }
 
 // TODO make asynchronous
