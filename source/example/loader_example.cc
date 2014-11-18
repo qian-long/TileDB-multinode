@@ -37,19 +37,29 @@ int main() {
 
     // Create storage manager
     // It takes as input a path to its workspace
-    StorageManager sm("~/stavrospapadopoulos/TileDB/Data");
+    //StorageManager sm("~/stavrospapadopoulos/TileDB/Data");
 
     // Create loader
     // It takes as input a path to its workspace
-    Loader ld("~/stavrospapadopoulos/TileDB/Data", sm);
+    //Loader ld("~/stavrospapadopoulos/TileDB/Data", sm);
 
     // Load
     // The last argument is the cell order for regular tiles, or the tile order
     // for irregular tiles. It could be HILBERT, ROW_MAJOR, or COLUMN_MAJOR
+    /*
     ld.load("~/stavrospapadopoulos/TileDB/Data/test.csv", 
             array_schema_reg, Loader::HILBERT);
     ld.load("~/stavrospapadopoulos/TileDB/Data/test.csv", 
             array_schema_ireg, Loader::ROW_MAJOR);
+    */
+    std::string filename = "test";
+
+    array_schema_reg.print();
+    std::string serial = Loader::serialize_load_args(filename, array_schema_reg, Loader::ROW_MAJOR);
+
+    std::cout << "Loader::deserialize_load_args\n";
+    Loader::LoadArgs args = Loader::deserialize_load_args(serial.c_str(), serial.size());
+    args.array_schema->print();
   } catch(StorageManagerException& sme) {
     std::cout << sme.what() << "\n";
   } catch(LoaderException& le) {

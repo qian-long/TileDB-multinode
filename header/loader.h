@@ -44,6 +44,7 @@
 /** The maximum size of a physical tile in the case of irregular tiles. */
 #define LD_MAX_TILE_SIZE 1000000 // 1MB 
 
+
 /**
  * The Loader is the module that creates the array layout from raw data 
  * presented in a CSV format. It can load data into arrays with both 
@@ -60,6 +61,12 @@ class Loader {
    * disk.
    */
   enum Order {ROW_MAJOR, COLUMN_MAJOR, HILBERT};
+
+  struct LoadArgs {
+    std::string filename;
+    Order order;
+    ArraySchema * array_schema;
+  };
 
   // CONSTRUCTORS AND DESTRUCTORS
   /** 
@@ -86,6 +93,13 @@ class Loader {
   void load(const std::string& filename, 
             const ArraySchema& array_schema, 
             Order order) const; 
+
+  // FOR Multi-node
+  static std::string serialize_load_args(const std::string& filename,
+                                         ArraySchema& array_schema,
+                                         Loader::Order order);
+
+  static Loader::LoadArgs deserialize_load_args(const char * buffer, int buffer_length);
 
  private:
   // PRIVATE ATTRIBUTES
@@ -183,5 +197,6 @@ class LoaderException {
   /** The array name where the exception occured. */
   std::string array_name_;
 };
+
 
 #endif

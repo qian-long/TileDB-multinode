@@ -96,6 +96,7 @@ $(MPI_EXEC): $(OBJS)
 	$(CXX) $(INCLUDE_PATHS) $(OBJS) -o $@
 
 mpi: $(MPI_EXEC)
+	./setup_env.sh
 	mpiexec -f machinefile ./$(MPI_EXEC)
 
 #########################

@@ -22,26 +22,26 @@ void CoordinatorNode::run() {
 
   // Set attribute names
   std::vector<std::string> attribute_names;
-  attribute_names.push_back("attr1"); 
-  attribute_names.push_back("attr2"); 
+  attribute_names.push_back("attr1");
+  attribute_names.push_back("attr2");
 
   // Set attribute types
   std::vector<ArraySchema::DataType> attribute_types;
   attribute_types.push_back(ArraySchema::INT);
   attribute_types.push_back(ArraySchema::FLOAT);
-  
+
   // Set dimension names
   std::vector<std::string> dim_names;
-  dim_names.push_back("i"); 
-  dim_names.push_back("j"); 
- 
-  // Set dimension type 
+  dim_names.push_back("i");
+  dim_names.push_back("j");
+
+  // Set dimension type
   ArraySchema::DataType dim_type = ArraySchema::INT64_T;
-  
+
   // Set dimension domains
   std::vector<std::pair<double,double> > dim_domains;
-  dim_domains.push_back(std::pair<double,double>(0, 7));
-  dim_domains.push_back(std::pair<double,double>(0, 12));
+  dim_domains.push_back(std::pair<double,double>(0, 40));
+  dim_domains.push_back(std::pair<double,double>(0, 40));
   // Create an array with irregular tiles
   ArraySchema * array_schema = new ArraySchema("A",
     attribute_names,
@@ -50,10 +50,11 @@ void CoordinatorNode::run() {
     dim_names,
     dim_type);
 
-  DEBUG_MSG("sending array schema to all workers");
-  send_array_schema(*array_schema);
-  delete array_schema;
-  
+  DEBUG_MSG("sending load instruction to all workers");
+
+  std::string filename = "load_irreg_test";
+  Loader::Order order = Loader::ROW_MAJOR;
+  send_load(filename, *array_schema, order);
   quit_all();
 }
 
@@ -90,6 +91,16 @@ void CoordinatorNode::send_array_schema(ArraySchema & array_schema) {
   send_all(array_schema.serialize(), ARRAY_SCHEMA_TAG);
 }
 
+void CoordinatorNode::send_load(std::string filename, ArraySchema& schema, Loader::Order order) {
+  send_all(Loader::serialize_load_args(filename, schema, order), LOAD_TAG);
+  /*
+  std::string serial = Loader::serialize_load_args(filename, schema, order);
+  Loader::LoadArgs args = Loader::deserialize_load_args(serial.c_str(), serial.size());
+  DEBUG_MSG(args.filename);
+  DEBUG_MSG(args.order);
+  DEBUG_MSG(args.array_schema->to_string());
+  */
+}
 void CoordinatorNode::handle_load() {
   // TODO print ok message to user
 }

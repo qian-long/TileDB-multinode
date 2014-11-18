@@ -39,6 +39,7 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <iostream>
+#include <cstring>
 
 /******************************************************
 ********************* CONSTRUCTORS ********************
@@ -111,6 +112,58 @@ void Loader::load(const std::string& filename,
     // TODO: exception safety
     std::cout << le.what() << "\n";
   }
+}
+
+/******************************************************
+**************** FOR MULTI-NODE METHODS ***************
+******************************************************/
+std::string Loader::serialize_load_args(const std::string& filename,
+                                        ArraySchema& array_schema,
+                                        Loader::Order order) {
+  std::stringstream ss;
+  // serialize filename
+  int filename_length = filename.size();
+  ss.write((char *) &filename_length, sizeof(int));
+  ss.write((char *) filename.c_str(), filename_length);
+
+  // serialize order
+  ss.write((char *) &order, sizeof(Order));
+
+  // serialize array schema
+  std::string schema_serial = array_schema.serialize();
+  int schema_serial_length = schema_serial.size();
+  ss.write((char *) &schema_serial_length, sizeof(int));
+  ss.write((char *) schema_serial.c_str(), schema_serial_length);
+
+  return ss.str();
+}
+
+Loader::LoadArgs Loader::deserialize_load_args(const char * buffer, int buffer_length) {
+
+  std::stringstream ss;
+  int counter = 0;
+
+  int filename_length = (int) buffer[counter];
+  counter += sizeof(int);
+  ss.write(&buffer[counter], filename_length);
+
+  std::string filename = ss.str(); // first arg
+  counter += filename_length;
+
+  Loader::Order order; // second arg
+  memcpy(&order, &buffer[counter], sizeof(Order));
+  counter += sizeof(Order);
+
+  int arrayschema_length = (int) buffer[counter];
+  counter += sizeof(int);
+
+  ArraySchema * array_schema = ArraySchema::deserialize(&buffer[counter], arrayschema_length); // 3rd arg
+
+  // finished parsing
+  assert(counter + arrayschema_length == buffer_length);
+
+  LoadArgs args = {filename, order, array_schema};
+  return args;
 }
 
 /******************************************************

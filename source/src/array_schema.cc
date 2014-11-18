@@ -376,17 +376,18 @@ std::string ArraySchema::to_string() {
 void ArraySchema::print() {
   std::cout << this->to_string();
 }
+
 std::string ArraySchema::serialize() {
   std::stringstream ss;
   int array_name_size = array_name_.size();
-  ss.write((char *) &array_name_size, 1);
+  ss.write((char *) &array_name_size, sizeof(int));
   ss.write((char *) array_name_.c_str(), array_name_size);
-  ss.write((char *) &attribute_num_, 1);
+  ss.write((char *) &attribute_num_, sizeof(int));
   std::vector<std::string>::iterator anames_iter = attribute_names_.begin();
   // attribute name length, attribute name
   for (; anames_iter != attribute_names_.end(); anames_iter++) {
     int attr_name_size = (*anames_iter).size();
-    ss.write((char *) &attr_name_size, 1);
+    ss.write((char *) &attr_name_size, sizeof(int));
     ss.write((char *) (*anames_iter).c_str(), attr_name_size);
   }
 
@@ -394,26 +395,24 @@ std::string ArraySchema::serialize() {
   std::vector<DataType>::iterator at_iter = attribute_types_.begin();
   for (; at_iter != attribute_types_.end(); at_iter++) {
     DataType type = *at_iter;
-    ss.write((char *) &type, 1);
+    ss.write((char *) &type, sizeof(DataType));
   }
 
-  //ss << dim_num_; // number of dimensions
-  ss.write((char *) &dim_num_, 1);
-  //ss << dim_type_; // dimension type
-  ss.write((char *) &dim_type_, 1);
-  int irregular = 0;
+  // number of dimensions
+  ss.write((char *) &dim_num_, sizeof(int));
+  // dimension type
+  ss.write((char *) &dim_type_, sizeof(DataType));
+  bool irregular = false;
   if (has_irregular_tiles()) {
-    irregular = 1;
+    irregular = true;
   }
   //ss << irregular;
-  ss.write((char *) &irregular, 1);
+  ss.write((char *) &irregular, sizeof(bool));
   std::vector<std::string>::iterator dnames_iter = dim_names_.begin();
   // dimension name
   for (; dnames_iter != dim_names_.end(); dnames_iter++) {
     int dim_name_length = (*dnames_iter).size();
-    //ss << (*dnames_iter).size();
-    ss.write((char *) &dim_name_length, 1);
-    //ss << *dnames_iter;
+    ss.write((char *) &dim_name_length, sizeof(int));
     ss.write((char *) (*dnames_iter).c_str(), dim_name_length);
   }
 
@@ -450,16 +449,21 @@ ArraySchema * ArraySchema::deserialize(const char * buffer, int length) {
   DataType dim_type;
   std::vector<double> tile_extents;
 
-  int array_name_length = (int) buffer[counter++];
+  int array_name_length;
+  memcpy(&array_name_length, &buffer[counter], sizeof(int));
+  counter += sizeof(int);
   std::stringstream ss;
   ss.write(&buffer[counter], array_name_length);
   counter += array_name_length;
 
   array_name = ss.str();
-  int num_attributes = (int) buffer[counter++];
+  int num_attributes = (int) buffer[counter];
+  counter += sizeof(int);
+
   for (int i = 0; i < num_attributes; i++) {
     ss.str(std::string()); // clearing ss
-    int attr_name_length = (int) buffer[counter++];
+    int attr_name_length = (int) buffer[counter];
+    counter += sizeof(int);
     ss.write(&buffer[counter], attr_name_length);
     attribute_names.push_back(ss.str());
     counter += attr_name_length;
@@ -467,18 +471,22 @@ ArraySchema * ArraySchema::deserialize(const char * buffer, int length) {
 
   for (int i = 0; i < num_attributes; i++) {
     ss.str(std::string()); // clearing ss
-    DataType type = static_cast<DataType>(buffer[counter++]);
+    DataType type = static_cast<DataType>(buffer[counter]);
     attribute_types.push_back(type);
+    counter += sizeof(DataType);
   }
 
-  int num_dimensions = (int) buffer[counter++];
-  dim_type = static_cast<DataType>(buffer[counter++]);
-  int irregular = (int) buffer[counter++];
+  int num_dimensions = (int) buffer[counter];
+  counter += sizeof(int);
+  dim_type = static_cast<DataType>(buffer[counter]);
+  counter += sizeof(DataType);
+  bool irregular = (bool) buffer[counter++];
 
   // dim_names
   for (int i = 0; i < num_dimensions; i++) {
     ss.str(std::string()); // clearing ss
-    int dim_name_length = (int) buffer[counter++];
+    int dim_name_length = (int) buffer[counter];
+    counter += sizeof(int);
     ss.write(&buffer[counter], dim_name_length);
     dim_names.push_back(ss.str());
     counter += dim_name_length;

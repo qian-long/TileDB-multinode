@@ -5,7 +5,6 @@
 #include "worker_node.h"
 #include "debug.h"
 #include "csv_file.h"
-#include "array_schema.h"
 
 
 WorkerNode::WorkerNode(int rank, int nprocs) {
@@ -19,10 +18,18 @@ WorkerNode::WorkerNode(int rank, int nprocs) {
   this->loader_ = new Loader(my_workspace_, *storage_manager_);
   this->query_processor_ = new QueryProcessor(*storage_manager_);
 
+  // catalogue data structures
+  this->arrayname_map_ = new std::map<std::string, std::string>();
+  this->global_schema_map_ = new std::map<std::string, ArraySchema *>();
+  this->local_schema_map_ = new std::map<std::string, ArraySchema *>();
 }
 
-// TODO
-WorkerNode::~WorkerNode() {}
+// TODO delete things inside maps?
+WorkerNode::~WorkerNode() {
+  delete arrayname_map_;
+  delete global_schema_map_;
+  delete local_schema_map_;
+}
 
 
 void WorkerNode::run() {
@@ -49,6 +56,7 @@ void WorkerNode::run() {
           assert(result);
           break;
         case LOAD_TAG: // TODO
+          result = receive_load(std::string(buf, length));
           break;
         default:
           std::string content(buf, length);
@@ -89,18 +97,33 @@ int WorkerNode::receive_get(std::string arrayname) {
   return 1;
 }
 
-// TODO do something with array schema
 int WorkerNode::receive_array_schema(std::string serial_str) {
   ArraySchema * array_schema = ArraySchema::deserialize(serial_str.c_str(), serial_str.size());
-  DEBUG_MSG(array_schema->to_string());
+
+  // add schema to catalogue
+  (*this->global_schema_map_)[array_schema->array_name()] = array_schema;
+
+  // debug message
+  DEBUG_MSG("received array schema: \n" + array_schema->to_string());
   return 1;
 }
 
-/*
-int WorkerNode::load(std::string global_arrayname, ArraySchema& array_schema, Order order) {
+int WorkerNode::receive_load(std::string serial_str) {
+  DEBUG_MSG("received load\n");
 
+  Loader::LoadArgs args = Loader::deserialize_load_args(serial_str.c_str(), serial_str.size());
+
+  std::string filepath = convert_filename(args.filename);
+  Loader::Order order = args.order;
+  ArraySchema * schema = args.array_schema;
+
+  //DEBUG_MSG(filepath + "\n" + schema->to_string());
+  this->loader_->load(filepath, *schema, order);
+
+  DEBUG_MSG("Finished load");
+  return 1;
 }
-*/
+
 
 
 /******************************************************
@@ -109,6 +132,12 @@ int WorkerNode::load(std::string global_arrayname, ArraySchema& array_schema, Or
 std::string WorkerNode::get_arrayname(std::string arrayname) {
   std::stringstream ss;
   ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
+  return ss.str();
+}
+
+std::string WorkerNode::convert_filename(std::string filename) {
+  std::stringstream ss;
+  ss << my_workspace_ << "/" << filename.c_str() << "_rnk" << myrank_ << ".csv";
   return ss.str();
 }
 

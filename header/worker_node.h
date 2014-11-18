@@ -9,7 +9,9 @@
 #include "loader.h"
 #include "storage_manager.h"
 #include "query_processor.h"
+#include "array_schema.h"
 #include <string>
+#include <map>
 
 class WorkerNode {
   public:
@@ -23,10 +25,17 @@ class WorkerNode {
     /** Runs worker. Listens for instructions from Coordinator. Shouldn't return */
     void run();
 
+    // ACTIONS TO TAKE WHEN RECEIVING A MESSAGE
     int receive_get(std::string);
     int receive_array_schema(std::string);
-    void subarray();
+    int receive_load(std::string);
+
+
+    // HELPER FUNCTIONS
     std::string get_arrayname(std::string);
+
+    /** Returns filepath of matching csv file **/
+    std::string convert_filename(std::string filename);
 
   private:
     // PRIVATE ATTRIBUTES
@@ -37,8 +46,13 @@ class WorkerNode {
     StorageManager* storage_manager_;
     QueryProcessor* query_processor_;
 
-    // TODO other stuff like what ranges of coordinate values I hold
-
+    // CATALOGUE of all the arrays in the system
+    // map of global array name to local array name
+    std::map<std::string, std::string> * arrayname_map_;
+    // map of global array name to global array schema
+    std::map<std::string, ArraySchema *> * global_schema_map_;
+    // map of global array name to local array schema
+    std::map<std::string, ArraySchema *> * local_schema_map_;
 
 };
 
