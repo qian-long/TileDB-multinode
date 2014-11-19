@@ -14,39 +14,54 @@
 
 class Msg {
 
-  private:
-    int msg_tag;
-
   public:
+    int msg_tag;
     Msg(int type) {
       this->msg_tag= type;
     }
     ~Msg(){};
 
-    virtual std::string serialize() = 0;
-    static Msg* deserialize(const char* buffer, int buffer_length);
+    virtual std::string serialize();
+    static void deserialize(Msg* msg, const char* buffer, int buffer_length);
 
 };
 
 class LoadMsg : public Msg {
   
   public:   
-    LoadMsg(const std::string filename, ArraySchema* array_schema, Loader::Order order);
+    std::string filename;
+    Loader::Order order;
+    ArraySchema array_schema;
 
-    //have to actually delete things
-    ~LoadMsg();
+    LoadMsg();
+    LoadMsg(const std::string filename, ArraySchema array_schema, Loader::Order order);
+
+    ~LoadMsg(){};
 
     std::string serialize();
-    static LoadMsg* deserialize(const char* buffer, int buffer_length);
+    static void deserialize(LoadMsg* msg, const char* buffer, int buffer_length);
 
   private: 
     
-    LoadMsg();
 
-    std::string filename;
-    Loader::Order order;
-    ArraySchema* array_schema;
 
+};
+
+class GetMsg : public Msg {
+  
+  public:   
+    std::string array_name;
+
+    GetMsg();
+    GetMsg(const std::string arrayname);
+
+    ~GetMsg(){};
+
+    std::string serialize();
+    static void deserialize(GetMsg* msg, const char* buffer, int buffer_length);
+
+  private: 
+    
 };
 
 #endif 

@@ -62,11 +62,6 @@ class Loader {
    */
   enum Order {ROW_MAJOR, COLUMN_MAJOR, HILBERT};
 
-  struct LoadArgs {
-    std::string filename;
-    Order order;
-    ArraySchema * array_schema;
-  };
 
   // CONSTRUCTORS AND DESTRUCTORS
   /** 
@@ -95,12 +90,6 @@ class Loader {
             Order order) const; 
 
   // FOR Multi-node
-  static std::string serialize_load_args(const std::string& filename,
-                                         ArraySchema& array_schema,
-                                         Loader::Order order);
-
-  static Loader::LoadArgs deserialize_load_args(const char * buffer, int buffer_length);
-
  private:
   // PRIVATE ATTRIBUTES
   /** The StorageManager object the Loader will be interfacing with. */

@@ -439,7 +439,7 @@ std::string ArraySchema::serialize() {
 }
 
 // parse buffer and construct array schema object
-ArraySchema* ArraySchema::deserialize(const char * buffer, int length) {
+void ArraySchema::deserialize(ArraySchema* array_schema, const char * buffer, int length) {
   int counter = 0;
   std::string array_name;
   std::vector<std::string> attribute_names;
@@ -503,7 +503,6 @@ ArraySchema* ArraySchema::deserialize(const char * buffer, int length) {
     dim_domains.push_back(std::pair<double, double>(first, second));
   }
 
-  ArraySchema * array_schema;
   if (irregular == 0) {
     for (int i = 0; i < num_dimensions; i++) {
       double extent;
@@ -528,7 +527,7 @@ ArraySchema* ArraySchema::deserialize(const char * buffer, int length) {
       dim_names,
       dim_type);
   }
-  return array_schema;
+  return;
 }
 
 /******************************************************

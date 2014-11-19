@@ -19,7 +19,8 @@ void CoordinatorNode::run() {
   DEBUG_MSG("I am the master node");
   send_all("hello", DEF_TAG);
   DEBUG_MSG("calling get");
-  send_and_receive("partition_test", GET_TAG);
+  GetMsg gmsg("partition_test");
+  send_and_receive(gmsg);
 
   // Set attribute names
   std::vector<std::string> attribute_names;
@@ -44,7 +45,7 @@ void CoordinatorNode::run() {
   dim_domains.push_back(std::pair<double,double>(0, 40));
   dim_domains.push_back(std::pair<double,double>(0, 40));
   // Create an array with irregular tiles
-  ArraySchema * array_schema = new ArraySchema("A",
+  ArraySchema array_schema = ArraySchema("A",
     attribute_names,
     attribute_types,
     dim_domains,
@@ -55,10 +56,14 @@ void CoordinatorNode::run() {
 
   std::string filename = "load_irreg_test";
   Loader::Order order = Loader::ROW_MAJOR;
-  send_load(filename, *array_schema, order);
+  LoadMsg lmsg = LoadMsg(filename, array_schema, order);
+  send_all(lmsg);
   quit_all();
 }
 
+void CoordinatorNode::send_all(Msg& msg) {
+  this->send_all(msg.serialize(), msg.msg_tag);
+}
 
 void CoordinatorNode::send_all(std::string content, int tag) {
   assert( content.length() < MAX_DATA);
@@ -68,9 +73,9 @@ void CoordinatorNode::send_all(std::string content, int tag) {
   }
 }
 
-void CoordinatorNode::send_and_receive(std::string msg, int tag) {
-  send_all(msg, tag);
-  switch(tag) {
+void CoordinatorNode::send_and_receive(Msg& msg) {
+  send_all(msg);
+  switch(msg.msg_tag) {
     case GET_TAG:
       handle_get();
       break;
@@ -89,19 +94,11 @@ void CoordinatorNode::send_and_receive(std::string msg, int tag) {
 }
 
 void CoordinatorNode::send_array_schema(ArraySchema & array_schema) {
+  //TODO fix
+  assert (false);
   send_all(array_schema.serialize(), ARRAY_SCHEMA_TAG);
 }
 
-void CoordinatorNode::send_load(std::string filename, ArraySchema& schema, Loader::Order order) {
-  send_all(Loader::serialize_load_args(filename, schema, order), LOAD_TAG);
-  /*
-  std::string serial = Loader::serialize_load_args(filename, schema, order);
-  Loader::LoadArgs args = Loader::deserialize_load_args(serial.c_str(), serial.size());
-  DEBUG_MSG(args.filename);
-  DEBUG_MSG(args.order);
-  DEBUG_MSG(args.array_schema->to_string());
-  */
-}
 void CoordinatorNode::handle_load() {
   // TODO print ok message to user
 }
@@ -123,6 +120,6 @@ void CoordinatorNode::handle_get() {
 }
 
 void CoordinatorNode::quit_all() {
-  send_all("quit", 0);
+  send_all("quit", QUIT_TAG);
 }
 

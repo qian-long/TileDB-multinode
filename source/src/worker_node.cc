@@ -41,6 +41,8 @@ void WorkerNode::run() {
   int length;
   int loop = true;
   int result;
+  LoadMsg lmsg;
+  GetMsg gmsg;
   while (loop) {
       MPI_Recv(buf, MAX_DATA, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
@@ -49,7 +51,9 @@ void WorkerNode::run() {
           loop = false;
           break;
         case GET_TAG:
-          result = receive_get(std::string(buf, length));
+          GetMsg::deserialize(&gmsg, buf, length);
+          result = handle(&lmsg);
+          //result = receive_get(std::string(buf, length));
           assert(result);
           break;
         case ARRAY_SCHEMA_TAG:
@@ -57,7 +61,9 @@ void WorkerNode::run() {
           assert(result);
           break;
         case LOAD_TAG: // TODO
-          result = receive_load(std::string(buf, length));
+          LoadMsg::deserialize(&lmsg, buf, length);
+          std::cout << "dieserailzed";
+          result = handle(&lmsg);
           break;
         default:
           std::string content(buf, length);
@@ -78,10 +84,10 @@ void WorkerNode::run() {
 */
 }
 
-int WorkerNode::receive_get(std::string arrayname) {
-  //std::stringstream ss;
-  //ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
-  CSVFile file(get_arrayname(arrayname), CSVFile::READ, MAX_DATA);
+
+int WorkerNode::handle(GetMsg* msg) {
+  
+  CSVFile file(get_arrayname(msg->array_name), CSVFile::READ, MAX_DATA);
   CSVLine line;
 
   // TODO make it better, right now everything is in one string
@@ -99,7 +105,8 @@ int WorkerNode::receive_get(std::string arrayname) {
 }
 
 int WorkerNode::receive_array_schema(std::string serial_str) {
-  ArraySchema * array_schema = ArraySchema::deserialize(serial_str.c_str(), serial_str.size());
+  //ArraySchema * array_schema = ArraySchema::deserialize(serial_str.c_str(), serial_str.size());
+  ArraySchema * array_schema;
 
   // add schema to catalogue
   (*this->global_schema_map_)[array_schema->array_name()] = array_schema;
@@ -109,17 +116,12 @@ int WorkerNode::receive_array_schema(std::string serial_str) {
   return 1;
 }
 
-int WorkerNode::receive_load(std::string serial_str) {
+int WorkerNode::handle(LoadMsg* msg) {
   DEBUG_MSG("received load\n");
 
-  Loader::LoadArgs args = Loader::deserialize_load_args(serial_str.c_str(), serial_str.size());
-
-  std::string filepath = convert_filename(args.filename);
-  Loader::Order order = args.order;
-  ArraySchema * schema = args.array_schema;
-
-  //DEBUG_MSG(filepath + "\n" + schema->to_string());
-  this->loader_->load(filepath, *schema, order);
+  DEBUG_MSG(msg->filename);
+  DEBUG_MSG("did you see that");
+  this->loader_->load(convert_filename(msg->filename), msg->array_schema, msg->order);
 
   DEBUG_MSG("Finished load");
   return 1;

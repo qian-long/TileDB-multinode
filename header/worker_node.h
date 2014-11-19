@@ -12,6 +12,7 @@
 #include "array_schema.h"
 #include <string>
 #include <map>
+#include "messages.h"
 
 class WorkerNode {
   public:
@@ -26,9 +27,9 @@ class WorkerNode {
     void run();
 
     // ACTIONS TO TAKE WHEN RECEIVING A MESSAGE
-    int receive_get(std::string);
     int receive_array_schema(std::string);
-    int receive_load(std::string);
+    int handle(LoadMsg* msg);
+    int handle(GetMsg* msg);
 
 
     // HELPER FUNCTIONS
