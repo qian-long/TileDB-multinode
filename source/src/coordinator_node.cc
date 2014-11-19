@@ -115,8 +115,6 @@ void CoordinatorNode::handle_get() {
     MPI_Get_count(&status, MPI_CHAR, &length);
     ss << std::string(buf, length);
   }
-
-  std::cout << ss.str();
 }
 
 void CoordinatorNode::quit_all() {

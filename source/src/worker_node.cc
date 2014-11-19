@@ -52,7 +52,7 @@ void WorkerNode::run() {
           break;
         case GET_TAG:
           GetMsg::deserialize(&gmsg, buf, length);
-          result = handle(&lmsg);
+          result = handle(&gmsg);
           //result = receive_get(std::string(buf, length));
           assert(result);
           break;
@@ -62,7 +62,6 @@ void WorkerNode::run() {
           break;
         case LOAD_TAG: // TODO
           LoadMsg::deserialize(&lmsg, buf, length);
-          std::cout << "dieserailzed";
           result = handle(&lmsg);
           break;
         default:
@@ -106,6 +105,8 @@ int WorkerNode::handle(GetMsg* msg) {
 
 int WorkerNode::receive_array_schema(std::string serial_str) {
   //ArraySchema * array_schema = ArraySchema::deserialize(serial_str.c_str(), serial_str.size());
+  DEBUG_MSG("uhh broken");
+  assert (false);
   ArraySchema * array_schema;
 
   // add schema to catalogue
@@ -118,9 +119,9 @@ int WorkerNode::receive_array_schema(std::string serial_str) {
 
 int WorkerNode::handle(LoadMsg* msg) {
   DEBUG_MSG("received load\n");
-
-  DEBUG_MSG(msg->filename);
-  DEBUG_MSG("did you see that");
+  DEBUG_MSG("inside handle load " + msg->filename);
+  DEBUG_MSG("array name def in array_schema: " + msg->array_schema.array_name());
+  DEBUG_MSG("array # attrs def in array_schema: " + std::to_string(msg->array_schema.attribute_num()));
   this->loader_->load(convert_filename(msg->filename), msg->array_schema, msg->order);
 
   DEBUG_MSG("Finished load");

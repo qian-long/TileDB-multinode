@@ -1,4 +1,4 @@
-CXX = mpic++
+CXX = mpic++ -std=c++11
 DFLAGS = -DDEBUG
 SRC_DIR = source/src
 OBJ_DIR = source/obj

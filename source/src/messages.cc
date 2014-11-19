@@ -30,6 +30,7 @@ std::string LoadMsg::serialize() {
 }
 
 void LoadMsg::deserialize(LoadMsg* msg, const char * buffer, int buffer_length) {
+  DEBUG_MSG("load message deserialze called");
 
   std::stringstream ss;
   int counter = 0;
@@ -37,10 +38,10 @@ void LoadMsg::deserialize(LoadMsg* msg, const char * buffer, int buffer_length) 
   int filename_length = (int) buffer[counter];
   counter += sizeof(int);
   ss.write(&buffer[counter], filename_length);
+  DEBUG_MSG("file length " + filename_length);
 
   msg->filename = ss.str(); // first arg
-  std::cout << "bitch" << ss.str();
-  std::cout << "slut" << msg->filename;
+  DEBUG_MSG("load filename" + msg->filename);
   counter += filename_length;
 
   memcpy(&msg->order, &buffer[counter], sizeof(Loader::Order));

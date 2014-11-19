@@ -18,11 +18,12 @@ class Msg {
     int msg_tag;
     Msg(int type) {
       this->msg_tag= type;
-    }
+    };
+
     ~Msg(){};
 
     virtual std::string serialize();
-    static void deserialize(Msg* msg, const char* buffer, int buffer_length);
+    //static void deserialize(Msg* msg, const char* buffer, int buffer_length);
 
 };
 

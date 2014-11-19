@@ -510,7 +510,7 @@ void ArraySchema::deserialize(ArraySchema* array_schema, const char * buffer, in
       tile_extents.push_back(extent);
       counter += sizeof(double);
     }
-    array_schema = new ArraySchema(array_name,
+    *array_schema = ArraySchema(array_name,
       attribute_names,
       attribute_types,
       dim_domains,
@@ -520,7 +520,7 @@ void ArraySchema::deserialize(ArraySchema* array_schema, const char * buffer, in
 
   } else {
 
-    array_schema = new ArraySchema(array_name,
+    *array_schema = ArraySchema(array_name,
       attribute_names,
       attribute_types,
       dim_domains,
