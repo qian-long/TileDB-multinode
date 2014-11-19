@@ -69,18 +69,6 @@ void WorkerNode::run() {
           DEBUG_MSG(content);
       }
   }
-/*
-  std::stringstream fn;
-  fn << "./workspaces/partition_test_rnk" << myrank_ << ".csv";
-  // TODO what is 25?
-  CSVFile* file = new CSVFile(fn.str(), CSVFile::WRITE, 25);
-  CSVLine line;
-  line << content.c_str();
-  *file << line; 
-  DEBUG_MSG(content);
-  delete [] buf;
-  delete file;
-*/
 }
 
 
@@ -118,10 +106,8 @@ int WorkerNode::receive_array_schema(std::string serial_str) {
 }
 
 int WorkerNode::handle(LoadMsg* msg) {
-  DEBUG_MSG("received load\n");
-  DEBUG_MSG("inside handle load " + msg->filename);
-  DEBUG_MSG("array name def in array_schema: " + msg->array_schema.array_name());
-  DEBUG_MSG("array # attrs def in array_schema: " + std::to_string(msg->array_schema.attribute_num()));
+  DEBUG_MSG("Received load\n");
+
   this->loader_->load(convert_filename(msg->filename), msg->array_schema, msg->order);
 
   DEBUG_MSG("Finished load");
