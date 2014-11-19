@@ -1,8 +1,9 @@
 #ifndef MESSAGES_H
 #define MESSAGES_H
 
-#include "array_schema.h"
 #include <stdio.h>
+#include "array_schema.h"
+#include "loader.h"
 
 #define QUIT_TAG 0
 #define DEF_TAG 1 // default
@@ -13,39 +14,40 @@
 
 class Msg {
 
+  private:
+    int msg_tag;
+
   public:
     Msg(int type) {
-      msg_tag= type;
+      this->msg_tag= type;
     }
     ~Msg(){};
 
-    vritual std::string serialize() = 0;
-    virtual static Msg deserialize(const char* buffer, int buffer_length) = 0;
+    virtual std::string serialize() = 0;
+    static Msg* deserialize(const char* buffer, int buffer_length);
 
-  private:
-    int msg_type;
-}
+};
 
 class LoadMsg : public Msg {
   
   public:   
-    LoadMsg(const std::string filename, ArraySchema array_schema, Loader::Order order);
+    LoadMsg(const std::string filename, ArraySchema* array_schema, Loader::Order order);
 
     //have to actually delete things
     ~LoadMsg();
 
     std::string serialize();
-    static Msg deserialize(const char* buffer, int buffer_length);
+    static LoadMsg* deserialize(const char* buffer, int buffer_length);
 
   private: 
     
     LoadMsg();
 
     std::string filename;
-    Order order;
-    ArraySchema array_schema;
+    Loader::Order order;
+    ArraySchema* array_schema;
 
-}
+};
 
 #endif 
 
