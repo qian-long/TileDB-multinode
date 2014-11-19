@@ -439,7 +439,7 @@ std::string ArraySchema::serialize() {
 }
 
 // parse buffer and construct array schema object
-ArraySchema * ArraySchema::deserialize(const char * buffer, int length) {
+ArraySchema* ArraySchema::deserialize(const char * buffer, int length) {
   int counter = 0;
   std::string array_name;
   std::vector<std::string> attribute_names;

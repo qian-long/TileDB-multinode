@@ -5,6 +5,7 @@
 #include "worker_node.h"
 #include "debug.h"
 #include "csv_file.h"
+#include "messages.h"
 
 
 WorkerNode::WorkerNode(int rank, int nprocs) {
