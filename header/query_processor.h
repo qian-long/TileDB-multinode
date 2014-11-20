@@ -48,12 +48,24 @@
  */
 class QueryProcessor {
  public:
-  // TYPE DEFINITIONS
+  // TYPE AND STRUCT DEFINITIONS
   /** 
    * A multidimensional range (hyper-rectangle) in the loginal 
    * coordinate space. Format: <dim#1_lower, dim#1_upper, dim#2_lower, ...>. 
    */
   typedef std::vector<double> Range; 
+
+  // for filter
+  enum Op {LT, LE, EQ, GE, GT};
+
+  struct Condition {
+    int attr_index;
+    Op op;
+    ArraySchema::DataType value;  
+  };
+
+  // predicate is a list of conditions
+  typedef std::vector<Condition> Predicate;
 
   // CONSTRUCTORS AND DESTRUCTORS
   /** 
@@ -86,6 +98,10 @@ class QueryProcessor {
                 const Range& range,
                 const std::string& result_array_name) const;
 
+  void filter(const ArraySchema& array_schema,
+              const Predicate& pred,
+              const std::string& result_array_name);
+  
  private:
   // PRIVATE ATTRIBUTES
   /** The StorageManager object the QueryProcessor will be interfacing with. */
@@ -185,6 +201,8 @@ class QueryProcessor {
   void subarray_regular(const ArraySchema& array_schema,
                         const Range& range,
                         const std::string& result_array_name) const;
+
+ 
 };
 
 /** This exception is thrown by QueryProcessor. */

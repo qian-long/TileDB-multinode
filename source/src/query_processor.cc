@@ -36,6 +36,7 @@
 #include <typeinfo>
 #include <iostream>
 #include <assert.h>
+#include <map>
 
 /******************************************************
 ********************* CONSTRUCTORS ********************
@@ -141,6 +142,85 @@ void QueryProcessor::subarray(const ArraySchema& array_schema,
     subarray_irregular(array_schema, range, result_array_name);
 }
 
+// should be the same for both regular and irregular
+void QueryProcessor::filter(const ArraySchema& array_schema,
+                            const Predicate& pred,
+                            const std::string& result_array_name) {
+
+  std::map<int, std::vector<Condition> > pred_map;
+
+
+
+
+  // For easy reference
+  const std::string& array_name = array_schema.array_name();
+  const unsigned int attribute_num = array_schema.attribute_num();
+  const unsigned int dim_num = array_schema.dim_num();
+
+  // Create tiles and iterators
+  const Tile** tiles = new const Tile*[attribute_num+1];
+  Tile** new_tiles = new Tile*[attribute_num+1];
+  Tile::const_iterator* cell_its =
+      new Tile::const_iterator[attribute_num+1];
+  Tile::const_iterator cell_it_end;
+
+  try {
+    // Prepare arrays
+    storage_manager_.open_array(array_name, StorageManager::READ);
+    if(storage_manager_.is_empty(array_name)) {
+      delete [] tiles;
+      delete [] new_tiles;
+      delete [] cell_its;
+      throw QueryProcessorException("Cannot process subarray query: "
+                                    "array '" + array_name + "' is empty.");
+    }
+
+    storage_manager_.open_array(result_array_name, StorageManager::CREATE);
+
+    std::vector<Condition>::const_iterator pred_it = pred.begin();
+
+    // Group predicate conditions together by attribute index
+    for(; pred_it != pred.end(); pred_it++) {
+      (pred_map[pred_it->attr_index]).push_back(*pred_it);
+    }
+
+    std::map<int, std::vector<Condition> >::iterator map_it = pred_map.begin();
+    // keep track of matching cell ids for each tile
+    // scan one attribute tile at a time
+
+
+  } catch(CSVFileException& cfe) {
+    delete [] tiles;
+    delete [] new_tiles;
+    delete [] cell_its;
+    if(storage_manager_.is_open(array_schema.array_name()))
+      storage_manager_.close_array(array_schema.array_name());
+    storage_manager_.delete_array(result_array_name);
+    throw QueryProcessorException("CSVFileException caught by QueryProcessor: " 
+                                  + cfe.what(), array_schema.array_name());
+  } catch(TileException& te) {
+    delete [] tiles;
+    delete [] new_tiles;
+    delete [] cell_its; 
+    if(storage_manager_.is_open(array_schema.array_name())) 
+      storage_manager_.close_array(array_schema.array_name()); 
+    storage_manager_.delete_array(result_array_name);
+    throw QueryProcessorException("TileException caught by QueryProcessor: " + 
+                                  te.what(), array_schema.array_name());
+  } catch(StorageManagerException& sme) {
+    delete [] tiles;
+    delete [] new_tiles;
+    delete [] cell_its;
+    if(storage_manager_.is_open(array_schema.array_name())) 
+      storage_manager_.close_array(array_schema.array_name());
+    storage_manager_.delete_array(result_array_name);
+    throw QueryProcessorException("StorageManagerException caught by "
+                                  "QueryProcessor: " + sme.what(), 
+                                   array_schema.array_name());
+  }
+
+
+}
 /******************************************************
 ******************* PRIVATE METHODS *******************
 ******************************************************/
