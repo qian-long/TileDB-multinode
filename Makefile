@@ -83,6 +83,7 @@ loader_example: $(BIN_DIR)/loader_example
 # Query processor test and example
 query_processor_test: $(BIN_DIR)/query_processor_test
 query_processor_example: $(BIN_DIR)/query_processor_example
+	rm -rf Data/StorageManager Data/Loader
 
 
 #############

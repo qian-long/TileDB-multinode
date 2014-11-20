@@ -143,74 +143,74 @@ void QueryProcessor::subarray(const ArraySchema& array_schema,
 }
 
 // should be the same for both regular and irregular
+template<class T>
 void QueryProcessor::filter(const ArraySchema& array_schema,
-                            const Predicate& pred,
+                            const Predicate<T>& pred,
                             const std::string& result_array_name) {
-
-  std::map<int, std::vector<Condition> > pred_map;
-
-
-
 
   // For easy reference
   const std::string& array_name = array_schema.array_name();
   const unsigned int attribute_num = array_schema.attribute_num();
   const unsigned int dim_num = array_schema.dim_num();
 
-  // Create tiles and iterators
-  const Tile** tiles = new const Tile*[attribute_num+1];
-  Tile** new_tiles = new Tile*[attribute_num+1];
+  // Initialize iterators
+  StorageManager::const_iterator* tile_its =
+      new StorageManager::const_iterator[attribute_num+1];
+
+  StorageManager::const_iterator tile_it_end;
+
   Tile::const_iterator* cell_its =
       new Tile::const_iterator[attribute_num+1];
+
   Tile::const_iterator cell_it_end;
 
   try {
     // Prepare arrays
     storage_manager_.open_array(array_name, StorageManager::READ);
     if(storage_manager_.is_empty(array_name)) {
-      delete [] tiles;
-      delete [] new_tiles;
-      delete [] cell_its;
+      delete tile_its;
+      delete cell_its;
       throw QueryProcessorException("Cannot process subarray query: "
                                     "array '" + array_name + "' is empty.");
     }
 
+    // Initialize tile iterators
+    init_tile_iterators(array_schema, tile_its, &tile_it_end);
+
+    // Opens new array
     storage_manager_.open_array(result_array_name, StorageManager::CREATE);
 
-    std::vector<Condition>::const_iterator pred_it = pred.begin();
 
-    // Group predicate conditions together by attribute index
-    for(; pred_it != pred.end(); pred_it++) {
-      (pred_map[pred_it->attr_index]).push_back(*pred_it);
-    }
-
-    std::map<int, std::vector<Condition> >::iterator map_it = pred_map.begin();
     // keep track of matching cell ids for each tile
     // scan one attribute tile at a time
+    while(tile_its[pred.attr_index] != tile_it_end) {
+
+      bool result = evaluate_predicate(*cell_its[pred.attr_index], pred);
+
+    }
 
 
   } catch(CSVFileException& cfe) {
-    delete [] tiles;
-    delete [] new_tiles;
-    delete [] cell_its;
+    delete tile_its;
+    delete cell_its;
+
     if(storage_manager_.is_open(array_schema.array_name()))
       storage_manager_.close_array(array_schema.array_name());
+
     storage_manager_.delete_array(result_array_name);
     throw QueryProcessorException("CSVFileException caught by QueryProcessor: " 
                                   + cfe.what(), array_schema.array_name());
   } catch(TileException& te) {
-    delete [] tiles;
-    delete [] new_tiles;
-    delete [] cell_its; 
+    delete tile_its;
+    delete cell_its;
     if(storage_manager_.is_open(array_schema.array_name())) 
       storage_manager_.close_array(array_schema.array_name()); 
     storage_manager_.delete_array(result_array_name);
     throw QueryProcessorException("TileException caught by QueryProcessor: " + 
                                   te.what(), array_schema.array_name());
   } catch(StorageManagerException& sme) {
-    delete [] tiles;
-    delete [] new_tiles;
-    delete [] cell_its;
+    delete tile_its;
+    delete cell_its;
     if(storage_manager_.is_open(array_schema.array_name())) 
       storage_manager_.close_array(array_schema.array_name());
     storage_manager_.delete_array(result_array_name);
@@ -224,6 +224,31 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
 /******************************************************
 ******************* PRIVATE METHODS *******************
 ******************************************************/
+
+template<class T>
+inline
+bool QueryProcessor::evaluate_predicate(T cell_val, const Predicate<T>& pred) {
+
+  switch(pred.op) {
+    case LT:
+      return cell_val < pred.operand;
+    case LE:
+      return cell_val <= pred.operand;
+    case EQ:
+      return cell_val == pred.operand;
+    case GE:
+      return cell_val >= pred.operand;
+    case GT:
+      return cell_val > pred.operand;
+    case NE:
+      return cell_val != pred.operand;
+    default:
+      break;
+  }
+
+
+  return false;
+}
 
 template<class T>
 inline
@@ -739,11 +764,20 @@ template void QueryProcessor::append_coordinates<double>(
     const Tile::const_iterator& cell_it,
     CSVLine* csv_line) const;
 
+template bool QueryProcessor::evaluate_predicate<int>(
+    int cell_val, const Predicate<int>& pred);
 
+template bool QueryProcessor::evaluate_predicate<double>(
+    double cell_val, const Predicate<double>& pred);
 
+template bool QueryProcessor::evaluate_predicate<float>(
+    float cell_val, const Predicate<float>& pred);
 
-
-
+// TODO figure this out later
+/*
+template bool QueryProcessor::evaluate_predicate<int64_t>(
+    int64_t cell_val, const Predicate& pred);
+*/
 
 
 
