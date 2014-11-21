@@ -43,6 +43,7 @@ void WorkerNode::run() {
   int result;
   LoadMsg lmsg;
   GetMsg gmsg;
+  ArraySchemaMsg asmsg;
   while (loop) {
       MPI_Recv(buf, MAX_DATA, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
@@ -57,7 +58,8 @@ void WorkerNode::run() {
           assert(result);
           break;
         case ARRAY_SCHEMA_TAG:
-          result = receive_array_schema(std::string(buf, length));
+          ArraySchemaMsg::deserialize(&asmsg, buf, length);
+          result = handle(&asmsg);
           assert(result);
           break;
         case LOAD_TAG: // TODO
@@ -91,24 +93,22 @@ int WorkerNode::handle(GetMsg* msg) {
   return 1;
 }
 
-int WorkerNode::receive_array_schema(std::string serial_str) {
-  //ArraySchema * array_schema = ArraySchema::deserialize(serial_str.c_str(), serial_str.size());
-  DEBUG_MSG("uhh broken");
-  assert (false);
-  ArraySchema * array_schema;
-
-  // add schema to catalogue
-  (*this->global_schema_map_)[array_schema->array_name()] = array_schema;
+int WorkerNode::handle(ArraySchemaMsg* msg) {
+  
+  // you might be wondering why this is here, its cause you have to copy msg->array_schema
+  // otherwise the data will be corrupted when you get a new message
+  (*this->global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
 
   // debug message
-  DEBUG_MSG("received array schema: \n" + array_schema->to_string());
+  DEBUG_MSG("received array schema: \n" + msg->array_schema->to_string());
   return 1;
 }
 
 int WorkerNode::handle(LoadMsg* msg) {
   DEBUG_MSG("Received load\n");
 
-  this->loader_->load(convert_filename(msg->filename), msg->array_schema, msg->order);
+  //does dereferencing msg->array_schema make sense?
+  this->loader_->load(convert_filename(msg->filename), *msg->array_schema, msg->order);
 
   DEBUG_MSG("Finished load");
   return 1;

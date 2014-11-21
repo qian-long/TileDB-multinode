@@ -439,7 +439,7 @@ std::string ArraySchema::serialize() {
 }
 
 // parse buffer and construct array schema object
-void ArraySchema::deserialize(ArraySchema* array_schema, const char * buffer, int length) {
+ArraySchema* ArraySchema::deserialize(const char * buffer, int length) {
   int counter = 0;
   std::string array_name;
   std::vector<std::string> attribute_names;
@@ -510,7 +510,7 @@ void ArraySchema::deserialize(ArraySchema* array_schema, const char * buffer, in
       tile_extents.push_back(extent);
       counter += sizeof(double);
     }
-    *array_schema = ArraySchema(array_name,
+    return new ArraySchema(array_name,
       attribute_names,
       attribute_types,
       dim_domains,
@@ -520,14 +520,13 @@ void ArraySchema::deserialize(ArraySchema* array_schema, const char * buffer, in
 
   } else {
 
-    *array_schema = ArraySchema(array_name,
+    return new ArraySchema(array_name,
       attribute_names,
       attribute_types,
       dim_domains,
       dim_names,
       dim_type);
   }
-  return;
 }
 
 /******************************************************

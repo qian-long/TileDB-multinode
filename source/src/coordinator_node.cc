@@ -56,7 +56,7 @@ void CoordinatorNode::run() {
 
   std::string filename = "load_irreg_test";
   Loader::Order order = Loader::ROW_MAJOR;
-  LoadMsg lmsg = LoadMsg(filename, array_schema, order);
+  LoadMsg lmsg = LoadMsg(filename, &array_schema, order);
   send_all(lmsg);
   quit_all();
 }
@@ -93,11 +93,12 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
 
 }
 
+/*
 void CoordinatorNode::send_array_schema(ArraySchema & array_schema) {
   //TODO fix
-  assert (false);
   send_all(array_schema.serialize(), ARRAY_SCHEMA_TAG);
 }
+*/
 
 void CoordinatorNode::handle_load() {
   // TODO print ok message to user

@@ -21,7 +21,7 @@ std::string LoadMsg::serialize() {
   ss.write((char *) &order, sizeof(Loader::Order));
 
   // serialize array schema
-  std::string schema_serial = array_schema.serialize();
+  std::string schema_serial = array_schema->serialize();
   int schema_serial_length = schema_serial.size();
   ss.write((char *) &schema_serial_length, sizeof(int));
   ss.write((char *) schema_serial.c_str(), schema_serial_length);
@@ -46,8 +46,10 @@ void LoadMsg::deserialize(LoadMsg* msg, const char * buffer, int buffer_length) 
 
   int arrayschema_length = (int) buffer[counter];
   counter += sizeof(int);
-
-  ArraySchema::deserialize(&msg->array_schema, &buffer[counter], arrayschema_length); // 3rd arg
+  
+  // this is creating space for it on the heap. 
+  msg->array_schema = (ArraySchema*) malloc(sizeof(ArraySchema));
+  ArraySchema::deserialize(msg->array_schema, &buffer[counter], arrayschema_length); // 3rd arg
 
   // finished parsing
   assert(counter + arrayschema_length == buffer_length);
@@ -57,7 +59,7 @@ void LoadMsg::deserialize(LoadMsg* msg, const char * buffer, int buffer_length) 
 
 LoadMsg::LoadMsg() : Msg(LOAD_TAG) { }
 
-LoadMsg::LoadMsg(const std::string filename, ArraySchema array_schema, Loader::Order order) : 
+LoadMsg::LoadMsg(const std::string filename, ArraySchema* array_schema, Loader::Order order) : 
   Msg(LOAD_TAG){
   this->filename = filename;
   this->order = order;
@@ -88,4 +90,19 @@ void GetMsg::deserialize(GetMsg* msg, const char* buffer, int buffer_length) {
   ss.write(&buffer[counter], array_name_length);
 
   msg->array_name = ss.str(); // first arg
+}
+
+ArraySchemaMsg::ArraySchemaMsg() : Msg(ARRAY_SCHEMA_TAG) {};
+
+ArraySchemaMsg::ArraySchemaMsg(ArraySchema* schema) : Msg(ARRAY_SCHEMA_TAG)  {
+  this->array_schema = schema;
+}
+
+std::string ArraySchemaMsg::serialize() {
+  return this->array_schema->serialize();
+}
+
+void ArraySchemaMsg::deserialize(ArraySchemaMsg* msg, const char* buffer, int buffer_length) {
+  msg->array_schema = (ArraySchema*) malloc(sizeof(ArraySchema));
+  ArraySchema::deserialize(msg->array_schema, buffer, buffer_length);
 }

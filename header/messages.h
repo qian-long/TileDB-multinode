@@ -32,19 +32,15 @@ class LoadMsg : public Msg {
   public:   
     std::string filename;
     Loader::Order order;
-    ArraySchema array_schema;
+    ArraySchema* array_schema;
 
     LoadMsg();
-    LoadMsg(const std::string filename, ArraySchema array_schema, Loader::Order order);
+    LoadMsg(const std::string filename, ArraySchema* array_schema, Loader::Order order);
 
     ~LoadMsg(){};
 
     std::string serialize();
     static void deserialize(LoadMsg* msg, const char* buffer, int buffer_length);
-
-  private: 
-    
-
 
 };
 
@@ -60,10 +56,22 @@ class GetMsg : public Msg {
 
     std::string serialize();
     static void deserialize(GetMsg* msg, const char* buffer, int buffer_length);
-
-  private: 
-    
 };
+
+class ArraySchemaMsg : public Msg {
+  
+  public:   
+    ArraySchema* array_schema;
+
+    ArraySchemaMsg();
+    ArraySchemaMsg(ArraySchema* array_schema);
+
+    ~ArraySchemaMsg(){};
+
+    std::string serialize();
+    static void deserialize(ArraySchemaMsg* msg, const char* buffer, int buffer_length);
+};
+
 
 #endif 
 

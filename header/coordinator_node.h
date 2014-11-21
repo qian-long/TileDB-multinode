@@ -21,14 +21,15 @@ class CoordinatorNode {
     /** Runs coordinator. Shouldn't return */
     void run();
 
-    void partition_initial_file();
-    void quit_all();
-    void handle_get();
-    void handle_load();
     void send_and_receive(Msg&);
     void send_all(std::string, int);
     void send_all(Msg&);
-    void send_array_schema(ArraySchema &);
+    void quit_all();
+
+    void partition_initial_file();
+
+    void handle_get();
+    void handle_load();
 
 
   private:
