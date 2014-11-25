@@ -7,12 +7,12 @@ int main() {
   // Attribute names
   std::vector<std::string> attribute_names;
   attribute_names.push_back("attr1");
-  //attribute_names.push_back("attr2");
+  attribute_names.push_back("attr2");
 
   // Attribute types
   std::vector<ArraySchema::DataType> attribute_types;
   attribute_types.push_back(ArraySchema::INT);
-  //attribute_types.push_back(ArraySchema::INT);
+  attribute_types.push_back(ArraySchema::INT);
 
   // Dimension domains
   std::vector<std::pair<double, double> > dim_domains;
@@ -55,21 +55,22 @@ int main() {
 
     // Load array from a CSV file
     // Make sure the CSV files in the path exist.
-    loader.load("~/projects/TileDB-multinode/Data/test1.csv",
+    loader.load("~/projects/TileDB-multinode/Data/test.csv",
                  *array_schema_irreg, Loader::ROW_MAJOR);
 
 
 
+
     // Testing predicate
-    int attr_index = 0;
+    int attr_index = 1;
     Op op = LE;
-    int operand = 4;
+    int operand = 8;
     Predicate<int> pred_lt_4(attr_index, op, operand);
 
 
     // Process a filter query
-    query_processor.filter<int>(*array_schema_irreg, pred_lt_4, array_schema_filter->array_name());
-    query_processor.export_to_CSV(*array_schema_filter, "~/projects/TileDB-multinode/Data/filter_irreg_test.csv");
+    query_processor.filter_irregular<int>(*array_schema_irreg, pred_lt_4, array_schema_filter->array_name());
+    query_processor.export_to_CSV(*array_schema_filter, "~/projects/TileDB-multinode/Data/output/filter_irreg_test.csv");
 
   // Catching exceptions 
   } catch(StorageManagerException& sme) {

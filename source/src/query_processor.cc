@@ -142,9 +142,9 @@ void QueryProcessor::subarray(const ArraySchema& array_schema,
     subarray_irregular(array_schema, range, result_array_name);
 }
 
-// should be the same for both regular and irregular
+// TODO filter_reg
 template<class T>
-void QueryProcessor::filter(const ArraySchema& array_schema,
+void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
                             const Predicate<T>& pred,
                             const std::string& result_array_name) {
 
@@ -172,7 +172,7 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
       delete tile_its;
       delete cell_its;
       delete new_tiles;
-      throw QueryProcessorException("Cannot process subarray query: "
+      throw QueryProcessorException("Cannot process filter query: "
                                     "array '" + array_name + "' is empty.");
     }
 
@@ -194,6 +194,7 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
       cell_it_end = (*tile_its[pred.attr_index]).end();
       int counter = 0;
       int prev_match_index = 0;
+      bool other_iters_initialized = false;
 
       // iterate through all the cells in a tile
       while (cell_its[pred.attr_index] != cell_it_end) {
@@ -204,7 +205,7 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
         if (match) {
           // advance all other iterators to correct place
           // put logical cell into new tile
-          if (prev_match_index == 0) {
+          if (other_iters_initialized == false) {
             // create new tiles
             create_new_tiles(array_schema, tile_id, new_tiles);
 
@@ -215,6 +216,8 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
               }
 
             }
+
+            other_iters_initialized = true;
           }
 
           // advance all other cell iterators
@@ -250,17 +253,6 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
     delete [] cell_its;
     delete [] new_tiles;
 
-  } catch(CSVFileException& cfe) {
-    delete [] tile_its;
-    delete [] cell_its;
-    delete [] new_tiles;
-
-    if(storage_manager_.is_open(array_schema.array_name()))
-      storage_manager_.close_array(array_schema.array_name());
-
-    storage_manager_.delete_array(result_array_name);
-    throw QueryProcessorException("CSVFileException caught by QueryProcessor: " 
-                                  + cfe.what(), array_schema.array_name());
   } catch(TileException& te) {
     delete [] tile_its;
     delete [] cell_its;
@@ -291,8 +283,8 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
 template<class T>
 inline
 bool QueryProcessor::evaluate(Tile::const_iterator& cell_it, const Predicate<T>& pred) {
-
   T cell_val = *cell_it;
+
   switch(pred.op) {
     case LT:
       return cell_val < pred.operand;
@@ -367,6 +359,7 @@ inline
 void QueryProcessor::append_cell(const ArraySchema& array_schema,
                                  const Tile::const_iterator* cell_its,
                                  Tile** tiles) const {
+
   unsigned int attribute_num = array_schema.attribute_num();
   unsigned int dim_num = array_schema.dim_num();
 
@@ -842,15 +835,15 @@ template bool QueryProcessor::evaluate<double>(
 template bool QueryProcessor::evaluate<float>(
     Tile::const_iterator& cell_val, const Predicate<float>& pred);
 
-template void QueryProcessor::filter<int>(const ArraySchema& array_schema,
+template void QueryProcessor::filter_irregular<int>(const ArraySchema& array_schema,
                             const Predicate<int>& pred,
                             const std::string& result_array_name);
 
-template void QueryProcessor::filter<double>(const ArraySchema& array_schema,
+template void QueryProcessor::filter_irregular<double>(const ArraySchema& array_schema,
                             const Predicate<double>& pred,
                             const std::string& result_array_name);
 
-template void QueryProcessor::filter<float>(const ArraySchema& array_schema,
+template void QueryProcessor::filter_irregular<float>(const ArraySchema& array_schema,
                             const Predicate<float>& pred,
                             const std::string& result_array_name);
 

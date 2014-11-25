@@ -89,7 +89,7 @@ class QueryProcessor {
                 const std::string& result_array_name) const;
 
   template<class T>
-  void filter(const ArraySchema& array_schema,
+  void filter_irregular(const ArraySchema& array_schema,
               const Predicate<T>& pred,
               const std::string& result_array_name);
   
