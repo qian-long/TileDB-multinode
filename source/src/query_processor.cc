@@ -169,9 +169,9 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
     // Prepare arrays
     storage_manager_.open_array(array_name, StorageManager::READ);
     if(storage_manager_.is_empty(array_name)) {
-      delete tile_its;
-      delete cell_its;
-      delete new_tiles;
+      delete [] tile_its;
+      delete [] cell_its;
+      delete [] new_tiles;
       throw QueryProcessorException("Cannot process filter query: "
                                     "array '" + array_name + "' is empty.");
     }
