@@ -164,12 +164,14 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
 
   Tile::const_iterator cell_it_end;
 
+  Tile** new_tiles = new Tile*[attribute_num+1];
   try {
     // Prepare arrays
     storage_manager_.open_array(array_name, StorageManager::READ);
     if(storage_manager_.is_empty(array_name)) {
       delete tile_its;
       delete cell_its;
+      delete new_tiles;
       throw QueryProcessorException("Cannot process subarray query: "
                                     "array '" + array_name + "' is empty.");
     }
@@ -180,19 +182,78 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
     // Opens new array
     storage_manager_.open_array(result_array_name, StorageManager::CREATE);
 
+    // Create new tiles and initialize iterators 
+    uint64_t tile_id = 0;
 
     // keep track of matching cell ids for each tile
-    // scan one attribute tile at a time
+    // scan one tile at a time
     while(tile_its[pred.attr_index] != tile_it_end) {
+      // start attribute tile cell iterator
+      cell_its[pred.attr_index] = (*tile_its[pred.attr_index]).begin();
 
-      bool result = evaluate_predicate(*cell_its[pred.attr_index], pred);
+      cell_it_end = (*tile_its[pred.attr_index]).end();
+      int counter = 0;
+      int prev_match_index = 0;
+
+      // iterate through all the cells in a tile
+      while (cell_its[pred.attr_index] != cell_it_end) {
+
+        // TODO fix int64_T
+        bool match = evaluate<T>(cell_its[pred.attr_index], pred);
+
+        if (match) {
+          // advance all other iterators to correct place
+          // put logical cell into new tile
+          if (prev_match_index == 0) {
+            // create new tiles
+            create_new_tiles(array_schema, tile_id, new_tiles);
+
+            // initialize all other cell iterators for other tiles
+            for (int i = 0; i < attribute_num + 1; i++) {
+              if (i != pred.attr_index) {
+                cell_its[i] = (*tile_its[i]).begin();
+              }
+
+            }
+          }
+
+          // advance all other cell iterators
+          for (int i = 0; i < attribute_num + 1; i++) {
+            if (i != pred.attr_index) {
+              for (int j = prev_match_index; j < counter; j++) {
+                ++cell_its[i];
+              }
+            }
+          }
+
+          // stuff physical cells into new tile
+          // TODO finish, which array_schema???
+          append_cell(array_schema, cell_its, new_tiles);
+
+          prev_match_index = counter;
+        }
+
+        ++counter;
+        ++cell_its[pred.attr_index];
+      }
+
+      store_tiles(array_schema, result_array_name, new_tiles);
+      ++tile_its[pred.attr_index];
+      ++tile_id;
 
     }
 
+    // Clean up
+    storage_manager_.close_array(array_name);
+    storage_manager_.close_array(result_array_name);
+    delete [] tile_its;
+    delete [] cell_its;
+    delete [] new_tiles;
 
   } catch(CSVFileException& cfe) {
-    delete tile_its;
-    delete cell_its;
+    delete [] tile_its;
+    delete [] cell_its;
+    delete [] new_tiles;
 
     if(storage_manager_.is_open(array_schema.array_name()))
       storage_manager_.close_array(array_schema.array_name());
@@ -201,16 +262,18 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
     throw QueryProcessorException("CSVFileException caught by QueryProcessor: " 
                                   + cfe.what(), array_schema.array_name());
   } catch(TileException& te) {
-    delete tile_its;
-    delete cell_its;
+    delete [] tile_its;
+    delete [] cell_its;
+    delete [] new_tiles;
     if(storage_manager_.is_open(array_schema.array_name())) 
       storage_manager_.close_array(array_schema.array_name()); 
     storage_manager_.delete_array(result_array_name);
     throw QueryProcessorException("TileException caught by QueryProcessor: " + 
                                   te.what(), array_schema.array_name());
   } catch(StorageManagerException& sme) {
-    delete tile_its;
-    delete cell_its;
+    delete [] tile_its;
+    delete [] cell_its;
+    delete [] new_tiles;
     if(storage_manager_.is_open(array_schema.array_name())) 
       storage_manager_.close_array(array_schema.array_name());
     storage_manager_.delete_array(result_array_name);
@@ -227,8 +290,9 @@ void QueryProcessor::filter(const ArraySchema& array_schema,
 
 template<class T>
 inline
-bool QueryProcessor::evaluate_predicate(T cell_val, const Predicate<T>& pred) {
+bool QueryProcessor::evaluate(Tile::const_iterator& cell_it, const Predicate<T>& pred) {
 
+  T cell_val = *cell_it;
   switch(pred.op) {
     case LT:
       return cell_val < pred.operand;
@@ -296,6 +360,7 @@ void QueryProcessor::append_cell(const ArraySchema& array_schema,
     else if(array_schema.attribute_type(i) == ArraySchema::DOUBLE)
       append_attribute_value<double>(cell_its[i], csv_line); 
   }
+
 }
 
 inline
@@ -306,18 +371,19 @@ void QueryProcessor::append_cell(const ArraySchema& array_schema,
   unsigned int dim_num = array_schema.dim_num();
 
   // Append coordinates
-  if(array_schema.dim_type() == ArraySchema::INT) 
+  if(array_schema.dim_type() == ArraySchema::INT) {
     append_coordinates<int>(
         dim_num, cell_its[attribute_num], tiles[attribute_num]);
-  else if(array_schema.dim_type() == ArraySchema::INT64_T)
+  } else if(array_schema.dim_type() == ArraySchema::INT64_T) {
     append_coordinates<int64_t>(
         dim_num, cell_its[attribute_num], tiles[attribute_num]);
-  else if(array_schema.dim_type() == ArraySchema::FLOAT)
+  } else if(array_schema.dim_type() == ArraySchema::FLOAT) {
     append_coordinates<float>(
         dim_num, cell_its[attribute_num], tiles[attribute_num]);
-  else if(array_schema.dim_type() == ArraySchema::DOUBLE)
+  } else if(array_schema.dim_type() == ArraySchema::DOUBLE) {
     append_coordinates<double>(
         dim_num, cell_its[attribute_num], tiles[attribute_num]);
+  }
 
   // Append attribute values
   for(unsigned int i=0; i<attribute_num; ++i) {
@@ -347,6 +413,7 @@ inline
 void QueryProcessor::append_coordinates(unsigned int dim_num,
                                         const Tile::const_iterator& cell_it,
                                         Tile* tile) const {
+
   const std::vector<T>& coordinates = *cell_it;
   *tile << coordinates;
 }
@@ -505,10 +572,12 @@ void QueryProcessor::store_tiles(const ArraySchema& array_schema,
                                  const std::string& result_array_name,
                                  Tile** tiles) const {
   unsigned int attribute_num = array_schema.attribute_num();
+  // Storing attribute tiles
   for(unsigned int i=0; i<attribute_num; i++) 
     storage_manager_.append_tile(tiles[i], result_array_name, 
                                  array_schema.attribute_name(i));
 
+  // Storing coordinate tiles
   storage_manager_.append_tile(tiles[attribute_num], result_array_name); 
 } 
 
@@ -764,14 +833,28 @@ template void QueryProcessor::append_coordinates<double>(
     const Tile::const_iterator& cell_it,
     CSVLine* csv_line) const;
 
-template bool QueryProcessor::evaluate_predicate<int>(
-    int cell_val, const Predicate<int>& pred);
+template bool QueryProcessor::evaluate<int>(
+    Tile::const_iterator& cell_it, const Predicate<int>& pred);
 
-template bool QueryProcessor::evaluate_predicate<double>(
-    double cell_val, const Predicate<double>& pred);
+template bool QueryProcessor::evaluate<double>(
+    Tile::const_iterator& cell_it, const Predicate<double>& pred);
 
-template bool QueryProcessor::evaluate_predicate<float>(
-    float cell_val, const Predicate<float>& pred);
+template bool QueryProcessor::evaluate<float>(
+    Tile::const_iterator& cell_val, const Predicate<float>& pred);
+
+template void QueryProcessor::filter<int>(const ArraySchema& array_schema,
+                            const Predicate<int>& pred,
+                            const std::string& result_array_name);
+
+template void QueryProcessor::filter<double>(const ArraySchema& array_schema,
+                            const Predicate<double>& pred,
+                            const std::string& result_array_name);
+
+template void QueryProcessor::filter<float>(const ArraySchema& array_schema,
+                            const Predicate<float>& pred,
+                            const std::string& result_array_name);
+
+
 
 // TODO figure this out later
 /*
@@ -1011,7 +1094,11 @@ void Executor::execute_export(const char* plan)
 	if(db_array != NULL) 
 		delete db_array;
 	
-	std::cout << "'export' query processed successfully!\n";
+	std::cout << "'etemplate void QueryProcessor::filter<double>(const ArraySchema& array_schema,
+                            const Predicate<double>& pred,
+                            const std::string& result_array_name) {
+
+xport' query processed successfully!\n";
 	fflush(stdout);
 }
 

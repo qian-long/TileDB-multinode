@@ -95,7 +95,7 @@ class QueryProcessor {
   
   // Filter predicates
   template<class T>
-  bool evaluate_predicate(T cell_val, const Predicate<T>& pred);
+  bool evaluate(Tile::const_iterator& cell_it, const Predicate<T>& pred);
  
  private:
   // PRIVATE ATTRIBUTES

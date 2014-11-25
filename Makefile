@@ -85,6 +85,9 @@ query_processor_test: $(BIN_DIR)/query_processor_test
 query_processor_example: $(BIN_DIR)/query_processor_example
 	rm -rf Data/StorageManager Data/Loader
 
+# Filter test
+filter_test: $(BIN_DIR)/filter_test
+	rm -rf Data/StorageManager Data/Loader
 
 #############
 # MPI Stuff #

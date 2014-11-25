@@ -79,7 +79,7 @@ int main() {
     // Load array from a CSV file
     // Make sure the CSV files in the path exist.
     loader.load("~/projects/TileDB-multinode/Data/test.csv",
-                 *array_schema_A, Loader::HILBERT);
+                 *array_schema_A, Loader::ROW_MAJOR);
 
     loader.load("~/projects/TileDB-multinode/Data/test.csv",
                  *array_schema_B, Loader::COLUMN_MAJOR);
@@ -92,15 +92,17 @@ int main() {
     Op op = LT;
     int operand = 8;
     Predicate<int> int_pred(attr_index, op, operand);
-    bool result = query_processor.evaluate_predicate<int>(7, int_pred);
+    bool result = query_processor.evaluate<int>(7, int_pred);
     std::cout << "int pred result: " << result << "\n";
 
     Op fop = NE;
     float foperand = 6.0;
     Predicate<float> float_pred(attr_index, fop, foperand);
-    bool fresult = query_processor.evaluate_predicate<float>(6.0, float_pred);
+    bool fresult = query_processor.evaluate<float>(6.0, float_pred);
     std::cout << "float pred result: " << fresult << "\n";
 
+    // Process a filter query
+    query_processor.filter(*array_schema_A,
 
     /*
     // Export an array to a CSV file
