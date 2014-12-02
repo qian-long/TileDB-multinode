@@ -63,7 +63,7 @@ int main() {
 
     // Testing predicate
     int attr_index = 1;
-    Op op = LE;
+    Op op = GT;
     int operand = 8;
     Predicate<int> pred_lt_4(attr_index, op, operand);
 
@@ -71,6 +71,16 @@ int main() {
     // Process a filter query
     query_processor.filter_irregular<int>(*array_schema_irreg, pred_lt_4, array_schema_filter->array_name());
     query_processor.export_to_CSV(*array_schema_filter, "~/projects/TileDB-multinode/Data/output/filter_irreg_test.csv");
+
+
+    // testing serializing predicate
+    std::string serial = pred_lt_4.serialize();
+    std::cout << "serial: " << serial << "\n";
+
+    Predicate<int> *pred = Predicate<int>::deserialize(serial.c_str(), serial.size());
+    std::cout << "pred.attr_index: " << pred->attr_index << "\n";
+    std::cout << "pred.op: " << pred->op << "\n";
+    std::cout << "pred.operand: " << pred->operand << "\n";
 
   // Catching exceptions 
   } catch(StorageManagerException& sme) {

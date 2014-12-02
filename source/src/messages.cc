@@ -89,3 +89,25 @@ void GetMsg::deserialize(GetMsg* msg, const char* buffer, int buffer_length) {
 
   msg->array_name = ss.str(); // first arg
 }
+
+template<class T>
+FilterMsg<T>::FilterMsg() : Msg(FILTER_TAG) {}
+
+template<class T>
+FilterMsg<T>::FilterMsg(ArraySchema& array_schema, Predicate<T>& predicate, std::string& result_array_name) {
+  array_schema_ = array_schema;
+  predicate_ = predicate;
+  result_array_name_ = result_array_name;
+}
+
+template<class T>
+std::string FilterMsg<T>::serialize() {
+  std::stringstream ss;
+
+  // serialize resulting array name
+  int length = result_array_name_.size();
+  ss.write((char *) &length, sizeof(int));
+  ss.write((char *) result_array_name_.c_str(), length);
+
+  // serialize predicate
+}
