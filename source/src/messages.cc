@@ -186,6 +186,7 @@ void FilterMsg<T>::deserialize(FilterMsg<T>* msg, const char* buffer, int buf_le
   assert(length + pos == buf_length);
 }
 
+
 ArraySchema::DataType parse_attr_type(const char* buffer, int buf_length) {
   // type is the first thing in the serial string, see serialize method
   return static_cast<ArraySchema::DataType>(buffer[0]);

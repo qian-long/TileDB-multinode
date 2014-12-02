@@ -44,6 +44,7 @@ void WorkerNode::run() {
   LoadMsg lmsg;
   GetMsg gmsg;
   while (loop) {
+    try {
       MPI_Recv(buf, MAX_DATA, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
       switch (status.MPI_TAG) {
@@ -64,13 +65,58 @@ void WorkerNode::run() {
           LoadMsg::deserialize(&lmsg, buf, length);
           result = handle(&lmsg);
           break;
-        case FILTER_TAG: // TODO this is really awkward with templating...
+        case FILTER_TAG: 
+          {
+            // this is really awkward with templating because the type of the
+            // attribute must be known before we create the filtermsg obj...
+            // // TODO look for a better way later
+            ArraySchema::DataType attr_type = static_cast<ArraySchema::DataType>(buf[0]);
+            switch(attr_type) {
+              case ArraySchema::DataType::INT:
+                {
+                  FilterMsg<int> fmsg;
+                  FilterMsg<int>::deserialize(&fmsg, buf, length);
+                  result = handle_filter(&fmsg, attr_type);
+                  break; 
+                }
+              case ArraySchema::DataType::FLOAT:
+                {
+                  FilterMsg<float> fmsg;
+                  FilterMsg<float>::deserialize(&fmsg, buf, length);
+                  result = handle_filter(&fmsg, attr_type);
+                  break; 
+                }
+               break; 
+              case ArraySchema::DataType::DOUBLE:
+                {
+                  FilterMsg<double> fmsg;
+                  FilterMsg<double>::deserialize(&fmsg, buf, length);
+                  result = handle_filter(&fmsg, attr_type);
+                  break; 
+                }
+               break; 
+              default:
+                // Data got corrupted
+                // TODO throw exception, fix int64_t
+                break;
+            } 
 
+          }
           break;
         default:
           std::string content(buf, length);
           DEBUG_MSG(content);
       }
+
+      // TODO delete stuff to avoid memory leak
+    } catch (StorageManagerException& sme) {
+      std::cout << "StorageManagerException:\n";
+      std::cout << sme.what() << "\n";
+    } catch(QueryProcessorException& qpe) {
+      DEBUG_MSG("QueryProcessorException: ");
+      DEBUG_MSG(qpe.what());
+    }
+
   }
 }
 
@@ -117,6 +163,16 @@ int WorkerNode::handle(LoadMsg* msg) {
   return 1;
 }
 
+template<class T>
+int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type) {
+  DEBUG_MSG("Received filter");
+  DEBUG_MSG("msg->array_schema->array_name(): " + msg->array_schema_.array_name());
+
+  query_processor_->filter_irregular<T>(msg->array_schema_, msg->predicate_, "blsh"); 
+  DEBUG_MSG("Finished filter");
+  return 1;
+}
+
 
 
 /******************************************************
@@ -134,3 +190,10 @@ std::string WorkerNode::convert_filename(std::string filename) {
   return ss.str();
 }
 
+/*
+std::string WorkerNode::convert_arrayname(std::string garray_name) {
+  std::stringstream ss;
+  ss << my_workspace_ << "/" << garray_name.c_str() << "_rnk" << myrank_;
+  return ss.str();
+}
+*/

@@ -70,11 +70,12 @@ int main() {
 
 
     // Process a filter query
-    //query_processor.filter_irregular<int>(*array_schema_irreg, pred_lt_4, array_schema_filter->array_name());
-    //query_processor.export_to_CSV(*array_schema_filter, "~/projects/TileDB-multinode/Data/output/filter_irreg_test.csv");
+    query_processor.filter_irregular<int>(*array_schema_irreg, pred_lt_4, array_schema_filter->array_name());
+    query_processor.export_to_CSV(*array_schema_filter, "~/projects/TileDB-multinode/Data/output/filter_irreg_test.csv");
 
 
     // testing serializing predicate
+    /*
     std::string serial = pred_lt_4.serialize();
     std::cout << "serial: " << serial << "\n";
 
@@ -91,6 +92,7 @@ int main() {
     FilterMsg<int>::deserialize(&fmsg1, blah.c_str(), blah.size());
     std::cout << "fmsg1.predicate_: " << fmsg1.predicate_.to_string() << "\n"; 
     std::cout << "fmsg1.array_schema_: " << fmsg1.array_schema_.to_string() << "\n"; 
+    */
 
   // Catching exceptions 
   } catch(StorageManagerException& sme) {

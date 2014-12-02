@@ -22,6 +22,8 @@ void CoordinatorNode::run() {
   GetMsg gmsg("partition_test");
   send_and_receive(gmsg);
 
+  // Set array name
+  std::string array_name = "my_array";
   // Set attribute names
   std::vector<std::string> attribute_names;
   attribute_names.push_back("attr1");
@@ -45,7 +47,7 @@ void CoordinatorNode::run() {
   dim_domains.push_back(std::pair<double,double>(0, 40));
   dim_domains.push_back(std::pair<double,double>(0, 40));
   // Create an array with irregular tiles
-  ArraySchema array_schema = ArraySchema("A",
+  ArraySchema array_schema = ArraySchema(array_name,
     attribute_names,
     attribute_types,
     dim_domains,
@@ -54,10 +56,20 @@ void CoordinatorNode::run() {
 
   DEBUG_MSG("sending load instruction to all workers");
 
-  std::string filename = "load_irreg_test";
+  std::string filename = "test";
   Loader::Order order = Loader::ROW_MAJOR;
   LoadMsg lmsg = LoadMsg(filename, array_schema, order);
   send_all(lmsg);
+
+
+  DEBUG_MSG("sending filter instruction to all workers");
+  int attr_index = 0;
+  Op op = GT;
+  int operand = 8;
+  Predicate<int> pred(attr_index, op, operand);
+  FilterMsg<int> fmsg = FilterMsg<int>(array_schema.attribute_type(attr_index), array_schema, pred, "test_filter");
+  send_all(fmsg);
+
   quit_all();
 }
 
