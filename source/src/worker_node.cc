@@ -64,6 +64,9 @@ void WorkerNode::run() {
           LoadMsg::deserialize(&lmsg, buf, length);
           result = handle(&lmsg);
           break;
+        case FILTER_TAG: // TODO this is really awkward with templating...
+
+          break;
         default:
           std::string content(buf, length);
           DEBUG_MSG(content);

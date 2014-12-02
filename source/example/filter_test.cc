@@ -1,6 +1,7 @@
 #include "loader.h"
 #include "query_processor.h"
 #include <iostream>
+#include "messages.h"
 
 int main() {
 
@@ -69,8 +70,8 @@ int main() {
 
 
     // Process a filter query
-    query_processor.filter_irregular<int>(*array_schema_irreg, pred_lt_4, array_schema_filter->array_name());
-    query_processor.export_to_CSV(*array_schema_filter, "~/projects/TileDB-multinode/Data/output/filter_irreg_test.csv");
+    //query_processor.filter_irregular<int>(*array_schema_irreg, pred_lt_4, array_schema_filter->array_name());
+    //query_processor.export_to_CSV(*array_schema_filter, "~/projects/TileDB-multinode/Data/output/filter_irreg_test.csv");
 
 
     // testing serializing predicate
@@ -81,6 +82,15 @@ int main() {
     std::cout << "pred.attr_index: " << pred->attr_index << "\n";
     std::cout << "pred.op: " << pred->op << "\n";
     std::cout << "pred.operand: " << pred->operand << "\n";
+
+    // testing serializing FilterMsg
+    FilterMsg<int> fmsg = FilterMsg<int>(array_schema_irreg->attribute_type(attr_index), *array_schema_irreg, pred_lt_4, array_schema_filter->array_name()); 
+    std::string blah = fmsg.serialize();
+
+    FilterMsg<int> fmsg1 = FilterMsg<int>();
+    FilterMsg<int>::deserialize(&fmsg1, blah.c_str(), blah.size());
+    std::cout << "fmsg1.predicate_: " << fmsg1.predicate_.to_string() << "\n"; 
+    std::cout << "fmsg1.array_schema_: " << fmsg1.array_schema_.to_string() << "\n"; 
 
   // Catching exceptions 
   } catch(StorageManagerException& sme) {

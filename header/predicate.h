@@ -14,6 +14,7 @@ class Predicate {
     T operand;
 
     // CONSTRUCTOR
+    Predicate() {}; // added this to make it compile 0_0
     Predicate(int attr_index, Op op, T operand);
 
     // DESTRUCTOR
@@ -22,6 +23,7 @@ class Predicate {
     // METHODS
     std::string serialize();
     static Predicate<T>* deserialize(const char* buffer, int length);
+    std::string to_string();
 };
 
 #endif

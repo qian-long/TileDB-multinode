@@ -75,21 +75,24 @@ class FilterMsg : public Msg {
     ArraySchema array_schema_;
     std::string result_array_name_;
     Predicate<T> predicate_; 
+    ArraySchema::DataType attr_type_;
 
     // CONSTRUCTORS
     FilterMsg();
 
-    FilterMsg(ArraySchema& schema, Predicate<T>& predicate, std::string& result_array_name);
+    FilterMsg(const ArraySchema::DataType& attr_type, ArraySchema& schema, Predicate<T>& predicate, const std::string& result_array_name);
 
     // DESTRUCTOR
-    ~FilterMsg(){};
-
+    ~FilterMsg();
 
     // SERIALIZE
     std::string serialize();
 
     // DESERIALIZE
-    static void deserialize(FilterMsg* msg, const char* buffer, int buffer_length);
+    static void deserialize(FilterMsg<T>* msg, const char* buffer, int buf_length);
+
+    // HELPER METHODS 
+    static ArraySchema::DataType parse_attr_type(const char* buffer, int buf_length);
 
   private:
 

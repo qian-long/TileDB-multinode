@@ -49,10 +49,16 @@ Predicate<T>* Predicate<T>::deserialize(const char* buffer, int length) {
   return new Predicate<T>(attr_index, op, operand);
 }
 
+template<class T>
+std::string Predicate<T>::to_string() {
+  std::stringstream ss;
+  ss << "Predicate{attr_index: " << attr_index << ", op: " << op << ", operand: " << operand << "}\n";
+  return ss.str();
+}
+
 template class Predicate<int>;
 template class Predicate<float>;
 template class Predicate<double>;
 // TODO why does this complain?
 //template class Predicate<int64_t>;
 
-//template Predicate<int> Predicate<int>::deserialize(const char* buffer, int length);
