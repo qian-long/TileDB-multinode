@@ -500,6 +500,7 @@ void QueryProcessor::init_tile_iterators(const ArraySchema& array_schema,
   unsigned int attribute_num = array_schema.attribute_num();
   const std::string& array_name = array_schema.array_name();  
 
+  std::cout << "init_tile_iterators attribute_num: " << attribute_num << "\n";
   for(unsigned int i=0; i<attribute_num; ++i) {
     if(array_schema.attribute_type(i) == ArraySchema::INT) {
       tile_its[i] = storage_manager_.begin(array_name, 
