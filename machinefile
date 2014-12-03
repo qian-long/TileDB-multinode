@@ -1,1 +1,1 @@
-localhost:3  # this will spawn 8 processes on localhost
+localhost:2  # this will spawn 8 processes on localhost

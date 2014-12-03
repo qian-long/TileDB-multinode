@@ -27,6 +27,7 @@ class WorkerNode {
     void run();
 
     // ACTIONS TO TAKE WHEN RECEIVING A MESSAGE
+    int handle_msg(int, Msg*);
     int handle(ArraySchemaMsg* msg);
     int handle(LoadMsg* msg);
     int handle(GetMsg* msg);

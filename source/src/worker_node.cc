@@ -41,9 +41,7 @@ void WorkerNode::run() {
   int length;
   int loop = true;
   int result;
-  LoadMsg lmsg;
-  GetMsg gmsg;
-  ArraySchemaMsg asmsg;
+  Msg* msg;
   while (loop) {
       MPI_Recv(buf, MAX_DATA, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
@@ -52,19 +50,11 @@ void WorkerNode::run() {
           loop = false;
           break;
         case GET_TAG:
-          GetMsg::deserialize(&gmsg, buf, length);
-          result = handle(&gmsg);
-          //result = receive_get(std::string(buf, length));
-          assert(result);
-          break;
         case ARRAY_SCHEMA_TAG:
-          ArraySchemaMsg::deserialize(&asmsg, buf, length);
-          result = handle(&asmsg);
+        case LOAD_TAG: 
+          msg = deserialize_msg(status.MPI_TAG, buf, length);
+          result = handle_msg(msg->msg_tag, msg);
           assert(result);
-          break;
-        case LOAD_TAG: // TODO
-          LoadMsg::deserialize(&lmsg, buf, length);
-          result = handle(&lmsg);
           break;
         default:
           std::string content(buf, length);
@@ -75,7 +65,6 @@ void WorkerNode::run() {
 
 
 int WorkerNode::handle(GetMsg* msg) {
-  
   CSVFile file(get_arrayname(msg->array_name), CSVFile::READ, MAX_DATA);
   CSVLine line;
 
@@ -94,7 +83,6 @@ int WorkerNode::handle(GetMsg* msg) {
 }
 
 int WorkerNode::handle(ArraySchemaMsg* msg) {
-  
   // you might be wondering why this is here, its cause you have to copy msg->array_schema
   // otherwise the data will be corrupted when you get a new message
   (*this->global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
@@ -107,7 +95,9 @@ int WorkerNode::handle(ArraySchemaMsg* msg) {
 int WorkerNode::handle(LoadMsg* msg) {
   DEBUG_MSG("Received load\n");
 
-  //does dereferencing msg->array_schema make sense?
+  DEBUG_MSG(msg->filename);
+  DEBUG_MSG(msg->array_schema->array_name());
+  DEBUG_MSG(convert_filename(msg->filename));
   this->loader_->load(convert_filename(msg->filename), *msg->array_schema, msg->order);
 
   DEBUG_MSG("Finished load");
@@ -131,3 +121,18 @@ std::string WorkerNode::convert_filename(std::string filename) {
   return ss.str();
 }
 
+//My c++ isn't great, i thought that c++ was smart enough to do this on its own
+//with overloaded msg and message types
+//the original plan was to only have handle(TYPEMsg*) and c++ would deduce the right 
+//handle and call that, since that doesn't work this is the current workaround
+int WorkerNode::handle_msg(int type, Msg* msg){
+  switch(type){
+    case GET_TAG:
+      return handle((GetMsg*) msg);
+    case ARRAY_SCHEMA_TAG:
+      return handle((ArraySchemaMsg*) msg);
+    case LOAD_TAG: // TODO
+      return handle((LoadMsg*) msg);
+  }
+  throw std::invalid_argument("trying to deserailze msg of unknown type");
+}

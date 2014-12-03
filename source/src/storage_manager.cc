@@ -78,21 +78,33 @@ StorageManager::ArrayMode StorageManager::array_mode(
     return array_it->second;
 }
 
+//Debug Purposes only
+#include "debug.h"
 void StorageManager::close_array(const std::string& array_name) {
   // Perform check
+  DEBUG_MSG("store manager 1");
   check_array_on_close(array_name);  
 
+  DEBUG_MSG("store manager 2");
   // Flush tiles and indices 
   if(open_arrays_index_[array_name] == CREATE) {
+    DEBUG_MSG("store manager 3a");
     flush_tiles(array_name);
+    DEBUG_MSG("store manager 4a");
+    DEBUG_MSG(array_name);
+    DEBUG_MSG("store manager 4a_1");
     delete_tiles(array_name);
+    DEBUG_MSG("store manager 5a");
     check_array_correctness_on_close(array_name);
     flush_indices(array_name);
     delete_indices(array_name);
   } else {
+    DEBUG_MSG("store manager 3b");
     delete_tiles(array_name);
+    DEBUG_MSG("store manager 4b");
     delete_indices(array_name);
   }
+  DEBUG_MSG("store manager End");
 }
 
 void StorageManager::delete_array(const std::string& array_name) {
@@ -755,16 +767,28 @@ void StorageManager::delete_indices(const std::string& array_name) {
 }
 
 void StorageManager::delete_tiles(const std::string& array_name) {
+  DEBUG_MSG("storage manger delete start");
   TileIndex::const_iterator array_it = tile_index_.begin();
+  DEBUG_MSG("storage manger delete 1");
   if(array_it != tile_index_.end()) {
+    DEBUG_MSG("storage manger delete 2");
     AttributeToTileList::const_iterator attribute_it = 
         array_it->second.begin();
+    DEBUG_MSG("storage manger delete 3");
     AttributeToTileList::const_iterator attribute_it_end = 
         array_it->second.end();
 
-    for(; attribute_it != attribute_it_end; attribute_it++)
+    DEBUG_MSG("storage manger delete 4");
+    for(; attribute_it != attribute_it_end; attribute_it++) {
+      DEBUG_MSG("storage manger delete 5");
       delete_tiles(array_name, attribute_it->first);
+      DEBUG_MSG("storage manger delete 6");
+
+      //attribute_it++;
+      DEBUG_MSG(array_it->second.size());
+    }
   }
+  DEBUG_MSG("storage manager delete end");
 }
 
 void StorageManager::delete_tiles(const std::string& array_name,

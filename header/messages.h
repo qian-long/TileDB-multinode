@@ -40,7 +40,7 @@ class LoadMsg : public Msg {
     ~LoadMsg(){};
 
     std::string serialize();
-    static void deserialize(LoadMsg* msg, const char* buffer, int buffer_length);
+    static LoadMsg* deserialize(const char* buffer, int buffer_length);
 
 };
 
@@ -55,7 +55,7 @@ class GetMsg : public Msg {
     ~GetMsg(){};
 
     std::string serialize();
-    static void deserialize(GetMsg* msg, const char* buffer, int buffer_length);
+    static GetMsg* deserialize(const char* buffer, int buffer_length);
 };
 
 class ArraySchemaMsg : public Msg {
@@ -69,8 +69,10 @@ class ArraySchemaMsg : public Msg {
     ~ArraySchemaMsg(){};
 
     std::string serialize();
-    static void deserialize(ArraySchemaMsg* msg, const char* buffer, int buffer_length);
+    static ArraySchemaMsg* deserialize(const char* buffer, int buffer_length);
 };
+
+Msg* deserialize_msg(int MsgType, const char* buffer, int buffer_length);
 
 
 #endif 

@@ -156,6 +156,7 @@ void using_abstract_tiles() {
   std::cout << "Testing class Tile finished.\n\n";
 }
 
+/*
 int main() {
   using_attribute_tiles();
   using_coordinate_tiles();
@@ -163,3 +164,4 @@ int main() {
   
   return 0;
 }
+*/

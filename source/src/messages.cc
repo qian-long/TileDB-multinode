@@ -9,8 +9,20 @@ std::string Msg::serialize() {
   throw std::bad_function_call();
 }
 
+Msg* deserialize_msg(int type, const char* buf, int length){
+  switch(type){
+    case GET_TAG:
+      return GetMsg::deserialize(buf, length);
+    case ARRAY_SCHEMA_TAG:
+      return ArraySchemaMsg::deserialize(buf, length);
+    case LOAD_TAG: // TODO
+      return LoadMsg::deserialize(buf, length);
+  }
+  throw std::invalid_argument("trying to deserailze msg of unknown type");
+}
+
+
 std::string LoadMsg::serialize() {
-  
   std::stringstream ss;
   // serialize filename
   int filename_length = filename.size();
@@ -29,8 +41,10 @@ std::string LoadMsg::serialize() {
   return ss.str();
 }
 
-void LoadMsg::deserialize(LoadMsg* msg, const char * buffer, int buffer_length) {
-
+LoadMsg* LoadMsg::deserialize(const char * buffer, int buffer_length) {
+  //Load vars
+  std::string filename;
+  Loader::Order order;
   std::stringstream ss;
   int counter = 0;
 
@@ -38,23 +52,21 @@ void LoadMsg::deserialize(LoadMsg* msg, const char * buffer, int buffer_length) 
   counter += sizeof(int);
   ss.write(&buffer[counter], filename_length);
 
-  msg->filename = ss.str(); // first arg
+  filename = ss.str(); // first arg
   counter += filename_length;
 
-  memcpy(&msg->order, &buffer[counter], sizeof(Loader::Order));
+  memcpy(&order, &buffer[counter], sizeof(Loader::Order));
   counter += sizeof(Loader::Order);
 
   int arrayschema_length = (int) buffer[counter];
   counter += sizeof(int);
   
   // this is creating space for it on the heap. 
-  msg->array_schema = (ArraySchema*) malloc(sizeof(ArraySchema));
-  ArraySchema::deserialize(msg->array_schema, &buffer[counter], arrayschema_length); // 3rd arg
+  ArraySchema* schema = ArraySchema::deserialize(&buffer[counter], arrayschema_length); // 3rd arg
 
   // finished parsing
   assert(counter + arrayschema_length == buffer_length);
-
-  return;
+  return new LoadMsg(filename, schema, order);
 }
 
 LoadMsg::LoadMsg() : Msg(LOAD_TAG) { }
@@ -81,7 +93,10 @@ std::string GetMsg::serialize() {
   return ss.str();
 }
 
-void GetMsg::deserialize(GetMsg* msg, const char* buffer, int buffer_length) {
+GetMsg* GetMsg::deserialize(const char* buffer, int buffer_length) {
+
+  //getmsg args
+  std::string array_name;
   std::stringstream ss;
   int counter = 0;
 
@@ -89,7 +104,8 @@ void GetMsg::deserialize(GetMsg* msg, const char* buffer, int buffer_length) {
   counter += sizeof(int);
   ss.write(&buffer[counter], array_name_length);
 
-  msg->array_name = ss.str(); // first arg
+  array_name = ss.str(); // first arg
+  return new GetMsg(array_name);
 }
 
 ArraySchemaMsg::ArraySchemaMsg() : Msg(ARRAY_SCHEMA_TAG) {};
@@ -102,7 +118,7 @@ std::string ArraySchemaMsg::serialize() {
   return this->array_schema->serialize();
 }
 
-void ArraySchemaMsg::deserialize(ArraySchemaMsg* msg, const char* buffer, int buffer_length) {
-  msg->array_schema = (ArraySchema*) malloc(sizeof(ArraySchema));
-  ArraySchema::deserialize(msg->array_schema, buffer, buffer_length);
+ArraySchemaMsg* ArraySchemaMsg::deserialize(const char* buffer, int buffer_length) {
+  ArraySchema* schema = ArraySchema::deserialize(buffer, buffer_length);
+  return new ArraySchemaMsg(schema);
 }

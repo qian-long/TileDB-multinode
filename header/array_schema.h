@@ -154,7 +154,7 @@ class ArraySchema {
   /** Serialize array schema object into char array **/
   std::string serialize();
   /** Deserialize char array into array schema object **/
-  static void deserialize(ArraySchema*, const char *, int);
+  static ArraySchema* deserialize(const char *, int);
 
  private:
   // PRIVATE ATTRIBUTES
