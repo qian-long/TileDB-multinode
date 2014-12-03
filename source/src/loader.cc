@@ -57,23 +57,19 @@ Loader::Loader(const std::string& workspace,
 ******************* LOADING FUNCTIONS *****************
 ******************************************************/
 //remove only for debugging
-#include "debug.h" 
 
 void Loader::load(const std::string& filename, 
                   const ArraySchema& array_schema,
                   Loader::Order order) const {
   try {
-    DEBUG_MSG("LOAD 1");
     storage_manager_.open_array(array_schema.array_name(),  
                                StorageManager::CREATE);
-    DEBUG_MSG("LOAD 2");
 
     std::string to_be_sorted_filename = filename;
     if(to_be_sorted_filename[0] == '~') 
       to_be_sorted_filename = std::string(getenv("HOME")) +
           to_be_sorted_filename.substr(1, workspace_.size()-1);
 
-    DEBUG_MSG("LOAD 3");
     // Check filename (to be sorted)
     check_on_load(to_be_sorted_filename);
     std::string sorted_filename = workspace_ + "/sorted_" +
@@ -89,13 +85,11 @@ void Loader::load(const std::string& filename,
                              array_schema, order); 
       to_be_sorted_filename = injected_filename;
     }
-    DEBUG_MSG("LOAD 4");
 
     // Sort CSV
     sort_csv_file(to_be_sorted_filename, sorted_filename, array_schema, order);
     remove(injected_filename.c_str());
 
-    DEBUG_MSG("LOAD 5");
 
     // Make tiles
     if(regular)
@@ -103,14 +97,11 @@ void Loader::load(const std::string& filename,
     else
       make_tiles_irregular(sorted_filename, array_schema, order);
  
-    DEBUG_MSG("LOAD 6");
 
     remove(sorted_filename.c_str());
-    DEBUG_MSG("LOAD 7");
 
     storage_manager_.close_array(array_schema.array_name());
 
-    DEBUG_MSG("LOAD End");
 
   } catch(CSVFileException& cfe) {
     // TODO: exception safety
@@ -120,7 +111,6 @@ void Loader::load(const std::string& filename,
     throw LoaderException("TileException caught by Loader: " + te.what());
   } catch(StorageManagerException& sme) {
     // TODO: exception safety
-    DEBUG_MSG("storage manager exception");
     throw LoaderException("StorageManagerException caught by Loader: " + 
                           sme.what());
   } catch(LoaderException& le) {

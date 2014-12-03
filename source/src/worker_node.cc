@@ -83,8 +83,6 @@ int WorkerNode::handle(GetMsg* msg) {
 }
 
 int WorkerNode::handle(ArraySchemaMsg* msg) {
-  // you might be wondering why this is here, its cause you have to copy msg->array_schema
-  // otherwise the data will be corrupted when you get a new message
   (*this->global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
 
   // debug message
@@ -95,9 +93,6 @@ int WorkerNode::handle(ArraySchemaMsg* msg) {
 int WorkerNode::handle(LoadMsg* msg) {
   DEBUG_MSG("Received load\n");
 
-  DEBUG_MSG(msg->filename);
-  DEBUG_MSG(msg->array_schema->array_name());
-  DEBUG_MSG(convert_filename(msg->filename));
   this->loader_->load(convert_filename(msg->filename), *msg->array_schema, msg->order);
 
   DEBUG_MSG("Finished load");
