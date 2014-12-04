@@ -100,8 +100,8 @@ void WorkerNode::run() {
 
       // TODO delete stuff to avoid memory leak
     } catch (StorageManagerException& sme) {
-      std::cout << "StorageManagerException:\n";
-      std::cout << sme.what() << "\n";
+      DEBUG_MSG("StorageManagerException: ");
+      DEBUG_MSG(sme.what());
     } catch(QueryProcessorException& qpe) {
       DEBUG_MSG("QueryProcessorException: ");
       DEBUG_MSG(qpe.what());
