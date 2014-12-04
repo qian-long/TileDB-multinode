@@ -6,6 +6,8 @@
 #include "debug.h"
 #include "csv_file.h"
 #include "messages.h"
+#include <stdexcept>      // std::invalid_argument
+
 
 
 WorkerNode::WorkerNode(int rank, int nprocs) {
@@ -64,20 +66,20 @@ void WorkerNode::run() {
             // // TODO look for a better way later
             ArraySchema::DataType attr_type = static_cast<ArraySchema::DataType>(buf[0]);
             switch(attr_type) {
-              case ArraySchema::DataType::INT:
+              case ArraySchema::INT:
                 {
                   FilterMsg<int> *fmsg = FilterMsg<int>::deserialize(buf, length);
                   result = handle_filter(fmsg, attr_type);
                   break; 
                 }
-              case ArraySchema::DataType::FLOAT:
+              case ArraySchema::FLOAT:
                 {
                   FilterMsg<float> *fmsg = FilterMsg<float>::deserialize(buf, length);
                   result = handle_filter(fmsg, attr_type);
                   break; 
                 }
                break; 
-              case ArraySchema::DataType::DOUBLE:
+              case ArraySchema::DOUBLE:
                 {
                   FilterMsg<double> *fmsg = FilterMsg<double>::deserialize(buf, length);
                   result = handle_filter(fmsg, attr_type);

@@ -3,6 +3,7 @@
 #include <cstring>
 #include "debug.h"
 #include <functional>
+#include <stdexcept>      // std::invalid_argument
 
 /******************************************************
  *********************** MESSAGE **********************
