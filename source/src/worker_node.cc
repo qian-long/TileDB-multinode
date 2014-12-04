@@ -112,10 +112,14 @@ void WorkerNode::run() {
 
 
 int WorkerNode::handle(GetMsg* msg) {
-  CSVFile file(get_arrayname(msg->array_name), CSVFile::READ, MAX_DATA);
+  DEBUG_MSG("Receive get msg");
+
+  std::string result_filename = arrayname_to_csv_filename(msg->array_name);
+  query_processor_->export_to_CSV(*(*global_schema_map_)[msg->array_name], result_filename);
+  CSVFile file(result_filename, CSVFile::READ, MAX_DATA);
   CSVLine line;
 
-  // TODO make it better, right now everything is in one string
+  // TODO make it "stream", right now everything is in one string
   std::stringstream content;
   try {
     while(file >> line) {
@@ -161,6 +165,12 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type
 /******************************************************
  ****************** HELPER FUNCTIONS ******************
  ******************************************************/
+std::string WorkerNode::arrayname_to_csv_filename(std::string arrayname) {
+  std::stringstream ss;
+  ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
+  return ss.str();
+}
+
 std::string WorkerNode::get_arrayname(std::string arrayname) {
   std::stringstream ss;
   ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";

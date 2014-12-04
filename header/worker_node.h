@@ -45,6 +45,7 @@ class WorkerNode {
     /** Converts global array name to local array name **/
     std::string convert_arrayname(std::string garray_name);
 
+    std::string arrayname_to_csv_filename(std::string arrayname);
   private:
     // PRIVATE ATTRIBUTES
     int myrank_;
