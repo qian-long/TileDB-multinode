@@ -621,7 +621,7 @@ void StorageManager::check_array_on_open(const std::string& array_name,
   // Check if the directory of the array exists in the workspace
   std::string dir_name = workspace_ + "/" + array_name;
   // TODO force flush
-  DEBUG_MSG(std::flush);
+  //DEBUG_MSG(std::flush);
   struct stat st;
   stat(dir_name.c_str(), &st);
   if(mode == CREATE && S_ISDIR(st.st_mode))

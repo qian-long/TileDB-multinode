@@ -65,7 +65,7 @@ int main() {
     // Testing predicate
     int attr_index = 1;
     Op op = GT;
-    int operand = 8;
+    int operand = 100;
     Predicate<int> pred_lt_4(attr_index, op, operand);
 
 

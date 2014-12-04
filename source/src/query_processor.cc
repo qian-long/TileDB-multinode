@@ -32,7 +32,6 @@
  */
   
 #include "query_processor.h"
-#include "debug.h"
 #include <stdio.h>
 #include <typeinfo>
 #include <iostream>
@@ -50,7 +49,6 @@ QueryProcessor::QueryProcessor(StorageManager& storage_manager,
 
 void QueryProcessor::export_to_CSV(const ArraySchema& array_schema,
                                    const std::string& filename) const { 
-  //DEBUG_MSG("in export_to_CSV");
   // For easy reference
   const std::string& array_name = array_schema.array_name();
   const unsigned int attribute_num = array_schema.attribute_num();
@@ -84,7 +82,6 @@ void QueryProcessor::export_to_CSV(const ArraySchema& array_schema,
     // since (i) the number of tiles is equal across all attributes, and
     // (ii) the number of cells is equal across all attribute and coordinate
     // tiles with the same id.
-    //DEBUG_MSG("iterate over all tiles");
     while(tile_its[attribute_num] != tile_it_end) {
       // Iterate over all cells of each tile
       //DEBUG_MSG("attribute_num: ");
@@ -206,7 +203,7 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
       cell_it_end = (*tile_its[pred.attr_index]).end();
       int counter = 0;
       int prev_match_index = 0;
-      bool other_iters_initialized = false;
+      bool match_found = false;
 
       // iterate through all the cells in a tile
       while (cell_its[pred.attr_index] != cell_it_end) {
@@ -219,7 +216,7 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
         if (match) {
           // advance all other iterators to correct place
           // put logical cell into new tile
-          if (other_iters_initialized == false) {
+          if (match_found == false) {
             // create new tiles
             create_new_tiles(array_schema, tile_id, new_tiles);
 
@@ -231,7 +228,7 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
 
             }
 
-            other_iters_initialized = true;
+            match_found = true;
           }
 
           // advance all other cell iterators
@@ -255,7 +252,10 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
       }
 
       //DEBUG_MSG("Before store tiles");
-      store_tiles(array_schema, result_array_name, new_tiles);
+      if (match_found) {
+        store_tiles(array_schema, result_array_name, new_tiles);
+      }
+
       //DEBUG_MSG("After store tiles");
       ++tile_its[pred.attr_index];
       ++tile_id;
