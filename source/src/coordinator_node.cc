@@ -18,9 +18,6 @@ CoordinatorNode::~CoordinatorNode() {}
 void CoordinatorNode::run() {
   DEBUG_MSG("I am the master node");
   send_all("hello", DEF_TAG);
-  DEBUG_MSG("calling get");
-  GetMsg gmsg("partition_test");
-  send_and_receive(gmsg);
 
   // Set array name
   std::string array_name = "my_array";
@@ -61,7 +58,11 @@ void CoordinatorNode::run() {
   LoadMsg lmsg = LoadMsg(filename, &array_schema, order);
   send_all(lmsg);
 
-
+  /*
+  DEBUG_MSG("sending get my_array instruction to all workers");
+  GetMsg gmsg = GetMsg(array_name);
+  send_and_receive(gmsg);
+  */
   DEBUG_MSG("sending filter instruction to all workers");
   int attr_index = 0;
   Op op = GT;

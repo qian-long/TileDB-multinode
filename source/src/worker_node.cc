@@ -112,9 +112,20 @@ void WorkerNode::run() {
 
 
 int WorkerNode::handle(GetMsg* msg) {
-  DEBUG_MSG("Receive get msg");
+  DEBUG_MSG("Receive get msg: " + msg->array_name);
 
   std::string result_filename = arrayname_to_csv_filename(msg->array_name);
+  DEBUG_MSG("Result filename: " + result_filename);
+
+  // TODO check if arrayname is in worker
+  auto search = (*global_schema_map_).find(msg->array_name);
+  if (search == (*global_schema_map_).end()) {
+    DEBUG_MSG("did not find schema!");
+    return 0; // TODO need to fix b/c coordinator would hang
+  }
+
+  ArraySchema * schema = (*global_schema_map_)[msg->array_name];
+  DEBUG_MSG(schema->to_string());
   query_processor_->export_to_CSV(*(*global_schema_map_)[msg->array_name], result_filename);
   CSVFile file(result_filename, CSVFile::READ, MAX_DATA);
   CSVLine line;
@@ -144,7 +155,8 @@ int WorkerNode::handle(ArraySchemaMsg* msg) {
 int WorkerNode::handle(LoadMsg* msg) {
   DEBUG_MSG("Received load\n");
 
-  this->loader_->load(convert_filename(msg->filename), *msg->array_schema, msg->order);
+  (*global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
+  loader_->load(convert_filename(msg->filename), *msg->array_schema, msg->order);
 
   DEBUG_MSG("Finished load");
   return 1;

@@ -32,6 +32,7 @@
  */
   
 #include "query_processor.h"
+#include "debug.h"
 #include <stdio.h>
 #include <typeinfo>
 #include <iostream>
@@ -49,6 +50,7 @@ QueryProcessor::QueryProcessor(StorageManager& storage_manager,
 
 void QueryProcessor::export_to_CSV(const ArraySchema& array_schema,
                                    const std::string& filename) const { 
+  DEBUG_MSG("in export_to_CSV");
   // For easy reference
   const std::string& array_name = array_schema.array_name();
   const unsigned int attribute_num = array_schema.attribute_num();
@@ -82,10 +84,18 @@ void QueryProcessor::export_to_CSV(const ArraySchema& array_schema,
     // since (i) the number of tiles is equal across all attributes, and
     // (ii) the number of cells is equal across all attribute and coordinate
     // tiles with the same id.
+    DEBUG_MSG("iterate over all tiles");
     while(tile_its[attribute_num] != tile_it_end) {
       // Iterate over all cells of each tile
-      for(unsigned int i=0; i<attribute_num+1; i++) 
-        cell_its[i] = (*tile_its[i]).begin();
+      DEBUG_MSG("attribute_num: ");
+      DEBUG_MSG(attribute_num);
+      for(unsigned int i=0; i<attribute_num+1; i++) {
+        DEBUG_MSG("i: ");
+        DEBUG_MSG(i);
+        //cell_its[i] = (*tile_its[i]).begin();
+        cell_its[i] = (*(tile_its[i])).begin();
+      }
+
    
       cell_it_end = (*tile_its[attribute_num]).end();
       while(cell_its[attribute_num] != cell_it_end) { 

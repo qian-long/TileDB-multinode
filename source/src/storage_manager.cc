@@ -185,17 +185,25 @@ template<class T>
 const Tile* StorageManager::get_tile(
     const std::string& array_name, const std::string& attribute_name,
     uint64_t tile_id) {
+  DEBUG_MSG("in get_tile");
   check_array_on_get_tile(array_name);
+
+  DEBUG_MSG("finished check array on get_tile");
   check_tile_id_on_get_tile(array_name, attribute_name, tile_id);
   
+  DEBUG_MSG("finished checking tile_id");
   const Tile* tile = get_tile_from_tile_index(array_name, 
                                               attribute_name, tile_id);
   
   if(tile == NULL) {
+    DEBUG_MSG("tile is null");
     load_tiles<T>(array_name, attribute_name, tile_id);
+
+    DEBUG_MSG("loaded tile");
     tile = get_tile_from_tile_index(array_name, attribute_name, tile_id);
   }
 
+  DEBUG_MSG("end get_tile");
   return tile;
 }
 
@@ -269,11 +277,14 @@ bool StorageManager::const_iterator::operator!=(
 }
 
 const Tile& StorageManager::const_iterator::operator*() const {
+  DEBUG_MSG("in const_iterator dereference"); 
   if(attribute_name_ != SM_COORDINATE_TILE_NAME) { // Return attribute tile
-    if(*cell_type_ == typeid(int)) 
-      return *storage_manager_->get_tile<int>(array_name_, 
-                                              attribute_name_, 
-                                              tile_id_it_->first);
+    if(*cell_type_ == typeid(int)) {
+      DEBUG_MSG("int attribute type");
+      return *(storage_manager_->get_tile<int>(array_name_,
+                                              attribute_name_,
+                                              tile_id_it_->first));
+    }
     else if(*cell_type_ == typeid(int64_t)) 
       return *storage_manager_->get_tile<int64_t>(array_name_, 
                                                   attribute_name_, 
@@ -770,26 +781,53 @@ void StorageManager::delete_tiles(const std::string& array_name) {
 
 void StorageManager::delete_tiles(const std::string& array_name,
                                   const std::string& attribute_name) {
+  DEBUG_MSG("In delete attribute tile");
   // Delete tiles
   TileIndex::iterator TI_array_it = tile_index_.find(array_name);
+
   if(TI_array_it != tile_index_.end()) {
+
+    DEBUG_MSG("ASDFASFDSASDFAS");
     AttributeToTileList::iterator TI_attribute_it = 
         TI_array_it->second.find(attribute_name);
+
+    DEBUG_MSG("ASDFASFDSASDFAS");
     if(TI_attribute_it != TI_array_it->second.end()) {
+
+    DEBUG_MSG("ASDFASFDSASDFAS");
       TileList::iterator tile_it = TI_attribute_it->second.begin();
       TileList::iterator tile_it_end = TI_attribute_it->second.end();
+
+    DEBUG_MSG("ASDFASFDSASDFAS");
+
+      DEBUG_MSG("About to delete tiles");
       for(; tile_it != tile_it_end; tile_it++)
         delete *tile_it;
+
+
+      DEBUG_MSG("Finished deleting tiles");
     }
-  }
+
+  DEBUG_MSG("TI_array_it: ");
 
   // Update indices 
   TI_array_it->second.erase(attribute_name);
+
+  }
+    DEBUG_MSG("ASDFASFDSASDFAS");
   PayloadSizeIndex::iterator PSI_array_it = 
       payload_size_index_.find(array_name);
-  if(PSI_array_it != payload_size_index_.end())
+
+    DEBUG_MSG("ASDFASFDSASDFAS");
+  if(PSI_array_it != payload_size_index_.end()) {
+
+    DEBUG_MSG("ASDFASFDSASDFAS");
     PSI_array_it->second.erase(attribute_name);
+  }
+
+  DEBUG_MSG("Finished delete attribute tile");
 }
+
 
 // FILE FORMAT:
 // attribute_num(unsigned int) 
@@ -1759,6 +1797,7 @@ template<class T>
 void StorageManager::load_tiles(const std::string& array_name,
                                 const std::string& attribute_name,
                                 uint64_t start_tile_id) { 
+  DEBUG_MSG("in load_tiles");
   // Load the tile payloads from the disk into a buffer
   char* buffer;
   std::pair<uint64_t, uint64_t> ret = 
@@ -1774,6 +1813,7 @@ void StorageManager::load_tiles(const std::string& array_name,
   // Delete previous tiles from main memory
   delete_tiles(array_name, attribute_name);
   
+  DEBUG_MSG("deleted previous tiles from memory");
   // Create the tiles form the payloads in the buffer and load them
   // into the tile index
   try {
@@ -1786,6 +1826,7 @@ void StorageManager::load_tiles(const std::string& array_name,
  
   // Clean up
   delete [] buffer;
+  DEBUG_MSG("FINISHED LOAD_TILES");
 }
 
 template<class T>

@@ -36,6 +36,7 @@
 #define STORAGEMANAGER_H
 
 #include "tile.h"
+#include "debug.h"
 #include <vector>
 #include <string>
 #include <map>
