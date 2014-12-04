@@ -148,13 +148,20 @@ class ArraySchema {
   uint64_t tile_id_row_major(const std::vector<T>& coordinates) const;
 
 
-  /** Print array schema **/
+  /** String representation of array schema **/
   std::string to_string();
+
+  /** Print array schema **/
   void print();
+
   /** Serialize array schema object into char array **/
   std::string serialize();
+
   /** Deserialize char array into array schema object **/
-  static ArraySchema* deserialize(const char *, int);
+  static ArraySchema* deserialize(const char * buf, int buf_len);
+
+  /** deep copy of array schema **/
+  ArraySchema * deep_copy(std::string new_array_name);
 
  private:
   // PRIVATE ATTRIBUTES

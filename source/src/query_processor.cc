@@ -50,7 +50,7 @@ QueryProcessor::QueryProcessor(StorageManager& storage_manager,
 
 void QueryProcessor::export_to_CSV(const ArraySchema& array_schema,
                                    const std::string& filename) const { 
-  DEBUG_MSG("in export_to_CSV");
+  //DEBUG_MSG("in export_to_CSV");
   // For easy reference
   const std::string& array_name = array_schema.array_name();
   const unsigned int attribute_num = array_schema.attribute_num();
@@ -84,14 +84,14 @@ void QueryProcessor::export_to_CSV(const ArraySchema& array_schema,
     // since (i) the number of tiles is equal across all attributes, and
     // (ii) the number of cells is equal across all attribute and coordinate
     // tiles with the same id.
-    DEBUG_MSG("iterate over all tiles");
+    //DEBUG_MSG("iterate over all tiles");
     while(tile_its[attribute_num] != tile_it_end) {
       // Iterate over all cells of each tile
-      DEBUG_MSG("attribute_num: ");
-      DEBUG_MSG(attribute_num);
+      //DEBUG_MSG("attribute_num: ");
+      //DEBUG_MSG(attribute_num);
       for(unsigned int i=0; i<attribute_num+1; i++) {
-        DEBUG_MSG("i: ");
-        DEBUG_MSG(i);
+        //DEBUG_MSG("i: ");
+        //DEBUG_MSG(i);
         //cell_its[i] = (*tile_its[i]).begin();
         cell_its[i] = (*(tile_its[i])).begin();
       }
@@ -158,7 +158,6 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
                             const Predicate<T>& pred,
                             const std::string& result_array_name) {
 
-  std::cout << "In filter irregular\n";
   // For easy reference
   const std::string& array_name = array_schema.array_name();
   const unsigned int attribute_num = array_schema.attribute_num();
@@ -166,8 +165,6 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
 
   // Initialize iterators
   
-  std::cout << "Initializing iterators\n";
-  std::cout << "attribute_num: " << attribute_num << "\n";
   StorageManager::const_iterator* tile_its =
       new StorageManager::const_iterator[attribute_num+1];
 
@@ -181,7 +178,6 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
   Tile** new_tiles = new Tile*[attribute_num+1];
   try {
     // Prepare arrays
-    std::cout << "Prepare arrays\n";
     storage_manager_.open_array(array_name, StorageManager::READ);
     if(storage_manager_.is_empty(array_name)) {
       delete [] tile_its;
@@ -193,7 +189,6 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
 
     // Initialize tile iterators
     init_tile_iterators(array_schema, tile_its, &tile_it_end);
-    std::cout << "Initialized tile iterators\n";
 
     // Opens new array
     storage_manager_.open_array(result_array_name, StorageManager::CREATE);
@@ -206,9 +201,7 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
     while(tile_its[pred.attr_index] != tile_it_end) {
       // start attribute tile cell iterator
       //
-      std::cout << "in while loop pred.attr_index: " << pred.attr_index << "\n";
       cell_its[pred.attr_index] = (*tile_its[pred.attr_index]).begin();
-      std::cout << "asdfasdfas\n";
 
       cell_it_end = (*tile_its[pred.attr_index]).end();
       int counter = 0;
@@ -218,7 +211,8 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
       // iterate through all the cells in a tile
       while (cell_its[pred.attr_index] != cell_it_end) {
 
-        std::cout << "in inner while loop counter: " << counter << "\n";
+        //DEBUG_MSG("in inner while loop counter");
+        //DEBUG_MSG(counter);
         // TODO fix int64_T
         bool match = evaluate<T>(cell_its[pred.attr_index], pred);
 
@@ -260,14 +254,16 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
         ++cell_its[pred.attr_index];
       }
 
+      //DEBUG_MSG("Before store tiles");
       store_tiles(array_schema, result_array_name, new_tiles);
+      //DEBUG_MSG("After store tiles");
       ++tile_its[pred.attr_index];
       ++tile_id;
 
     }
 
     // Clean up
-    std::cout << "Clean up\n";
+    //DEBUG_MSG("FINISHED FILTER");
     storage_manager_.close_array(array_name);
     storage_manager_.close_array(result_array_name);
     delete [] tile_its;
@@ -510,7 +506,6 @@ void QueryProcessor::init_tile_iterators(const ArraySchema& array_schema,
   unsigned int attribute_num = array_schema.attribute_num();
   const std::string& array_name = array_schema.array_name();  
 
-  std::cout << "init_tile_iterators attribute_num: " << attribute_num << "\n";
   for(unsigned int i=0; i<attribute_num; ++i) {
     if(array_schema.attribute_type(i) == ArraySchema::INT) {
       tile_its[i] = storage_manager_.begin(array_name, 
@@ -587,11 +582,15 @@ inline
 void QueryProcessor::store_tiles(const ArraySchema& array_schema,
                                  const std::string& result_array_name,
                                  Tile** tiles) const {
+  //DEBUG_MSG("In store_tiles");
   unsigned int attribute_num = array_schema.attribute_num();
   // Storing attribute tiles
-  for(unsigned int i=0; i<attribute_num; i++) 
+  for(unsigned int i=0; i<attribute_num; i++) {
+    //DEBUG_MSG("store_tiles i:");
+    //DEBUG_MSG(i);
     storage_manager_.append_tile(tiles[i], result_array_name, 
                                  array_schema.attribute_name(i));
+  }
 
   // Storing coordinate tiles
   storage_manager_.append_tile(tiles[attribute_num], result_array_name); 

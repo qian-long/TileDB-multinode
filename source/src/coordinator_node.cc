@@ -37,7 +37,7 @@ void CoordinatorNode::run() {
   dim_names.push_back("j");
 
   // Set dimension type
-  ArraySchema::DataType dim_type = ArraySchema::INT64_T;
+  ArraySchema::DataType dim_type = ArraySchema::DOUBLE;
 
   // Set dimension domains
   std::vector<std::pair<double,double> > dim_domains;
@@ -58,18 +58,19 @@ void CoordinatorNode::run() {
   LoadMsg lmsg = LoadMsg(filename, &array_schema, order);
   send_all(lmsg);
 
-  /*
-  DEBUG_MSG("sending get my_array instruction to all workers");
-  GetMsg gmsg = GetMsg(array_name);
-  send_and_receive(gmsg);
-  */
+
   DEBUG_MSG("sending filter instruction to all workers");
   int attr_index = 0;
   Op op = GT;
-  int operand = 8;
+  int operand = 4;
   Predicate<int> pred(attr_index, op, operand);
   FilterMsg<int> fmsg = FilterMsg<int>(array_schema.attribute_type(attr_index), array_schema, pred, "test_filter");
   send_all(fmsg);
+
+  DEBUG_MSG("sending get test_filter instruction to all workers");
+  GetMsg gmsg = GetMsg("test_filter");
+  send_and_receive(gmsg);
+
 
   quit_all();
 }
@@ -129,6 +130,7 @@ void CoordinatorNode::handle_get() {
     MPI_Get_count(&status, MPI_CHAR, &length);
     ss << std::string(buf, length);
   }
+  std::cout << ss.str();
 }
 
 void CoordinatorNode::quit_all() {

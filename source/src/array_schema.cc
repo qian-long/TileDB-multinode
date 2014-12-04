@@ -529,6 +529,65 @@ ArraySchema* ArraySchema::deserialize(const char * buffer, int length) {
   }
 }
 
+ArraySchema * ArraySchema::deep_copy(std::string new_array_name) {
+  std::vector<std::string> attribute_names;
+  std::vector<DataType> attribute_types;
+  std::vector<std::pair<double, double > > dim_domains;
+  std::vector<std::string> dim_names;
+  DataType dim_type;
+  std::vector<double> tile_extents;
+
+
+  std::vector<std::string>::iterator attr_names_it = attribute_names_.begin();
+  for (; attr_names_it != attribute_names_.end(); ++attr_names_it) {
+    attribute_names.push_back(*attr_names_it);
+  }
+
+  std::vector<DataType>::iterator attr_type_it = attribute_types_.begin();
+  for (; attr_type_it != attribute_types_.end(); ++attr_type_it) {
+    attribute_types.push_back(*attr_type_it);
+  }
+
+
+  // dim_names
+  std::vector<std::string>::iterator dim_names_it = dim_names_.begin();
+  for (; dim_names_it != dim_names_.end(); ++dim_names_it) {
+    dim_names.push_back(*dim_names_it);
+  }
+
+
+  // dim domains
+  std::vector<std::pair<double, double > >::iterator dim_domain_it = dim_domains_.begin();
+  for (; dim_domain_it != dim_domains_.end(); ++dim_domain_it) {
+    dim_domains.push_back(std::pair<double, double>(dim_domain_it->first, dim_domain_it->second));
+  }
+
+  if (has_regular_tiles()) {
+    std::vector<double>::iterator tile_ex_it = tile_extents_.begin();
+    for (; tile_ex_it != tile_extents_.end(); ++tile_ex_it) {
+      tile_extents.push_back(*tile_ex_it);
+    }
+
+    return new ArraySchema(new_array_name,
+      attribute_names,
+      attribute_types,
+      dim_domains,
+      dim_names,
+      dim_type,
+      tile_extents);
+
+  } else {
+
+    return new ArraySchema(new_array_name,
+      attribute_names,
+      attribute_types,
+      dim_domains,
+      dim_names,
+      dim_type);
+  }
+
+}
+
 /******************************************************
 ******************* PRIVATE METHODS *******************
 ******************************************************/

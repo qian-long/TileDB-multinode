@@ -127,6 +127,7 @@ int WorkerNode::handle(GetMsg* msg) {
   ArraySchema * schema = (*global_schema_map_)[msg->array_name];
   DEBUG_MSG(schema->to_string());
   query_processor_->export_to_CSV(*(*global_schema_map_)[msg->array_name], result_filename);
+  DEBUG_MSG("finished export to CSV");
   CSVFile file(result_filename, CSVFile::READ, MAX_DATA);
   CSVLine line;
 
@@ -166,8 +167,22 @@ template<class T>
 int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type) {
   DEBUG_MSG("Received filter");
   DEBUG_MSG("msg->array_schema->array_name(): " + msg->array_schema_.array_name());
+  std::string global_schema_name = msg->array_schema_.array_name();
 
-  query_processor_->filter_irregular<T>(msg->array_schema_, msg->predicate_, "blsh"); 
+  // temporary hack, create a copy of the array schema and replace the array
+  // name
+  // TODO check if arrayname is in worker
+  auto search = (*global_schema_map_).find(global_schema_name);
+  if (search == (*global_schema_map_).end()) {
+    DEBUG_MSG("did not find schema!");
+    return 0; // TODO need to fix b/c coordinator would hang
+  }
+
+  ArraySchema * new_schema = ((*global_schema_map_)[global_schema_name])->deep_copy(msg->result_array_name_);
+
+  (*global_schema_map_)[msg->result_array_name_] = new_schema;
+
+  query_processor_->filter_irregular<T>(msg->array_schema_, msg->predicate_, msg->result_array_name_); 
   DEBUG_MSG("Finished filter");
   return 1;
 }
@@ -183,11 +198,13 @@ std::string WorkerNode::arrayname_to_csv_filename(std::string arrayname) {
   return ss.str();
 }
 
+/*
 std::string WorkerNode::get_arrayname(std::string arrayname) {
   std::stringstream ss;
   ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
   return ss.str();
 }
+*/
 
 std::string WorkerNode::convert_filename(std::string filename) {
   std::stringstream ss;
@@ -210,10 +227,3 @@ int WorkerNode::handle_msg(int type, Msg* msg){
   }
   throw std::invalid_argument("trying to deserailze msg of unknown type");
 }
-/*
-std::string WorkerNode::convert_arrayname(std::string garray_name) {
-  std::stringstream ss;
-  ss << my_workspace_ << "/" << garray_name.c_str() << "_rnk" << myrank_;
-  return ss.str();
-}
-*/
