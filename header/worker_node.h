@@ -31,6 +31,9 @@ class WorkerNode {
     int handle(ArraySchemaMsg* msg);
     int handle(LoadMsg* msg);
     int handle(GetMsg* msg);
+    
+    template<class T>
+    int handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type);
 
 
     // HELPER FUNCTIONS
@@ -38,6 +41,9 @@ class WorkerNode {
 
     /** Returns filepath of matching csv file **/
     std::string convert_filename(std::string filename);
+    
+    /** Converts global array name to local array name **/
+    std::string convert_arrayname(std::string garray_name);
 
   private:
     // PRIVATE ATTRIBUTES

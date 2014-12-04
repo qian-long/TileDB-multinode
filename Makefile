@@ -32,7 +32,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc $(HEADS)
 	$(CXX) $(INCLUDE_PATHS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ_DIR)/* $(BIN_DIR)/* $(TEST_OBJ_DIR)/* $(EXAMPLE_OBJ_DIR)/* $(MPI_EXEC)
+	rm -f $(OBJ_DIR)/* $(BIN_DIR)/* $(TEST_OBJ_DIR)/* $(EXAMPLE_OBJ_DIR)/* $(MPI_EXEC) main.o
 
 
 ####################
@@ -42,11 +42,11 @@ clean:
 # Compile each test and example src
 # $< gets name of first matching dependency, $@ gets target name
 $(TEST_OBJ_DIR)/%.o: $(TEST_DIR)/%.cc
-	test -d $(TEST_OBJ_DIR) || mkdir -p $(TEST_OBJ_DIR)
+	mkdir -p $(TEST_OBJ_DIR)
 	$(CXX) $(INCLUDE_PATHS) -c $< -o $@
 
 $(EXAMPLE_OBJ_DIR)/%.o: $(EXAMPLE_DIR)/%.cc
-	test -d $(EXAMPLE_OBJ_DIR) || mkdir -p $(EXAMPLE_OBJ_DIR)
+	mkdir -p $(EXAMPLE_OBJ_DIR)
 	$(CXX) $(INCLUDE_PATHS) -c $< -o $@
 
 # don't delete intermediate object files
@@ -83,7 +83,11 @@ loader_example: $(BIN_DIR)/loader_example
 # Query processor test and example
 query_processor_test: $(BIN_DIR)/query_processor_test
 query_processor_example: $(BIN_DIR)/query_processor_example
+	rm -rf Data/StorageManager Data/Loader
 
+# Filter test
+filter_test: $(BIN_DIR)/filter_test
+	rm -rf Data/StorageManager Data/Loader Data/output/*
 
 #############
 # MPI Stuff #
@@ -92,8 +96,11 @@ query_processor_example: $(BIN_DIR)/query_processor_example
 mpi-debug: CXX += -DDEBUG -g
 mpi-debug: mpi
 
-$(MPI_EXEC): $(OBJS)
-	$(CXX) $(INCLUDE_PATHS) $(OBJS) -o $@
+main.o: main.cc
+	$(CXX) $(INCLUDE_PATHS) -c $< -o $@
+
+$(MPI_EXEC): main.o $(OBJS)
+	$(CXX) $(INCLUDE_PATHS) -o $@ $^
 
 mpi: $(MPI_EXEC)
 	./setup_env.sh

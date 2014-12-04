@@ -114,7 +114,6 @@ bool StorageManager::is_open(const std::string& array_name) const {
 void StorageManager::open_array(const std::string& array_name, ArrayMode mode) {
   // Perform check
   check_array_on_open(array_name, mode);
-  
   // Prepare indices and directories
   if(mode == READ) { 
     try {

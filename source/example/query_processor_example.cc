@@ -67,26 +67,48 @@ int main() {
 
   try {
     // Create a storage manager. The input is a path that MUST exist. 
-    StorageManager storage_manager("~/stavrospapadopoulos/TileDB/Data");
+    StorageManager storage_manager("~/projects/TileDB-multinode/Data");
 
     // Create a loader. The input is a path that MUST exist, and a 
     // storage manager. 
-    Loader loader("~/stavrospapadopoulos/TileDB/Data", storage_manager);
+    Loader loader("~/projects/TileDB-multinode/Data", storage_manager);
 
     // Create a query processor. The input is a storage manager. 
     QueryProcessor query_processor(storage_manager);
 
     // Load array from a CSV file
     // Make sure the CSV files in the path exist.
-    loader.load("~/stavrospapadopoulos/TileDB/Data/test.csv", 
-                 *array_schema_A, Loader::HILBERT);
-    loader.load("~/stavrospapadopoulos/TileDB/Data/test.csv", 
+    loader.load("~/projects/TileDB-multinode/Data/test.csv",
+                 *array_schema_A, Loader::ROW_MAJOR);
+
+    loader.load("~/projects/TileDB-multinode/Data/test.csv",
                  *array_schema_B, Loader::COLUMN_MAJOR);
 
+
+
+
+    // Testing predicate
+    int attr_index = 0;
+    Op op = LT;
+    int operand = 8;
+    Predicate<int> int_pred(attr_index, op, operand);
+    bool result = query_processor.evaluate<int>(7, int_pred);
+    std::cout << "int pred result: " << result << "\n";
+
+    Op fop = NE;
+    float foperand = 6.0;
+    Predicate<float> float_pred(attr_index, fop, foperand);
+    bool fresult = query_processor.evaluate<float>(6.0, float_pred);
+    std::cout << "float pred result: " << fresult << "\n";
+
+    // Process a filter query
+    query_processor.filter(*array_schema_A,
+
+    /*
     // Export an array to a CSV file
     query_processor.export_to_CSV(
         *array_schema_B, 
-        "~/stavrospapadopoulos/TileDB/Data/B_exported.csv");
+        "~/projects/TileDB-multinode/Data/B_exported.csv");
  
     // Process a subarray query
     std::vector<double> range;
@@ -95,11 +117,12 @@ int main() {
                              array_schema_R_A->array_name());
 
     query_processor.export_to_CSV(*array_schema_R_A,
-                                  "~/stavrospapadopoulos/TileDB/Data/R_A.csv");
+                                  "~/projects/TileDB-multinode/Data/R_A.csv");
     query_processor.subarray(*array_schema_B, range, 
                             array_schema_R_B->array_name());
     query_processor.export_to_CSV(*array_schema_R_B, 
-                                  "~/stavrospapadopoulos/TileDB/Data/R_B.csv");
+                                  "~/projects/TileDB-multinode/Data/R_B.csv");
+                                  */
 
     // Delete an array
     storage_manager.delete_array(array_schema_R_A->array_name());

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "array_schema.h"
 #include "loader.h"
+#include "predicate.h"
 
 #define QUIT_TAG 0
 #define DEF_TAG 1 // default
@@ -11,6 +12,7 @@
 #define INIT_TAG 3 // partition data, send array schema
 #define ARRAY_SCHEMA_TAG 4
 #define LOAD_TAG 5
+#define FILTER_TAG 6
 
 class Msg {
 
@@ -75,5 +77,35 @@ class ArraySchemaMsg : public Msg {
 Msg* deserialize_msg(int MsgType, const char* buffer, int buffer_length);
 
 
+template<class T>
+class FilterMsg : public Msg {
+
+  public:
+    // MEMBERS
+    ArraySchema array_schema_;
+    std::string result_array_name_;
+    Predicate<T> predicate_; 
+    ArraySchema::DataType attr_type_;
+
+    // CONSTRUCTORS
+    FilterMsg();
+
+    FilterMsg(const ArraySchema::DataType& attr_type, ArraySchema& schema, Predicate<T>& predicate, const std::string& result_array_name);
+
+    // DESTRUCTOR
+    ~FilterMsg();
+
+    // SERIALIZE
+    std::string serialize();
+
+    // DESERIALIZE
+    static FilterMsg<T>* deserialize(const char* buffer, int buf_length);
+
+    // HELPER METHODS 
+    static ArraySchema::DataType parse_attr_type(const char* buffer, int buf_length);
+
+  private:
+
+};
 #endif 
 

@@ -38,9 +38,11 @@
 #include "array_schema.h"
 #include "csv_file.h"
 #include "storage_manager.h"
+#include "predicate.h"
 
 /** The maximum size of a physical tile in the case of irregular tiles. */
 #define QP_MAX_TILE_SIZE 1000000 // 1MB 
+
 
 /** 
  * This class implements the query processor module, which is responsible
@@ -48,7 +50,7 @@
  */
 class QueryProcessor {
  public:
-  // TYPE DEFINITIONS
+  // TYPE AND STRUCT DEFINITIONS
   /** 
    * A multidimensional range (hyper-rectangle) in the loginal 
    * coordinate space. Format: <dim#1_lower, dim#1_upper, dim#2_lower, ...>. 
@@ -86,6 +88,15 @@ class QueryProcessor {
                 const Range& range,
                 const std::string& result_array_name) const;
 
+  template<class T>
+  void filter_irregular(const ArraySchema& array_schema,
+              const Predicate<T>& pred,
+              const std::string& result_array_name);
+  
+  // Filter predicates
+  template<class T>
+  bool evaluate(Tile::const_iterator& cell_it, const Predicate<T>& pred);
+ 
  private:
   // PRIVATE ATTRIBUTES
   /** The StorageManager object the QueryProcessor will be interfacing with. */
@@ -185,6 +196,8 @@ class QueryProcessor {
   void subarray_regular(const ArraySchema& array_schema,
                         const Range& range,
                         const std::string& result_array_name) const;
+
+
 };
 
 /** This exception is thrown by QueryProcessor. */

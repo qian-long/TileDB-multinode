@@ -6,6 +6,7 @@
 source/obj
 source/example/obj
 source/test/obj
+*.o
 
 # documentation
 doc/
