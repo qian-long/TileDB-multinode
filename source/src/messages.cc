@@ -20,11 +20,81 @@ Msg* deserialize_msg(int type, const char* buf, int length){
       return ArraySchemaMsg::deserialize(buf, length);
     case LOAD_TAG: // TODO
       return LoadMsg::deserialize(buf, length);
+    case SUB_ARRAY_TAG: // TODO
+      return SubArrayMsg::deserialize(buf, length);
   }
   throw std::invalid_argument("trying to deserailze msg of unknown type");
 }
 
+/******************************************************
+ ******************* SubArray MESSAGE *****************
+ ******************************************************/
+SubArrayMsg::SubArrayMsg(std::string result_name, ArraySchema* schema, std::vector<double> ranges) : Msg(SUB_ARRAY_TAG) {
+  this->result_array_name = result_name;
+  this->ranges = ranges;
+  this->array_schema = schema;
+}
 
+std::string SubArrayMsg::serialize() {
+  std::stringstream ss;
+  // serialize filename
+  int filename_length = result_array_name.size();
+  ss.write((char *) &filename_length, sizeof(int));
+  ss.write((char *) result_array_name.c_str(), filename_length);
+
+  //serialize array schema
+  std::string schema_serial = array_schema->serialize();
+  int schema_serial_length = schema_serial.size();
+  ss.write((char *) &schema_serial_length, sizeof(int));
+  ss.write((char *) schema_serial.c_str(), schema_serial_length);
+
+  //serailze ranges
+
+  int ranges_size = ranges.size();
+  ss.write((char *) &ranges_size, sizeof(int));
+
+  std::vector<double>::iterator it = this->ranges.begin();
+  for (; it != this->ranges.end(); it++) {
+    double extent = *it;
+    ss.write((char *) &extent, sizeof(double));
+  }
+
+  return ss.str();
+}
+SubArrayMsg* SubArrayMsg::deserialize(const char* buffer, int buffer_length){
+
+  int counter = 0;
+  std::stringstream ss;
+  std::vector<double> ranges;
+
+  // deserialize array name
+  int filename_length = (int) buffer[counter];
+  counter += sizeof(int);
+  ss.write(&buffer[counter], filename_length);
+
+  std::string array_name = ss.str(); // first arg
+  counter += filename_length;
+
+  //deserailize schema
+  int arrayschema_length = (int) buffer[counter];
+  counter += sizeof(int);
+  
+  ArraySchema* schema = ArraySchema::deserialize(&buffer[counter], arrayschema_length); 
+
+  //deserialize vector
+  int num_doubles = (int) buffer[counter];
+  counter += sizeof(int);
+
+  for (int i = 0; i < num_doubles; i++) {
+    double extent;
+    memcpy(&extent, &buffer[counter], sizeof(double));
+    ranges.push_back(extent);
+    counter += sizeof(double);
+  }
+
+  return new SubArrayMsg(array_name, schema, ranges);
+
+}
 /******************************************************
  ********************* LOAD MESSAGE *******************
  ******************************************************/
