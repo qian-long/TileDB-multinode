@@ -8,10 +8,11 @@ enum Op {LT, LE, EQ, GE, GT, NE};
 template<class T>
 class Predicate {
   public:
-    // MEMBERS
-    int attr_index;
-    Op op;
-    T operand;
+    // members
+    int attr_index_;
+    Op op_;
+    T operand_;
+
 
     // CONSTRUCTOR
     Predicate() {}; // added this to make it compile 0_0
@@ -20,10 +21,12 @@ class Predicate {
     // DESTRUCTOR
     ~Predicate();
 
+
     // METHODS
     std::string serialize();
     static Predicate<T>* deserialize(const char* buffer, int length);
     std::string to_string();
+
 };
 
 #endif

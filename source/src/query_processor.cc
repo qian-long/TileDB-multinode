@@ -37,6 +37,7 @@
 #include <iostream>
 #include <assert.h>
 #include <map>
+#include "debug.h"
 
 /******************************************************
 ********************* CONSTRUCTORS ********************
@@ -195,23 +196,23 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
 
     // keep track of matching cell ids for each tile
     // scan one tile at a time
-    while(tile_its[pred.attr_index] != tile_it_end) {
+    while(tile_its[pred.attr_index_] != tile_it_end) {
       // start attribute tile cell iterator
       //
-      cell_its[pred.attr_index] = (*tile_its[pred.attr_index]).begin();
+      cell_its[pred.attr_index_] = (*tile_its[pred.attr_index_]).begin();
 
-      cell_it_end = (*tile_its[pred.attr_index]).end();
+      cell_it_end = (*tile_its[pred.attr_index_]).end();
       int counter = 0;
       int prev_match_index = 0;
       bool match_found = false;
 
       // iterate through all the cells in a tile
-      while (cell_its[pred.attr_index] != cell_it_end) {
+      while (cell_its[pred.attr_index_] != cell_it_end) {
 
         //DEBUG_MSG("in inner while loop counter");
         //DEBUG_MSG(counter);
         // TODO fix int64_T
-        bool match = evaluate<T>(cell_its[pred.attr_index], pred);
+        bool match = evaluate<T>(cell_its[pred.attr_index_], pred);
 
         if (match) {
           // advance all other iterators to correct place
@@ -222,7 +223,7 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
 
             // initialize all other cell iterators for other tiles
             for (int i = 0; i < attribute_num + 1; i++) {
-              if (i != pred.attr_index) {
+              if (i != pred.attr_index_) {
                 cell_its[i] = (*tile_its[i]).begin();
               }
 
@@ -233,7 +234,7 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
 
           // advance all other cell iterators
           for (int i = 0; i < attribute_num + 1; i++) {
-            if (i != pred.attr_index) {
+            if (i != pred.attr_index_) {
               for (int j = prev_match_index; j < counter; j++) {
                 ++cell_its[i];
               }
@@ -248,7 +249,7 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
         }
 
         ++counter;
-        ++cell_its[pred.attr_index];
+        ++cell_its[pred.attr_index_];
       }
 
       //DEBUG_MSG("Before store tiles");
@@ -257,7 +258,7 @@ void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
       }
 
       //DEBUG_MSG("After store tiles");
-      ++tile_its[pred.attr_index];
+      ++tile_its[pred.attr_index_];
       ++tile_id;
 
     }
@@ -302,19 +303,19 @@ inline
 bool QueryProcessor::evaluate(Tile::const_iterator& cell_it, const Predicate<T>& pred) {
   T cell_val = *cell_it;
 
-  switch(pred.op) {
+  switch(pred.op_) {
     case LT:
-      return cell_val < pred.operand;
+      return cell_val < pred.operand_;
     case LE:
-      return cell_val <= pred.operand;
+      return cell_val <= pred.operand_;
     case EQ:
-      return cell_val == pred.operand;
+      return cell_val == pred.operand_;
     case GE:
-      return cell_val >= pred.operand;
+      return cell_val >= pred.operand_;
     case GT:
-      return cell_val > pred.operand;
+      return cell_val > pred.operand_;
     case NE:
-      return cell_val != pred.operand;
+      return cell_val != pred.operand_;
     default:
       break;
   }

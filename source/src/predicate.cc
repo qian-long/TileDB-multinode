@@ -3,12 +3,14 @@
 #include <sstream>
 #include <typeinfo>
 #include <iostream>
+#include "debug.h"
+#include <cstring>
 
 template<class T>
 Predicate<T>::Predicate(int attr_index, Op op, T operand) {
-  this->attr_index = attr_index;
-  this->op = op;
-  this->operand = operand;
+  attr_index_ = attr_index;
+  op_ = op;
+  operand_ = operand;
 };
 
 
@@ -18,25 +20,25 @@ Predicate<T>::~Predicate() {};
 template<class T>
 std::string Predicate<T>::serialize() {
 
-  std::stringstream ss;
+  int length = sizeof(int) + sizeof(Op) + sizeof(T);
+  char buffer[length];
+  int pos = 0;
 
   // serialize attribute index
-  ss.write((char *) &this->attr_index, sizeof(int));
+  memcpy(&buffer[0], &attr_index_, sizeof(int));
+  pos += sizeof(int);
 
   // serialize operator
-  ss.write((char *) &this->op, sizeof(Op));
+  memcpy(&buffer[pos], &op_, sizeof(Op));
+  pos += sizeof(Op);
 
-  // serialize operand type
-  
   // serialize operand
-  ss.write((char *) &this->operand, sizeof(T));
-
-  return ss.str();
+  memcpy(&buffer[pos], &operand_, sizeof(T));
+  return std::string(buffer, length);
 }
 
 template<class T>
 Predicate<T>* Predicate<T>::deserialize(const char* buffer, int length) {
-  std::stringstream ss;
   int pos = 0;
 
   int attr_index = (int) buffer[pos]; // attribute index
@@ -45,14 +47,45 @@ Predicate<T>* Predicate<T>::deserialize(const char* buffer, int length) {
   Op op = static_cast<Op>(buffer[pos]); // operator
   pos += sizeof(Op);
 
-  T operand = (T) buffer[pos];
+  T operand;
+  // not sure why type casting doesn't work
+  // ex) T operand = (T) buffer[pos] or static_cast<T>(buffer[pos])
+  memcpy(&operand, &buffer[pos], sizeof(T)); // operand
+
   return new Predicate<T>(attr_index, op, operand);
 }
 
 template<class T>
 std::string Predicate<T>::to_string() {
   std::stringstream ss;
-  ss << "Predicate{attr_index: " << attr_index << ", op: " << op << ", operand: " << operand << "}\n";
+  ss << "Predicate{attr_index: " << attr_index_ << ", op: ";
+    
+  switch(op_) {
+    case LT:
+      ss << "LT";
+      break;
+    case LE:
+      ss << "LE";
+      break;
+    case EQ:
+      ss << "EQ";
+      break;
+    case GE:
+      ss << "GE";
+      break;
+    case GT:
+      ss << "GT";
+      break;
+    case NE:
+      ss << "NE";
+      break;
+    default:
+      ss << "INVALID OP";
+      break;
+  }
+
+  ss << ", operand: " << operand_ << "}\n";
+
   return ss.str();
 }
 

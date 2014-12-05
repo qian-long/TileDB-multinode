@@ -330,6 +330,7 @@ std::string datatype_to_string(ArraySchema::DataType type) {
   return "";
 
 }
+
 std::string ArraySchema::to_string() {
   std::stringstream ss;
   ss << "ARRAY_SCHEMA" << "\n";

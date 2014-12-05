@@ -37,7 +37,7 @@ void CoordinatorNode::run() {
   dim_names.push_back("j");
 
   // Set dimension type
-  ArraySchema::DataType dim_type = ArraySchema::INT;
+  ArraySchema::DataType dim_type = ArraySchema::DOUBLE;
 
   // Set dimension domains
   std::vector<std::pair<double,double> > dim_domains;
@@ -53,26 +53,25 @@ void CoordinatorNode::run() {
 
   DEBUG_MSG("sending load instruction to all workers");
 
-  std::string filename = "smallish";
+  std::string filename = "test";
   Loader::Order order = Loader::ROW_MAJOR;
   LoadMsg lmsg = LoadMsg(filename, &array_schema, order);
   send_all(lmsg);
 
 
-  /*
   DEBUG_MSG("sending filter instruction to all workers");
-  int attr_index = 0;
+  int attr_index = 1;
   Op op = GT;
-  int operand = 500;
+  int operand = 4;
   Predicate<int> pred(attr_index, op, operand);
+  DEBUG_MSG(pred.to_string());
   FilterMsg<int> fmsg = FilterMsg<int>(array_schema.attribute_type(attr_index), array_schema, pred, "smallish_filter");
+
   send_all(fmsg);
-  */
 
   DEBUG_MSG("sending get test_filter instruction to all workers");
-  GetMsg gmsg = GetMsg("smallish");
+  GetMsg gmsg = GetMsg("smallish_filter");
   send_and_receive(gmsg);
-
 
   quit_all();
 }

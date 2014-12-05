@@ -198,6 +198,7 @@ template<class T>
 int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type) {
   DEBUG_MSG("Received filter");
   DEBUG_MSG("msg->array_schema->array_name(): " + msg->array_schema_.array_name());
+  
   std::string global_schema_name = msg->array_schema_.array_name();
 
   // temporary hack, create a copy of the array schema and replace the array

@@ -176,6 +176,7 @@ std::string FilterMsg<T>::serialize() {
   // serialize predicate
   std::string pred_serial = predicate_.serialize();
   int pred_serial_length = pred_serial.size();
+
   ss.write((char *) &pred_serial_length, sizeof(int));
   ss.write((char *) pred_serial.c_str(), pred_serial_length);
 
@@ -206,6 +207,7 @@ FilterMsg<T>* FilterMsg<T>::deserialize(const char* buffer, int buf_length) {
 
   // parse predicate
   length = (int) buffer[pos];
+
   pos += sizeof(int);
   Predicate<T>* pred = (Predicate<T>::deserialize(&buffer[pos], length));
   pos += length;

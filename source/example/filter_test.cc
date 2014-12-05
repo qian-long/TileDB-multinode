@@ -52,33 +52,36 @@ int main() {
 
     // Load array from a CSV file
     // Make sure the CSV files in the path exist.
-    loader.load("~/projects/TileDB-multinode/Data/medium.csv",
+    loader.load("~/projects/TileDB-multinode/Data/smallish.csv",
                  *array_schema_irreg, Loader::ROW_MAJOR);
 
 
     // Testing predicate
     int attr_index = 1;
-    Op op = GT;
+    Op op = EQ;
     int operand = 500;
     Predicate<int> pred(attr_index, op, operand);
 
 
     // Process a filter query
+    /*
     query_processor.filter_irregular<int>(*array_schema_irreg, pred, array_schema_filter->array_name());
     query_processor.export_to_CSV(*array_schema_filter, "~/projects/TileDB-multinode/Data/output/output.csv");
+    */
 
 
     // testing serializing predicate
-    /*
-    std::string serial = pred_lt_4.serialize();
+    std::string serial = pred.serialize();
     std::cout << "serial: " << serial << "\n";
 
-    Predicate<int> *pred = Predicate<int>::deserialize(serial.c_str(), serial.size());
-    std::cout << "pred.attr_index: " << pred->attr_index << "\n";
-    std::cout << "pred.op: " << pred->op << "\n";
-    std::cout << "pred.operand: " << pred->operand << "\n";
+    Predicate<int> *pred1 = Predicate<int>::deserialize(serial.c_str(), serial.size());
+    std::cout << "pred.attr_index: " << pred1->attr_index_ << "\n";
+    std::cout << "pred.op: " << pred1->op_ << "\n";
+    std::cout << "pred.operand: " << pred1->operand_ << "\n";
+    std::cout << "pred->to_string(): " << pred1->to_string() << "\n";
 
     // testing serializing FilterMsg
+    /*
     FilterMsg<int> fmsg = FilterMsg<int>(array_schema_irreg->attribute_type(attr_index), *array_schema_irreg, pred_lt_4, array_schema_filter->array_name()); 
     std::string blah = fmsg.serialize();
 
