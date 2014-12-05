@@ -20,7 +20,7 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "my_array";
+  std::string array_name = "smallish";
   // Set attribute names
   std::vector<std::string> attribute_names;
   attribute_names.push_back("attr1");
@@ -29,7 +29,7 @@ void CoordinatorNode::run() {
   // Set attribute types
   std::vector<ArraySchema::DataType> attribute_types;
   attribute_types.push_back(ArraySchema::INT);
-  attribute_types.push_back(ArraySchema::FLOAT);
+  attribute_types.push_back(ArraySchema::INT);
 
   // Set dimension names
   std::vector<std::string> dim_names;
@@ -37,12 +37,12 @@ void CoordinatorNode::run() {
   dim_names.push_back("j");
 
   // Set dimension type
-  ArraySchema::DataType dim_type = ArraySchema::DOUBLE;
+  ArraySchema::DataType dim_type = ArraySchema::INT;
 
   // Set dimension domains
   std::vector<std::pair<double,double> > dim_domains;
-  dim_domains.push_back(std::pair<double,double>(0, 40));
-  dim_domains.push_back(std::pair<double,double>(0, 40));
+  dim_domains.push_back(std::pair<double,double>(0, 1000));
+  dim_domains.push_back(std::pair<double,double>(0, 1000));
   // Create an array with irregular tiles
   ArraySchema array_schema = ArraySchema(array_name,
     attribute_names,
@@ -53,22 +53,24 @@ void CoordinatorNode::run() {
 
   DEBUG_MSG("sending load instruction to all workers");
 
-  std::string filename = "test";
+  std::string filename = "smallish";
   Loader::Order order = Loader::ROW_MAJOR;
   LoadMsg lmsg = LoadMsg(filename, &array_schema, order);
   send_all(lmsg);
 
 
+  /*
   DEBUG_MSG("sending filter instruction to all workers");
   int attr_index = 0;
   Op op = GT;
-  int operand = 4;
+  int operand = 500;
   Predicate<int> pred(attr_index, op, operand);
-  FilterMsg<int> fmsg = FilterMsg<int>(array_schema.attribute_type(attr_index), array_schema, pred, "test_filter");
+  FilterMsg<int> fmsg = FilterMsg<int>(array_schema.attribute_type(attr_index), array_schema, pred, "smallish_filter");
   send_all(fmsg);
+  */
 
   DEBUG_MSG("sending get test_filter instruction to all workers");
-  GetMsg gmsg = GetMsg("test_filter");
+  GetMsg gmsg = GetMsg("smallish");
   send_and_receive(gmsg);
 
 
@@ -126,11 +128,21 @@ void CoordinatorNode::handle_get() {
     int nodeid = i + 1;
     char *buf = new char[MAX_DATA];
     int length;
-    MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, GET_TAG, MPI_COMM_WORLD, &status);
-    MPI_Get_count(&status, MPI_CHAR, &length);
-    ss << std::string(buf, length);
+    bool keep_receiving = true;
+
+    int count = 0;
+    do {
+      MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, GET_TAG, MPI_COMM_WORLD, &status);
+      MPI_Get_count(&status, MPI_CHAR, &length);
+
+      // check last byte
+      keep_receiving = (bool) buf[length-1];
+
+      // print all but last byte
+      std::cout << std::string(buf, length - 1);
+    } while (keep_receiving);
+
   }
-  std::cout << ss.str();
 }
 
 void CoordinatorNode::quit_all() {

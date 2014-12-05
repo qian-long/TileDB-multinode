@@ -479,7 +479,6 @@ ArraySchema* ArraySchema::deserialize(const char * buffer, int length) {
   int num_dimensions = (int) buffer[counter];
   counter += sizeof(int);
   dim_type = static_cast<DataType>(buffer[counter]);
-  std::cout << "ARRAY SCHEMA DESERIALIZE DIM TYPE: " << dim_type << "\n";
   counter += sizeof(DataType);
   bool irregular = (bool) buffer[counter++];
 

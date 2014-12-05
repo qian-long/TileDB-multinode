@@ -35,10 +35,10 @@ int main() {
   tile_extents.push_back(10);
  
    // Create array schemas  
-  ArraySchema *array_schema_irreg = new ArraySchema("small_irreg", attribute_names, attribute_types,
+  ArraySchema *array_schema_irreg = new ArraySchema("irreg", attribute_names, attribute_types,
                                    dim_domains, dim_names, dim_type);
  
-  ArraySchema *array_schema_filter = new ArraySchema("small_filter", attribute_names, attribute_types, dim_domains, dim_names, dim_type);
+  ArraySchema *array_schema_filter = new ArraySchema("filter", attribute_names, attribute_types, dim_domains, dim_names, dim_type);
   try {
     // Create a storage manager. The input is a path that MUST exist. 
     StorageManager storage_manager("~/projects/TileDB-multinode/Data");
@@ -52,20 +52,20 @@ int main() {
 
     // Load array from a CSV file
     // Make sure the CSV files in the path exist.
-    loader.load("~/projects/TileDB-multinode/Data/test.csv",
+    loader.load("~/projects/TileDB-multinode/Data/medium.csv",
                  *array_schema_irreg, Loader::ROW_MAJOR);
 
 
     // Testing predicate
-    int attr_index = 0;
+    int attr_index = 1;
     Op op = GT;
-    int operand = 4;
+    int operand = 500;
     Predicate<int> pred(attr_index, op, operand);
 
 
     // Process a filter query
     query_processor.filter_irregular<int>(*array_schema_irreg, pred, array_schema_filter->array_name());
-    query_processor.export_to_CSV(*array_schema_filter, "~/projects/TileDB-multinode/Data/output/small_irreg_test.csv");
+    query_processor.export_to_CSV(*array_schema_filter, "~/projects/TileDB-multinode/Data/output/output.csv");
 
 
     // testing serializing predicate

@@ -110,14 +110,19 @@ void WorkerNode::run() {
   }
 }
 
+/******************************************************
+ ****************** MESSAGE HANDLERS ******************
+ ******************************************************/
 
+
+/*************** HANDLE GET **********************/
 int WorkerNode::handle(GetMsg* msg) {
   DEBUG_MSG("Receive get msg: " + msg->array_name);
 
   std::string result_filename = arrayname_to_csv_filename(msg->array_name);
   DEBUG_MSG("Result filename: " + result_filename);
 
-  // TODO check if arrayname is in worker
+  // check if arrayname is in worker
   auto search = (*global_schema_map_).find(msg->array_name);
   if (search == (*global_schema_map_).end()) {
     DEBUG_MSG("did not find schema!");
@@ -125,35 +130,58 @@ int WorkerNode::handle(GetMsg* msg) {
   }
 
   ArraySchema * schema = (*global_schema_map_)[msg->array_name];
+
   DEBUG_MSG(schema->to_string());
   query_processor_->export_to_CSV(*(*global_schema_map_)[msg->array_name], result_filename);
+
   DEBUG_MSG("finished export to CSV");
   CSVFile file(result_filename, CSVFile::READ, MAX_DATA);
   CSVLine line;
 
   // TODO make it "stream", right now everything is in one string
   std::stringstream content;
+  bool keep_receiving = true;
+  int count = 0;
   try {
     while(file >> line) {
+      // encode "there is more coming" in the last byte
+      if (content.str().length() + line.str().length() + 1 >= MAX_DATA) {
+        content.write((char *) &keep_receiving, sizeof(bool));
+        MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, GET_TAG, MPI_COMM_WORLD);
+        count++;
+        content.str(std::string()); // clear buffer
+      }
       content << line.str() << "\n";
     }
+
   } catch(CSVFileException& e) {
     std::cout << e.what() << "\n";
+    // TODO send error
     return 0;
   }
 
+  // final send, tell coordinator to stop receiving
+  keep_receiving = false;
+  content.write((char *) &keep_receiving, sizeof(bool));
   MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, GET_TAG, MPI_COMM_WORLD);
+
+  count++;
+
+  DEBUG_MSG("[GET] finished sending, count: ");
+  DEBUG_MSG(count);
   return 1;
 }
 
+/*************** HANDLE ARRAY SCHEMA ***************/
 int WorkerNode::handle(ArraySchemaMsg* msg) {
-  (*this->global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
 
-  // debug message
+  (*global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
+
   DEBUG_MSG("received array schema: \n" + msg->array_schema->to_string());
   return 1;
 }
 
+/*************** HANDLE LOAD **********************/
 int WorkerNode::handle(LoadMsg* msg) {
   DEBUG_MSG("Received load\n");
 
@@ -164,6 +192,8 @@ int WorkerNode::handle(LoadMsg* msg) {
   return 1;
 }
 
+
+/*************** HANDLE FILTER **********************/
 template<class T>
 int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type) {
   DEBUG_MSG("Received filter");
