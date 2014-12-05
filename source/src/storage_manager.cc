@@ -624,19 +624,21 @@ void StorageManager::check_array_on_open(const std::string& array_name,
 
   struct stat st;
 
-  // added this, why does it work???? some weird flush thing?
+  // added this, why does it work???? some weird flush thing? what is the race
   int res = stat(dir_name.c_str(), &st);
-  if(res == 0 && mode == CREATE && S_ISDIR(st.st_mode))
+  if(res == 0 && mode == CREATE && S_ISDIR(st.st_mode)) {
+    assert(S_ISDIR(st.st_mode));
     throw StorageManagerException("Cannot open array in CREATE mode: "
                                   "array directory '" + dir_name + 
                                   "' already exists.", array_name);
-  else if(mode == READ && !S_ISDIR(st.st_mode))
+  } else if(mode == READ && !S_ISDIR(st.st_mode)) {
     throw StorageManagerException("Cannot open array: array directory '" +
                                   dir_name + "' not found.", 
                                   array_name);
-  else if(mode != READ && mode != CREATE) // Invalid mode
+  } else if(mode != READ && mode != CREATE) { // Invalid mode
     throw StorageManagerException("Cannot open array: invalid mode.", 
                                   array_name);
+  }
 }
 
 inline
@@ -1796,7 +1798,7 @@ void StorageManager::load_tiles(const std::string& array_name,
     load_tiles_from_buffer<T>(
         array_name, attribute_name, start_tile_id, buffer, buffer_size, tile_num);
   } catch(StorageManagerException& sme) {
-    delete buffer;
+    delete [] buffer;
     throw(sme);
   }
  
@@ -1926,6 +1928,7 @@ void StorageManager::load_tiles_from_buffer(
   uint64_t buffer_offset = 0;
   uint64_t tile_size, cell_num;
   unsigned int dim_num = MBR_list[0].size() / 2;
+
   uint64_t cell_size = dim_num * sizeof(T);
   std::vector<T> coordinates;
   coordinates.resize(dim_num);
@@ -1943,6 +1946,7 @@ void StorageManager::load_tiles_from_buffer(
     else
       tile_size = offset_list[rank+1] - offset_list[rank];
   
+
     assert(buffer_offset + tile_size <= buffer_size);
     assert(tile_size % cell_size == 0);
 

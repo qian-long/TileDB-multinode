@@ -8,12 +8,12 @@ int main() {
   // Attribute names
   std::vector<std::string> attribute_names;
   attribute_names.push_back("attr1");
-  //attribute_names.push_back("attr2");
+  attribute_names.push_back("attr2");
 
   // Attribute types
   std::vector<ArraySchema::DataType> attribute_types;
   attribute_types.push_back(ArraySchema::INT);
-  //attribute_types.push_back(ArraySchema::INT);
+  attribute_types.push_back(ArraySchema::INT);
 
   // Dimension domains
   std::vector<std::pair<double, double> > dim_domains;
@@ -52,14 +52,14 @@ int main() {
 
     // Load array from a CSV file
     // Make sure the CSV files in the path exist.
-    loader.load("~/projects/TileDB-multinode/Data/small.csv",
+    loader.load("~/projects/TileDB-multinode/Data/test.csv",
                  *array_schema_irreg, Loader::ROW_MAJOR);
 
 
     // Testing predicate
     int attr_index = 0;
-    Op op = GE;
-    int operand = 200;
+    Op op = GT;
+    int operand = 4;
     Predicate<int> pred(attr_index, op, operand);
 
 

@@ -479,6 +479,7 @@ ArraySchema* ArraySchema::deserialize(const char * buffer, int length) {
   int num_dimensions = (int) buffer[counter];
   counter += sizeof(int);
   dim_type = static_cast<DataType>(buffer[counter]);
+  std::cout << "ARRAY SCHEMA DESERIALIZE DIM TYPE: " << dim_type << "\n";
   counter += sizeof(DataType);
   bool irregular = (bool) buffer[counter++];
 
@@ -561,6 +562,9 @@ ArraySchema * ArraySchema::deep_copy(std::string new_array_name) {
   for (; dim_domain_it != dim_domains_.end(); ++dim_domain_it) {
     dim_domains.push_back(std::pair<double, double>(dim_domain_it->first, dim_domain_it->second));
   }
+
+  // dim type
+  dim_type = dim_type_;
 
   if (has_regular_tiles()) {
     std::vector<double>::iterator tile_ex_it = tile_extents_.begin();

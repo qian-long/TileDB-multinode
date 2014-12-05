@@ -139,6 +139,7 @@ int WorkerNode::handle(GetMsg* msg) {
     }
   } catch(CSVFileException& e) {
     std::cout << e.what() << "\n";
+    return 0;
   }
 
   MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, GET_TAG, MPI_COMM_WORLD);
@@ -187,7 +188,7 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type
   return 1;
 }
 
-
+// TODO send_error function
 
 /******************************************************
  ****************** HELPER FUNCTIONS ******************
