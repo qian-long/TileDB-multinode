@@ -105,6 +105,9 @@ $(MPI_EXEC): main.o $(OBJS)
 
 mpi: $(MPI_EXEC)
 	./setup_env.sh
+
+mpi-run: $(MPI_EXEC)
+	./setup_env.sh
 	mpiexec -f machinefile ./$(MPI_EXEC)
 
 #########################

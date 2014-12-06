@@ -1,2 +1,3 @@
 qian-test-ubuntu14:1
 qian-test1:1  # this will spawn 8 processes on localhost
+qian-test2:1  # this will spawn 8 processes on localhost
