@@ -29,6 +29,7 @@ compile-all: $(OBJS)
 # compile each main src file
 # $< gets name of first matching dependency, $@ gets target name
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc $(HEADS)
+	mkdir -p $(OBJ_DIR)
 	$(CXX) $(INCLUDE_PATHS) -c $< -o $@
 
 clean:
