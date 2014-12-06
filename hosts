@@ -5,6 +5,12 @@
 128.52.174.85	qian-test1
 128.52.174.84	qian-test-ubuntu14
 128.52.174.166  qian-test2
+128.52.174.185  qian-test3
+128.52.174.187  qian-test4
+128.52.174.188  qian-test5
+128.52.174.189  qian-test6
+128.52.174.190  qian-test7
+128.52.174.191  qian-test8
 
 # The following lines are desirable for IPv6 capable hosts
 ::1	ip6-localhost	ip6-loopback
