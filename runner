@@ -7,4 +7,6 @@ ssh qian-test5 -t "cd TileDB-multinode; make mpi-debug"
 ssh qian-test6 -t "cd TileDB-multinode; make mpi-debug"
 ssh qian-test7 -t "cd TileDB-multinode; make mpi-debug"
 ssh qian-test8 -t "cd TileDB-multinode; make mpi-debug"
-make mpi-debug && mpiexec -f machinefile_prod ./mpi_main $1
+
+#1 = datatsize, 2 = number of nodes including master
+make mpi-debug && mpiexec -n $2 -f machinefile_prod ./mpi_main $1
