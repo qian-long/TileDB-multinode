@@ -50,13 +50,13 @@ std::string SubArrayMsg::serialize() {
   ss.write((char *) schema_serial.c_str(), schema_serial_length);
 
   //serailze ranges
-
   int ranges_size = ranges.size();
   ss.write((char *) &ranges_size, sizeof(int));
 
   std::vector<double>::iterator it = this->ranges.begin();
   for (; it != this->ranges.end(); it++) {
     double extent = *it;
+
     ss.write((char *) &extent, sizeof(double));
   }
 
@@ -81,6 +81,7 @@ SubArrayMsg* SubArrayMsg::deserialize(const char* buffer, int buffer_length){
   counter += sizeof(int);
   
   ArraySchema* schema = ArraySchema::deserialize(&buffer[counter], arrayschema_length); 
+  counter += arrayschema_length;
 
   //deserialize vector
   int num_doubles = (int) buffer[counter];

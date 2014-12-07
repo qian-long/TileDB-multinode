@@ -8,8 +8,8 @@
 #include "messages.h"
 
 CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
-  this->myrank_ = rank;
-  this->nprocs_ = nprocs; 
+  myrank_ = rank;
+  nprocs_ = nprocs; 
 }
 
 // TODO
@@ -20,7 +20,7 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "smallish";
+  std::string array_name = "test";
   // Set attribute names
   std::vector<std::string> attribute_names;
   attribute_names.push_back("attr1");
@@ -37,12 +37,12 @@ void CoordinatorNode::run() {
   dim_names.push_back("j");
 
   // Set dimension type
-  ArraySchema::DataType dim_type = ArraySchema::DOUBLE;
+  ArraySchema::DataType dim_type = ArraySchema::INT;
 
   // Set dimension domains
   std::vector<std::pair<double,double> > dim_domains;
-  dim_domains.push_back(std::pair<double,double>(0, 1000));
-  dim_domains.push_back(std::pair<double,double>(0, 1000));
+  dim_domains.push_back(std::pair<double,double>(0, 999));
+  dim_domains.push_back(std::pair<double,double>(0, 999));
   // Create an array with irregular tiles
   ArraySchema array_schema = ArraySchema(array_name,
     attribute_names,
@@ -53,11 +53,9 @@ void CoordinatorNode::run() {
 
   DEBUG_MSG("sending load instruction to all workers");
 
-  std::string filename = "test";
-  Loader::Order order = Loader::ROW_MAJOR;
-  LoadMsg lmsg = LoadMsg(filename, &array_schema, order);
+  Loader::Order order = Loader::COLUMN_MAJOR;
+  LoadMsg lmsg = LoadMsg(array_name, &array_schema, order);
   send_all(lmsg);
-
 
   DEBUG_MSG("sending filter instruction to all workers");
   int attr_index = 1;
@@ -75,11 +73,8 @@ void CoordinatorNode::run() {
 
   DEBUG_MSG("sending subarray");
   std::vector<double> vec;
-  //one to five
   vec.push_back(9); vec.push_back(11);
-  //30 to 40
-  vec.push_back(10); vec.push_back(3);
-
+  vec.push_back(10); vec.push_back(13);
 
   SubArrayMsg sbmsg("subarray", &array_schema, vec); 
   send_all(sbmsg);

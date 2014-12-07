@@ -16,8 +16,8 @@ int main(int argc, char** argv) {
 
   if (myrank == MASTER) {
     CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs);
-    //coordinator->run();
-    coordinator->test_load("test");
+    coordinator->run();
+    //coordinator->test_load("test");
   } else {
     WorkerNode * worker = new WorkerNode(myrank, nprocs);
     worker->run();

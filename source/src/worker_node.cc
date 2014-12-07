@@ -134,7 +134,6 @@ int WorkerNode::handle(GetMsg* msg) {
 
   ArraySchema * schema = (*global_schema_map_)[msg->array_name];
 
-  DEBUG_MSG(schema->to_string());
   query_processor_->export_to_CSV(*(*global_schema_map_)[msg->array_name], result_filename);
 
   DEBUG_MSG("finished export to CSV");
@@ -170,8 +169,6 @@ int WorkerNode::handle(GetMsg* msg) {
 
   count++;
 
-  DEBUG_MSG("[GET] finished sending, count: ");
-  DEBUG_MSG(count);
   return 0;
 }
 
@@ -196,69 +193,8 @@ int WorkerNode::handle(LoadMsg* msg) {
 }
 
 /*************** HANDLE SubarrayMsg **********************/
-int WorkerNode::handle(SubArrayMsg* msg_lama) {
+int WorkerNode::handle(SubArrayMsg* msg) {
   DEBUG_MSG("Received subarray \n");
-
-  /*
-  std::stringstream ss;
-  ss << "Range(";
-  auto range_it = (msg->ranges).begin();
-  for (; range_it != msg->ranges.end(); range_it++) {
-    ss << *range_it << ",";
-  }
-  ss << ")\n";
-  std::cout << ss.str();
-  */
-
-
-  // Set array name
-  std::string array_name = "smallish";
-  // Set attribute names
-  std::vector<std::string> attribute_names;
-  attribute_names.push_back("attr1");
-  attribute_names.push_back("attr2");
-
-  // Set attribute types
-  std::vector<ArraySchema::DataType> attribute_types;
-  attribute_types.push_back(ArraySchema::INT);
-  attribute_types.push_back(ArraySchema::INT);
-
-  // Set dimension names
-  std::vector<std::string> dim_names;
-  dim_names.push_back("i");
-  dim_names.push_back("j");
-
-  // Set dimension type
-  ArraySchema::DataType dim_type = ArraySchema::DOUBLE;
-
-  // Set dimension domains
-  std::vector<std::pair<double,double> > dim_domains;
-  dim_domains.push_back(std::pair<double,double>(0, 1000));
-  dim_domains.push_back(std::pair<double,double>(0, 1000));
-  // Create an array with irregular tiles
-  ArraySchema array_schema = ArraySchema(array_name,
-    attribute_names,
-    attribute_types,
-    dim_domains,
-    dim_names,
-    dim_type);
-
- 
-
-
-
-  std::vector<double> vec;
-  vec.push_back(9); vec.push_back(11);
-  vec.push_back(10); vec.push_back(3);
-
-
-
-  SubArrayMsg* msg = new SubArrayMsg("subarray", &array_schema, vec); 
-
-
-
-
-
 
   std::string global_schema_name = msg->array_schema->array_name();
   // temporary hack, create a copy of the array schema and replace the array
@@ -274,11 +210,10 @@ int WorkerNode::handle(SubArrayMsg* msg_lama) {
 
   (*global_schema_map_)[msg->result_array_name] = new_schema;
 
-  //query_processor_->subarray(*(msg->array_schema), msg->ranges, msg->result_array_name);
+  query_processor_->subarray(*(msg->array_schema), msg->ranges, msg->result_array_name);
 
-  DEBUG_MSG(array_schema.to_string());
-  query_processor_->subarray(array_schema, vec, "subarray");
   DEBUG_MSG("Finished subarray ");
+
   return 0;
 }
 
@@ -297,7 +232,7 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
     DEBUG_MSG("did not find schema!");
-    return -1:; // TODO need to fix b/c coordinator would hang
+    return -1; // TODO need to fix b/c coordinator would hang
   }
 
   ArraySchema * new_schema = ((*global_schema_map_)[global_schema_name])->deep_copy(msg->result_array_name_);

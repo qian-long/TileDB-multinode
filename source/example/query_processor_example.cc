@@ -19,6 +19,10 @@ void get_array_schemas(ArraySchema*& array_schema_A,
   attribute_types.push_back(ArraySchema::INT);
   attribute_types.push_back(ArraySchema::INT);
 
+  // Dimension type
+  ArraySchema::DataType dim_type = ArraySchema::INT;
+
+
   // Dimension domains
   std::vector<std::pair<double, double> > dim_domains;
   dim_domains.push_back(std::pair<double, double>(0,999));
@@ -26,11 +30,8 @@ void get_array_schemas(ArraySchema*& array_schema_A,
 
   // Dimension names
   std::vector<std::string> dim_names;
-  dim_names.push_back("dim1");
-  dim_names.push_back("dim2");
-
-  // Dimension type
-  ArraySchema::DataType dim_type = ArraySchema::INT;
+  dim_names.push_back("i");
+  dim_names.push_back("j");
 
   // Tile extents for the regular array
   std::vector<double> tile_extents;
@@ -38,14 +39,20 @@ void get_array_schemas(ArraySchema*& array_schema_A,
   tile_extents.push_back(10);
  
   // Create array schemas  
+  // regular
   array_schema_A = new ArraySchema("A", attribute_names, attribute_types,
                                    dim_domains, dim_names, dim_type,
                                    tile_extents);
+  // irregular
   array_schema_B = new ArraySchema("B", attribute_names, attribute_types,
                                    dim_domains, dim_names, dim_type);
+
+  // result regular
   array_schema_R_A = new ArraySchema("R_A", attribute_names, attribute_types,
                                      dim_domains, dim_names, dim_type,
                                      tile_extents);
+
+  // result irregular
   array_schema_R_B = new ArraySchema("R_B", attribute_names, attribute_types,
                                      dim_domains, dim_names, dim_type);
 }
@@ -78,8 +85,10 @@ int main() {
 
     // Load array from a CSV file
     // Make sure the CSV files in the path exist.
+    /*
     loader.load("~/projects/TileDB-multinode/Data/test.csv",
                  *array_schema_A, Loader::ROW_MAJOR);
+    */
 
     loader.load("~/projects/TileDB-multinode/Data/test.csv",
                  *array_schema_B, Loader::COLUMN_MAJOR);
@@ -93,20 +102,27 @@ int main() {
     // Process a subarray query
     std::vector<double> range;
     get_range(range);
+
+
+    /*
     query_processor.subarray(*array_schema_A, range, 
                              array_schema_R_A->array_name());
+    */
 
+    /*
     query_processor.export_to_CSV(*array_schema_R_A,
                                   "~/projects/TileDB-multinode/Data/R_A.csv");
+    */
+
     query_processor.subarray(*array_schema_B, range, 
                             array_schema_R_B->array_name());
     query_processor.export_to_CSV(*array_schema_R_B, 
-                                  "~/projects/TileDB-multinode/Data/R_B.csv");
+                                  "~/projects/TileDB-multinode/Data/subarray_B_irregular.csv");
 
 
     // Delete an array
     storage_manager.delete_array(array_schema_R_A->array_name());
-    storage_manager.delete_array(array_schema_R_B->array_name());
+    //storage_manager.delete_array(array_schema_R_B->array_name());
 
     // Clean up
     delete array_schema_A;
