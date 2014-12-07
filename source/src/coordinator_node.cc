@@ -171,6 +171,7 @@ void CoordinatorNode::quit_all() {
 
 void CoordinatorNode::test_load(std::string array_name) {
   DEBUG_MSG("Start Load");
+  DEBUG_MSG("loading array " + array_name);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
   Loader::Order order = Loader::ROW_MAJOR;
   LoadMsg lmsg = LoadMsg(array_name, array_schema, order);
