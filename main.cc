@@ -15,35 +15,35 @@ const char* get_filename(int dataset_num, int numprocs) {
     case 1:
       switch(numprocs) {
         case 1:
-          return "500MB_500MB.csv";
+          return "500MB_500MB";
         case 2:
-          return "250MB_500MB.csv";
+          return "250MB_500MB";
         case 4:
-          return "125MB_500MB.csv";
+          return "125MB_500MB";
         case 8:
-          return "62.5MB_500MB.csv";
+          return "62.5MB_500MB";
       }
     case 2:
       switch(numprocs) {
         case 1:
-          return "500MB_1GB.csv";
+          return "500MB_1GB";
         case 2:
-          return "250MB_1GB.csv";
+          return "250MB_1GB";
         case 4:
-          return "125MB_1GB.csv";
+          return "125MB_1GB";
         case 8:
-          return "62.5MB_1GB.csv";
+          return "62.5MB_1GB";
       }
     case 3:
       switch(numprocs) {
         case 1:
-          return "500MB_2GB.csv";
+          return "500MB_2GB";
         case 2:
-          return "250MB_2GB.csv";
+          return "250MB_2GB";
         case 4:
-          return "125MB_2GB.csv";
+          return "125MB_2GB";
         case 8:
-          return "62.5MB_2GB.csv";
+          return "62.5MB_2GB";
       }
 
   }
