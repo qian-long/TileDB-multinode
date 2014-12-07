@@ -73,6 +73,17 @@ void CoordinatorNode::run() {
   GetMsg gmsg = GetMsg("smallish_filter");
   send_and_receive(gmsg);
 
+  DEBUG_MSG("sending subarray");
+  std::vector<double> vec;
+  //one to five
+  vec.push_back(1); vec.push_back(5);
+  //30 to 40
+  vec.push_back(30); vec.push_back(40);
+
+
+  SubArrayMsg sbmsg("subarray", &array_schema, vec); 
+  send_all(sbmsg);
+  DEBUG_MSG("done sending subarray messages");
   quit_all();
 }
 

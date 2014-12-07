@@ -55,6 +55,7 @@ void WorkerNode::run() {
         case GET_TAG:
         case ARRAY_SCHEMA_TAG:
         case LOAD_TAG: 
+        case SUB_ARRAY_TAG:
           msg = deserialize_msg(status.MPI_TAG, buf, length);
           result = handle_msg(msg->msg_tag, msg);
           assert(result);
@@ -171,7 +172,7 @@ int WorkerNode::handle(GetMsg* msg) {
 
   DEBUG_MSG("[GET] finished sending, count: ");
   DEBUG_MSG(count);
-  return 1;
+  return 0;
 }
 
 /*************** HANDLE ARRAY SCHEMA ***************/
@@ -180,7 +181,7 @@ int WorkerNode::handle(ArraySchemaMsg* msg) {
   (*global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
 
   DEBUG_MSG("received array schema: \n" + msg->array_schema->to_string());
-  return 1;
+  return 0;
 }
 
 /*************** HANDLE LOAD **********************/
@@ -191,7 +192,17 @@ int WorkerNode::handle(LoadMsg* msg) {
   loader_->load(convert_filename(msg->filename), *msg->array_schema, msg->order);
 
   DEBUG_MSG("Finished load");
-  return 1;
+  return 0;
+}
+
+/*************** HANDLE SubarrayMsg **********************/
+int WorkerNode::handle(SubArrayMsg* msg) {
+  DEBUG_MSG("Received subarray \n");
+
+  query_processor_->subarray(*(msg->array_schema), msg->ranges, msg->result_array_name);
+
+  DEBUG_MSG("Finished subarray ");
+  return 0;
 }
 
 
@@ -258,6 +269,8 @@ int WorkerNode::handle_msg(int type, Msg* msg){
       return handle((ArraySchemaMsg*) msg);
     case LOAD_TAG: // TODO
       return handle((LoadMsg*) msg);
+    case SUB_ARRAY_TAG:
+      return handle((SubArrayMsg*) msg);
   }
   throw std::invalid_argument("trying to deserailze msg of unknown type");
 }

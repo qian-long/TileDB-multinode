@@ -31,6 +31,7 @@ class WorkerNode {
     int handle(ArraySchemaMsg* msg);
     int handle(LoadMsg* msg);
     int handle(GetMsg* msg);
+    int handle(SubArrayMsg* msg);
     
     template<class T>
     int handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type);
