@@ -60,7 +60,6 @@ int main(int argc, char** argv) {
 
   if (myrank == MASTER) {
     CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs);
-    //coordinator->run();
     struct timeval tim;  
     gettimeofday(&tim, NULL);  
     double t1=tim.tv_sec+(tim.tv_usec/1000000.0);  

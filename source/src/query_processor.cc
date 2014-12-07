@@ -602,16 +602,6 @@ void QueryProcessor::subarray_irregular(
     const Range& range,
     const std::string& result_array_name) const { 
 
-  std::cout << "[SUBARRAY_IRREGULAR]\n";
-  
-  std::stringstream ss;                                                          
-  ss << "Range(";                                                                
-  auto range_it = range.begin();                                         
-  for (; range_it != range.end(); range_it++) {                            
-    ss << *range_it << ",";                                                      
-  }                                                                              
-  ss << ")\n";                                                                   
-  std::cout << ss.str();                                                         
 
   // For easy reference
   const std::string& array_name = array_schema.array_name();
@@ -654,7 +644,9 @@ void QueryProcessor::subarray_irregular(
     create_new_tiles(array_schema, 0, new_tiles); 
 
     // Iterate over all tiles
+    int counter = 0;
     for(; tile_id_it != tile_id_it_end; ++tile_id_it) {
+      counter++;
       get_tiles(array_schema, tile_id_it->first, tiles);         
       for(unsigned int i=0; i<attribute_num+1; i++)
         cell_its[i] = tiles[i]->begin();
