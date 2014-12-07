@@ -1,2 +1,10 @@
 #! /bin/bash
-make mpi-debug && ./setup_env.sh && mpiexec -f machinefile_prod ./mpi_main $1
+ssh qian-test1 -t "cd TileDB-multinode; make mpi-debug"
+ssh qian-test2 -t "cd TileDB-multinode; make mpi-debug"
+ssh qian-test3 -t "cd TileDB-multinode; make mpi-debug"
+ssh qian-test4 -t "cd TileDB-multinode; make mpi-debug"
+ssh qian-test5 -t "cd TileDB-multinode; make mpi-debug"
+ssh qian-test6 -t "cd TileDB-multinode; make mpi-debug"
+ssh qian-test7 -t "cd TileDB-multinode; make mpi-debug"
+ssh qian-test8 -t "cd TileDB-multinode; make mpi-debug"
+make mpi-debug && mpiexec -f machinefile_prod ./mpi_main $1
