@@ -288,7 +288,7 @@ template<class T>
 int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type) {
   DEBUG_MSG("Received filter");
   DEBUG_MSG("msg->array_schema->array_name(): " + msg->array_schema_.array_name());
-  
+
   std::string global_schema_name = msg->array_schema_.array_name();
 
   // temporary hack, create a copy of the array schema and replace the array
@@ -297,7 +297,7 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
     DEBUG_MSG("did not find schema!");
-    return 0; // TODO need to fix b/c coordinator would hang
+    return -1:; // TODO need to fix b/c coordinator would hang
   }
 
   ArraySchema * new_schema = ((*global_schema_map_)[global_schema_name])->deep_copy(msg->result_array_name_);
@@ -306,7 +306,7 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type
 
   query_processor_->filter_irregular<T>(msg->array_schema_, msg->predicate_, msg->result_array_name_); 
   DEBUG_MSG("Finished filter");
-  return 1;
+  return 0;
 }
 
 // TODO send_error function
@@ -330,7 +330,8 @@ std::string WorkerNode::get_arrayname(std::string arrayname) {
 
 std::string WorkerNode::convert_filename(std::string filename) {
   std::stringstream ss;
-  ss << my_workspace_ << "/" << filename.c_str() << "_rnk" << myrank_ << ".csv";
+  ss << "./Data/" << filename.c_str() << ".csv";
+  //ss << my_workspace_ << "/" << filename.c_str() << "_rnk" << myrank_ << ".csv";
   return ss.str();
 }
 

@@ -31,7 +31,12 @@ class CoordinatorNode {
     void handle_get();
     void handle_load();
 
+    /******** TESTING FUNCTIONS ********/
+    // filename must be in the Data directory
+    // filename is the part before .csv
+    void test_load(std::string filename);
 
+    ArraySchema* get_test_arrayschema(std::string array_name);
   private:
     // PRIVATE ATTRIBUTES
     int myrank_; // should be 0

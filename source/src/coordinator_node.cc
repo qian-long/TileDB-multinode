@@ -165,3 +165,59 @@ void CoordinatorNode::quit_all() {
   send_all("quit", QUIT_TAG);
 }
 
+/******************************************************
+ *************** TESTING FUNCTIONS ********************
+ ******************************************************/
+
+void CoordinatorNode::test_load(std::string filename) {
+  ArraySchema * array_schema = get_test_arrayschema(filename);
+  Loader::Order order = Loader::ROW_MAJOR;
+  LoadMsg lmsg = LoadMsg(filename, array_schema, order);
+
+  DEBUG_MSG("sending load instruction to all workers");
+  send_all(lmsg);
+
+  quit_all();
+
+  // don't leak memory
+  delete array_schema;
+}
+
+ArraySchema* CoordinatorNode::get_test_arrayschema(std::string parray_name) {
+
+  // Set array name
+  std::string array_name = parray_name;
+
+  // Set attribute names
+  std::vector<std::string> attribute_names;
+  attribute_names.push_back("attr1");
+  attribute_names.push_back("attr2");
+
+  // Set attribute types
+  std::vector<ArraySchema::DataType> attribute_types;
+  attribute_types.push_back(ArraySchema::INT);
+  attribute_types.push_back(ArraySchema::INT);
+
+  // Set dimension names
+  std::vector<std::string> dim_names;
+  dim_names.push_back("i");
+  dim_names.push_back("j");
+
+  // Set dimension type
+  ArraySchema::DataType dim_type = ArraySchema::DOUBLE;
+
+  // Set dimension domains
+  std::vector<std::pair<double,double> > dim_domains;
+  dim_domains.push_back(std::pair<double,double>(0, 1000000));
+  dim_domains.push_back(std::pair<double,double>(0, 1000000));
+
+  // Create an array with irregular tiles
+  ArraySchema * array_schema = new ArraySchema(array_name,
+    attribute_names,
+    attribute_types,
+    dim_domains,
+    dim_names,
+    dim_type);
+
+  return array_schema;
+}
