@@ -9,7 +9,7 @@
 
 CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   this->myrank_ = rank;
-  this->nprocs_ = nprocs; 
+  this->nprocs_ = nprocs;
 }
 
 // TODO
@@ -81,7 +81,7 @@ void CoordinatorNode::run() {
   vec.push_back(10); vec.push_back(3);
 
 
-  SubArrayMsg sbmsg("subarray", &array_schema, vec); 
+  SubArrayMsg sbmsg("subarray", &array_schema, vec);
   send_all(sbmsg);
   DEBUG_MSG("done sending subarray messages");
 
@@ -117,7 +117,7 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
       break;
     case LOAD_TAG:
       handle_load();
-      break; 
+      break;
     default:
       // don't do anything
       break;
@@ -169,24 +169,55 @@ void CoordinatorNode::quit_all() {
  *************** TESTING FUNCTIONS ********************
  ******************************************************/
 
-void CoordinatorNode::test_load(std::string filename) {
-  ArraySchema * array_schema = get_test_arrayschema(filename);
+void CoordinatorNode::test_load(std::string array_name) {
+  DEBUG_MSG("Start Load");
+  ArraySchema * array_schema = get_test_arrayschema(array_name);
   Loader::Order order = Loader::ROW_MAJOR;
-  LoadMsg lmsg = LoadMsg(filename, array_schema, order);
+  LoadMsg lmsg = LoadMsg(array_name, array_schema, order);
 
-  DEBUG_MSG("sending load instruction to all workers");
   send_all(lmsg);
 
-  quit_all();
+  DEBUG_MSG("Test Load Done");
 
   // don't leak memory
   delete array_schema;
 }
 
-ArraySchema* CoordinatorNode::get_test_arrayschema(std::string parray_name) {
+void CoordinatorNode::test_filter(std::string array_name) {
+  DEBUG_MSG("Start Filter");
+  ArraySchema* array_schema = get_test_arrayschema(array_name);
 
-  // Set array name
-  std::string array_name = parray_name;
+  int attr_index = 1;
+  Op op = GT;
+  int operand = 4;
+  Predicate<int> pred(attr_index, op, operand);
+  DEBUG_MSG(pred.to_string());
+  FilterMsg<int> fmsg = FilterMsg<int>(array_schema->attribute_type(attr_index), *array_schema, pred, array_name+"_filtered");
+
+  send_all(fmsg);
+  DEBUG_MSG("Test Filter Done");
+
+  // don't leak memory
+  delete array_schema;
+}
+
+void CoordinatorNode::test_subarray(std::string array_name) {
+  DEBUG_MSG("Start SubArray");
+  ArraySchema* array_schema = get_test_arrayschema(array_name);
+  std::vector<double> vec;
+  //one to five
+  vec.push_back(9); vec.push_back(11);
+  //30 to 40
+  vec.push_back(10); vec.push_back(3);
+
+  SubArrayMsg sbmsg(array_name+"_subarray", array_schema, vec);
+  send_all(sbmsg);
+  DEBUG_MSG("Test Subarray Done");
+
+  // don't leak memory
+  delete array_schema;
+}
+ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
 
   // Set attribute names
   std::vector<std::string> attribute_names;

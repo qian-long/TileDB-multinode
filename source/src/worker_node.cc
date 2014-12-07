@@ -297,7 +297,7 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
     DEBUG_MSG("did not find schema!");
-    return -1:; // TODO need to fix b/c coordinator would hang
+    return -1; // TODO need to fix b/c coordinator would hang
   }
 
   ArraySchema * new_schema = ((*global_schema_map_)[global_schema_name])->deep_copy(msg->result_array_name_);

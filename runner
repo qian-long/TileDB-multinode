@@ -1,0 +1,2 @@
+#! /bin/bash
+make mpi-debug && ./setup_env.sh && mpiexec -f machinefile_prod ./mpi_main $1
