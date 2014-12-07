@@ -601,6 +601,18 @@ void QueryProcessor::subarray_irregular(
     const ArraySchema& array_schema,
     const Range& range,
     const std::string& result_array_name) const { 
+
+  std::cout << "[SUBARRAY_IRREGULAR]\n";
+  
+  std::stringstream ss;                                                          
+  ss << "Range(";                                                                
+  auto range_it = range.begin();                                         
+  for (; range_it != range.end(); range_it++) {                            
+    ss << *range_it << ",";                                                      
+  }                                                                              
+  ss << ")\n";                                                                   
+  std::cout << ss.str();                                                         
+
   // For easy reference
   const std::string& array_name = array_schema.array_name();
   const unsigned int attribute_num = array_schema.attribute_num();

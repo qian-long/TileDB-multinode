@@ -108,7 +108,12 @@ mpi: $(MPI_EXEC)
 
 mpi-run: $(MPI_EXEC)
 	./setup_env.sh
-	mpiexec -f machinefile ./$(MPI_EXEC)
+	mpiexec -f machinefile_prod ./$(MPI_EXEC)
+
+
+mpi-run-local: $(MPI_EXEC)
+	./setup_env.sh
+	mpiexec -f machinefile_local ./$(MPI_EXEC)
 
 #########################
 # Documentation doxygen #

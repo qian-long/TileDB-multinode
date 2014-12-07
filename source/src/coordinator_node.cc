@@ -76,14 +76,20 @@ void CoordinatorNode::run() {
   DEBUG_MSG("sending subarray");
   std::vector<double> vec;
   //one to five
-  vec.push_back(1); vec.push_back(5);
+  vec.push_back(9); vec.push_back(11);
   //30 to 40
-  vec.push_back(30); vec.push_back(40);
+  vec.push_back(10); vec.push_back(3);
 
 
   SubArrayMsg sbmsg("subarray", &array_schema, vec); 
   send_all(sbmsg);
   DEBUG_MSG("done sending subarray messages");
+
+  DEBUG_MSG("sending get subarray instruction to all workers");
+  GetMsg gmsg1 = GetMsg("subarray");
+  send_and_receive(gmsg1);
+
+
   quit_all();
 }
 

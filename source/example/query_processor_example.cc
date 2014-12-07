@@ -85,26 +85,6 @@ int main() {
                  *array_schema_B, Loader::COLUMN_MAJOR);
 
 
-
-
-    // Testing predicate
-    int attr_index = 0;
-    Op op = LT;
-    int operand = 8;
-    Predicate<int> int_pred(attr_index, op, operand);
-    bool result = query_processor.evaluate<int>(7, int_pred);
-    std::cout << "int pred result: " << result << "\n";
-
-    Op fop = NE;
-    float foperand = 6.0;
-    Predicate<float> float_pred(attr_index, fop, foperand);
-    bool fresult = query_processor.evaluate<float>(6.0, float_pred);
-    std::cout << "float pred result: " << fresult << "\n";
-
-    // Process a filter query
-    query_processor.filter(*array_schema_A,
-
-    /*
     // Export an array to a CSV file
     query_processor.export_to_CSV(
         *array_schema_B, 
@@ -122,7 +102,7 @@ int main() {
                             array_schema_R_B->array_name());
     query_processor.export_to_CSV(*array_schema_R_B, 
                                   "~/projects/TileDB-multinode/Data/R_B.csv");
-                                  */
+
 
     // Delete an array
     storage_manager.delete_array(array_schema_R_A->array_name());
