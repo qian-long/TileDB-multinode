@@ -10,6 +10,7 @@
 
 
 const char* get_filename(int dataset_num, int numprocs) {
+  numprocs--;
   switch(dataset_num) {
     case 1:
       switch(numprocs) {
