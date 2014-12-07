@@ -13,6 +13,7 @@
 #define ARRAY_SCHEMA_TAG 4
 #define LOAD_TAG 5
 #define FILTER_TAG 6
+#define SUB_ARRAY_TAG 7
 
 class Msg {
 
@@ -26,6 +27,20 @@ class Msg {
 
     virtual std::string serialize();
     //static void deserialize(Msg* msg, const char* buffer, int buffer_length);
+
+};
+
+class SubArrayMsg : public Msg {
+  public: 
+    std::string result_array_name;
+    std::vector<double> ranges;
+    ArraySchema* array_schema;
+
+    ~SubArrayMsg(){};
+    SubArrayMsg(std::string result_name, ArraySchema* schema, std::vector<double> ranges);
+
+    std::string serialize();
+    static SubArrayMsg* deserialize(const char* buffer, int buffer_length);
 
 };
 
