@@ -3,21 +3,30 @@
 #include <sstream>
 #include "assert.h"
 #include "coordinator_node.h"
-#include "debug.h"
 #include "csv_file.h"
-#include "messages.h"
 
 CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   myrank_ = rank;
   nprocs_ = nprocs; 
   nworkers_ = nprocs - 1;
+
+  // TODO put in config file
+  my_workspace_ = "./workspaces/workspace-0";
+  logger_ = new Logger(my_workspace_ + "/logfile");
+
 }
 
 // TODO
-CoordinatorNode::~CoordinatorNode() {}
+CoordinatorNode::~CoordinatorNode() {
+  delete logger_;
+}
+
+Logger* CoordinatorNode::logger() {
+  return logger_;
+}
 
 void CoordinatorNode::run() {
-  DEBUG_MSG("I am the master node");
+  logger_->log("I am the master node");
   send_all("hello", DEF_TAG);
 
   // Set array name
@@ -145,7 +154,7 @@ void CoordinatorNode::handle_ack() {
     assert((status.MPI_TAG == DONE_TAG) || (status.MPI_TAG == ERROR_TAG));
     MPI_Get_count(&status, MPI_CHAR, &length);
 
-    DEBUG_MSG("Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
+    logger_->log("Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
 
   }
 
@@ -185,22 +194,22 @@ void CoordinatorNode::quit_all() {
  ******************************************************/
 
 void CoordinatorNode::test_load(std::string array_name) {
-  DEBUG_MSG("Start Load");
-  DEBUG_MSG("loading array " + array_name);
+  logger_->log("Start Load");
+  logger_->log("loading array " + array_name);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
   Loader::Order order = Loader::ROW_MAJOR;
   LoadMsg lmsg = LoadMsg(array_name, array_schema, order);
 
   send_and_receive(lmsg);
 
-  DEBUG_MSG("Test Load Done");
+  logger_->log("Test Load Done");
 
   // don't leak memory
-  delete array_schema;
+  //delete array_schema;
 }
 
 void CoordinatorNode::test_filter(std::string array_name) {
-  DEBUG_MSG("Start Filter");
+  logger_->log("Start Filter");
   ArraySchema* array_schema = get_test_arrayschema(array_name);
 
   // .5 selectivity
@@ -208,18 +217,18 @@ void CoordinatorNode::test_filter(std::string array_name) {
   Op op = GE;
   int operand = 500000;
   Predicate<int> pred(attr_index, op, operand);
-  DEBUG_MSG(pred.to_string());
+  logger_->log(pred.to_string());
   FilterMsg<int> fmsg = FilterMsg<int>(array_schema->attribute_type(attr_index), *array_schema, pred, array_name+"_filtered");
 
   send_and_receive(fmsg);
-  DEBUG_MSG("Test Filter Done");
+  logger_->log("Test Filter Done");
 
   // don't leak memory
-  delete array_schema;
+  //delete array_schema;
 }
 
 void CoordinatorNode::test_subarray(std::string array_name) {
-  DEBUG_MSG("Start SubArray");
+  logger_->log("Start SubArray");
   ArraySchema* array_schema = get_test_arrayschema(array_name);
   std::vector<double> vec;
 
@@ -229,10 +238,10 @@ void CoordinatorNode::test_subarray(std::string array_name) {
 
   SubArrayMsg sbmsg(array_name+"_subarray", array_schema, vec);
   send_and_receive(sbmsg);
-  DEBUG_MSG("Test Subarray Done");
+  logger_->log("Test Subarray Done");
 
   // don't leak memory
-  delete array_schema;
+  //delete array_schema;
 }
 
 ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {

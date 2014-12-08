@@ -66,6 +66,8 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
   struct timeval tim;  
   gettimeofday(&tim, NULL);  
   double t1 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+  char buffer[100];
+  int len;
 
   // LOAD TEST
   coordinator->test_load(array_name);
@@ -73,24 +75,31 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
   gettimeofday(&tim, NULL);  
   double t2 = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
-  printf("Load %s wall time: %.6lf secs\n", array_name.c_str(), t2 - t1);
+  len = snprintf(buffer, 100, "Load %s wall time: %.6lf secs\n", array_name.c_str(), t2 - t1);
+  coordinator->logger()->log(std::string(buffer, len));
+  printf("%s", buffer);
 
   // FILTER TEST
   coordinator->test_filter(array_name);
   gettimeofday(&tim, NULL);  
   double t3 = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
-  printf("Filter %s wall time: %.6lf secs\n", array_name.c_str(), t3 - t2);
+  len = snprintf(buffer, 100, "Filter %s wall time: %.6lf secs\n", array_name.c_str(), t3 - t2);
+  coordinator->logger()->log(std::string(buffer, len));
+  printf("%s", buffer);
 
   // SUBARRAY TEST
   coordinator->test_subarray(array_name);
   gettimeofday(&tim, NULL);  
   double t4 = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
-  printf("Subarray %s wall time: %.6lf secs\n", array_name.c_str(), t4 - t3);
+  len = snprintf(buffer, 100, "Subarray %s wall time: %.6lf secs\n", array_name.c_str(), t4 - t3);
+  coordinator->logger()->log(std::string(buffer, len));
+  printf("%s", buffer);
 
-  printf("%.6lf seconds elapsed running dataset %s\n", t4-t1, array_name.c_str());  
-
+  len = snprintf(buffer, 100, "%.6lf seconds elapsed running dataset %s\n", t4-t1, array_name.c_str());  
+  coordinator->logger()->log(std::string(buffer, len));
+  printf("%s", buffer);
 }
 
 // This is the user

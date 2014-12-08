@@ -1,30 +1,28 @@
 #include "constants.h"
 #include "assert.h"
-#include <cstring>
 #include "mpi.h"
 #include "worker_node.h"
 #include "debug.h"
 #include "csv_file.h"
-#include "messages.h"
+#include <cstring>
 #include <stdexcept>      // std::invalid_argument
 
-
-
 WorkerNode::WorkerNode(int rank, int nprocs) {
-  this->myrank_ = rank;
-  this->nprocs_ = nprocs;
+  myrank_ = rank;
+  nprocs_ = nprocs;
   std::stringstream workspace;
   // TODO put in config file
   workspace << "./workspaces/workspace-" << myrank_;
-  this->my_workspace_ = workspace.str();
-  this->storage_manager_ = new StorageManager(my_workspace_);
-  this->loader_ = new Loader(my_workspace_, *storage_manager_);
-  this->query_processor_ = new QueryProcessor(*storage_manager_);
+  my_workspace_ = workspace.str();
+  storage_manager_ = new StorageManager(my_workspace_);
+  loader_ = new Loader(my_workspace_, *storage_manager_);
+  query_processor_ = new QueryProcessor(*storage_manager_);
+  logger_ = new Logger(my_workspace_ + "/logfile");
 
   // catalogue data structures
-  this->arrayname_map_ = new std::map<std::string, std::string>();
-  this->global_schema_map_ = new std::map<std::string, ArraySchema *>();
-  this->local_schema_map_ = new std::map<std::string, ArraySchema *>();
+  arrayname_map_ = new std::map<std::string, std::string>();
+  global_schema_map_ = new std::map<std::string, ArraySchema *>();
+  local_schema_map_ = new std::map<std::string, ArraySchema *>();
 }
 
 // TODO delete things inside maps?
@@ -36,7 +34,7 @@ WorkerNode::~WorkerNode() {
 
 
 void WorkerNode::run() {
-  DEBUG_MSG("I am a worker node");
+  logger_->log("I am a worker node");
 
   MPI_Status status;
   char *buf = new char[MAX_DATA];
@@ -99,18 +97,19 @@ void WorkerNode::run() {
           break;
         default:
           std::string content(buf, length);
-          DEBUG_MSG(content);
+          logger_->log(content);
       }
-
 
 
       // TODO delete stuff to avoid memory leak
     } catch (StorageManagerException& sme) {
-      DEBUG_MSG("StorageManagerException: ");
-      DEBUG_MSG(sme.what());
+      logger_->log("StorageManagerException: ");
+      logger_->log(sme.what());
+      respond_ack(-1, status.MPI_TAG);
     } catch(QueryProcessorException& qpe) {
-      DEBUG_MSG("QueryProcessorException: ");
-      DEBUG_MSG(qpe.what());
+      logger_->log("QueryProcessorException: ");
+      logger_->log(qpe.what());
+      respond_ack(-1, status.MPI_TAG);
     }
 
   }
@@ -157,15 +156,15 @@ void WorkerNode::respond_ack(int result, int tag) {
 
 /*************** HANDLE GET **********************/
 int WorkerNode::handle(GetMsg* msg) {
-  DEBUG_MSG("Receive get msg: " + msg->array_name);
+  logger_->log("Receive get msg: " + msg->array_name);
 
   std::string result_filename = arrayname_to_csv_filename(msg->array_name);
-  DEBUG_MSG("Result filename: " + result_filename);
+  logger_->log("Result filename: " + result_filename);
 
   // check if arrayname is in worker
   auto search = (*global_schema_map_).find(msg->array_name);
   if (search == (*global_schema_map_).end()) {
-    DEBUG_MSG("did not find schema!");
+    logger_->log("did not find schema!");
     return 0; // TODO need to fix b/c coordinator would hang
   }
 
@@ -173,11 +172,10 @@ int WorkerNode::handle(GetMsg* msg) {
 
   query_processor_->export_to_CSV(*(*global_schema_map_)[msg->array_name], result_filename);
 
-  DEBUG_MSG("finished export to CSV");
+  logger_->log("finished export to CSV");
   CSVFile file(result_filename, CSVFile::READ, MAX_DATA);
   CSVLine line;
 
-  // TODO make it "stream", right now everything is in one string
   std::stringstream content;
   bool keep_receiving = true;
   int count = 0;
@@ -214,24 +212,24 @@ int WorkerNode::handle(ArraySchemaMsg* msg) {
 
   (*global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
 
-  DEBUG_MSG("received array schema: \n" + msg->array_schema->to_string());
+  logger_->log("received array schema: \n" + msg->array_schema->to_string());
   return 0;
 }
 
 /*************** HANDLE LOAD **********************/
 int WorkerNode::handle(LoadMsg* msg) {
-  DEBUG_MSG("Received load\n");
+  logger_->log("Received load\n");
 
   (*global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
   loader_->load(convert_filename(msg->filename), *msg->array_schema, msg->order);
 
-  DEBUG_MSG("Finished load");
+  logger_->log("Finished load");
   return 0;
 }
 
 /*************** HANDLE SubarrayMsg **********************/
 int WorkerNode::handle(SubArrayMsg* msg) {
-  DEBUG_MSG("Received subarray \n");
+  logger_->log("Received subarray \n");
 
   std::string global_schema_name = msg->array_schema->array_name();
   // temporary hack, create a copy of the array schema and replace the array
@@ -239,7 +237,7 @@ int WorkerNode::handle(SubArrayMsg* msg) {
   // TODO check if arrayname is in worker
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
-    DEBUG_MSG("did not find schema!");
+    logger_->log("did not find schema!");
     return 0; // TODO need to fix b/c coordinator would hang
   }
 
@@ -249,7 +247,7 @@ int WorkerNode::handle(SubArrayMsg* msg) {
 
   query_processor_->subarray(*(msg->array_schema), msg->ranges, msg->result_array_name);
 
-  DEBUG_MSG("Finished subarray ");
+  logger_->log("Finished subarray ");
 
   return 0;
 }
@@ -258,7 +256,7 @@ int WorkerNode::handle(SubArrayMsg* msg) {
 /*************** HANDLE FILTER **********************/
 template<class T>
 int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type) {
-  DEBUG_MSG("Received filter");
+  logger_->log("Received filter");
 
   std::string global_schema_name = msg->array_schema_.array_name();
 
@@ -267,7 +265,7 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type
   // TODO check if arrayname is in worker
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
-    DEBUG_MSG("did not find schema!");
+    logger_->log("did not find schema!");
     return -1; // TODO need to fix b/c coordinator would hang
   }
 
@@ -276,7 +274,7 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type
   (*global_schema_map_)[msg->result_array_name_] = new_schema;
 
   query_processor_->filter_irregular<T>(msg->array_schema_, msg->predicate_, msg->result_array_name_); 
-  DEBUG_MSG("Finished filter");
+  logger_->log("Finished filter");
   return 0;
 }
 
