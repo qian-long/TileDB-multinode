@@ -191,7 +191,7 @@ void CoordinatorNode::test_load(std::string array_name) {
   Loader::Order order = Loader::ROW_MAJOR;
   LoadMsg lmsg = LoadMsg(array_name, array_schema, order);
 
-  send_all(lmsg);
+  send_and_receive(lmsg);
 
   DEBUG_MSG("Test Load Done");
 
@@ -211,7 +211,7 @@ void CoordinatorNode::test_filter(std::string array_name) {
   DEBUG_MSG(pred.to_string());
   FilterMsg<int> fmsg = FilterMsg<int>(array_schema->attribute_type(attr_index), *array_schema, pred, array_name+"_filtered");
 
-  send_all(fmsg);
+  send_and_receive(fmsg);
   DEBUG_MSG("Test Filter Done");
 
   // don't leak memory
@@ -228,7 +228,7 @@ void CoordinatorNode::test_subarray(std::string array_name) {
   vec.push_back(0); vec.push_back(500000);
 
   SubArrayMsg sbmsg(array_name+"_subarray", array_schema, vec);
-  send_all(sbmsg);
+  send_and_receive(sbmsg);
   DEBUG_MSG("Test Subarray Done");
 
   // don't leak memory
