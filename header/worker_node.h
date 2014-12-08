@@ -10,9 +10,10 @@
 #include "storage_manager.h"
 #include "query_processor.h"
 #include "array_schema.h"
+#include "messages.h"
+#include "logger.h"
 #include <string>
 #include <map>
-#include "messages.h"
 
 class WorkerNode {
   public:
@@ -56,6 +57,7 @@ class WorkerNode {
     Loader* loader_;
     StorageManager* storage_manager_;
     QueryProcessor* query_processor_;
+    Logger* logger_;
 
     // CATALOGUE of all the arrays in the system
     // map of global array name to local array name
