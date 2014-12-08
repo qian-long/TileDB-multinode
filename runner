@@ -1,12 +1,13 @@
 #! /bin/bash
-ssh qian-test1 -t "cd TileDB-multinode; make mpi-debug; setup_prod.sh"
-ssh qian-test2 -t "cd TileDB-multinode; make mpi-debug; setup_prod.sh"
-ssh qian-test3 -t "cd TileDB-multinode; make mpi-debug; setup_prod.sh"
-ssh qian-test4 -t "cd TileDB-multinode; make mpi-debug; setup_prod.sh"
-ssh qian-test5 -t "cd TileDB-multinode; make mpi-debug; setup_prod.sh"
-ssh qian-test6 -t "cd TileDB-multinode; make mpi-debug; setup_prod.sh"
-ssh qian-test7 -t "cd TileDB-multinode; make mpi-debug; setup_prod.sh"
-ssh qian-test8 -t "cd TileDB-multinode; make mpi-debug; setup_prod.sh"
+
+ssh qian-test1 -t "cd TileDB-multinode; make mpi-debug; ./setup_prod.sh"
+ssh qian-test2 -t "cd TileDB-multinode; make mpi-debug; ./setup_prod.sh"
+ssh qian-test3 -t "cd TileDB-multinode; make mpi-debug; ./setup_prod.sh"
+ssh qian-test4 -t "cd TileDB-multinode; make mpi-debug; ./setup_prod.sh"
+ssh qian-test5 -t "cd TileDB-multinode; make mpi-debug; ./setup_prod.sh"
+ssh qian-test6 -t "cd TileDB-multinode; make mpi-debug; ./setup_prod.sh"
+ssh qian-test7 -t "cd TileDB-multinode; make mpi-debug; ./setup_prod.sh"
+ssh qian-test8 -t "cd TileDB-multinode; make mpi-debug; ./setup_prod.sh"
 
 #1 = datatsize, 2 = number of nodes including master
 make mpi-debug && mpiexec -n $2 -f machinefile_prod ./mpi_main $1
