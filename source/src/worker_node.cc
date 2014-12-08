@@ -6,6 +6,7 @@
 #include "csv_file.h"
 #include <cstring>
 #include <stdexcept>      // std::invalid_argument
+#include <sys/time.h>
 
 WorkerNode::WorkerNode(int rank, int nprocs) {
   myrank_ = rank;
@@ -42,6 +43,13 @@ void WorkerNode::run() {
   int loop = true;
   int result;
   Msg* msg;
+
+  // TIMING VARIABLES
+  struct timeval tim;  
+  char tim_buf[100];
+  int tim_len;
+  double tstart;
+  double tend;
   while (loop) {
     try {
       MPI_Recv(buf, MAX_DATA, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
@@ -54,12 +62,24 @@ void WorkerNode::run() {
         case ARRAY_SCHEMA_TAG:
         case LOAD_TAG: 
         case SUBARRAY_TAG:
+
+          gettimeofday(&tim, NULL);  
+          tstart = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
           msg = deserialize_msg(status.MPI_TAG, buf, length);
           result = handle_msg(msg->msg_tag, msg);
-          respond_ack(result, status.MPI_TAG);
+
+          gettimeofday(&tim, NULL);  
+          tend = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
+          respond_ack(result, status.MPI_TAG, tend - tstart);
           break;
         case FILTER_TAG: 
           {
+            gettimeofday(&tim, NULL);  
+            tstart = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
+
             // this is really awkward with templating because the type of the
             // attribute must be known before we create the filtermsg obj...
             // // TODO look for a better way later
@@ -92,7 +112,9 @@ void WorkerNode::run() {
                 break;
             } 
 
-            respond_ack(result, status.MPI_TAG);
+            gettimeofday(&tim, NULL);  
+            tend = tim.tv_sec+(tim.tv_usec/1000000.0);  
+            respond_ack(result, status.MPI_TAG, tend - tstart);
           }
           break;
         default:
@@ -105,17 +127,17 @@ void WorkerNode::run() {
     } catch (StorageManagerException& sme) {
       logger_->log("StorageManagerException: ");
       logger_->log(sme.what());
-      respond_ack(-1, status.MPI_TAG);
+      respond_ack(-1, status.MPI_TAG, -1);
     } catch(QueryProcessorException& qpe) {
       logger_->log("QueryProcessorException: ");
       logger_->log(qpe.what());
-      respond_ack(-1, status.MPI_TAG);
+      respond_ack(-1, status.MPI_TAG, -1);
     }
 
   }
 }
 
-void WorkerNode::respond_ack(int result, int tag) {
+void WorkerNode::respond_ack(int result, int tag, double time) {
   std::stringstream ss;
 
   switch (tag) {
@@ -144,6 +166,8 @@ void WorkerNode::respond_ack(int result, int tag) {
     tag = ERROR_TAG;
     ss << "[ERROR]";
   }
+
+  ss << " Time[" << time << " secs]";
 
   logger_->log("Sending ack: " + ss.str());
   MPI_Send(ss.str().c_str(), ss.str().length(), MPI::CHAR, MASTER, tag, MPI_COMM_WORLD);
