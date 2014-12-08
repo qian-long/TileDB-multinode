@@ -183,9 +183,10 @@ void CoordinatorNode::test_filter(std::string array_name) {
   DEBUG_MSG("Start Filter");
   ArraySchema* array_schema = get_test_arrayschema(array_name);
 
+  // .5 selectivity
   int attr_index = 1;
-  Op op = GT;
-  int operand = 4;
+  Op op = GE;
+  int operand = 500000;
   Predicate<int> pred(attr_index, op, operand);
   DEBUG_MSG(pred.to_string());
   FilterMsg<int> fmsg = FilterMsg<int>(array_schema->attribute_type(attr_index), *array_schema, pred, array_name+"_filtered");
@@ -201,10 +202,10 @@ void CoordinatorNode::test_subarray(std::string array_name) {
   DEBUG_MSG("Start SubArray");
   ArraySchema* array_schema = get_test_arrayschema(array_name);
   std::vector<double> vec;
-  //one to five
-  vec.push_back(9); vec.push_back(11);
-  //30 to 40
-  vec.push_back(10); vec.push_back(3);
+
+  // .5 selectivity
+  vec.push_back(0); vec.push_back(1000000);
+  vec.push_back(0); vec.push_back(500000);
 
   SubArrayMsg sbmsg(array_name+"_subarray", array_schema, vec);
   send_all(sbmsg);
@@ -213,6 +214,7 @@ void CoordinatorNode::test_subarray(std::string array_name) {
   // don't leak memory
   delete array_schema;
 }
+
 ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
 
   // Set attribute names

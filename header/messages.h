@@ -7,13 +7,15 @@
 #include "predicate.h"
 
 #define QUIT_TAG 0
-#define DEF_TAG 1 // default
+#define DONE_TAG 1
 #define GET_TAG 2 // msg == array_name to get,
 #define INIT_TAG 3 // partition data, send array schema
 #define ARRAY_SCHEMA_TAG 4
 #define LOAD_TAG 5
 #define FILTER_TAG 6
 #define SUB_ARRAY_TAG 7
+#define AGGREGATE_TAG 8
+#define ERROR_TAG 9
 
 class Msg {
 
