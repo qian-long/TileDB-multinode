@@ -50,6 +50,37 @@ const char* get_filename(int dataset_num, int numprocs) {
 }
 
 
+void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
+  struct timeval tim;  
+  gettimeofday(&tim, NULL);  
+  double t1 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
+  // LOAD TEST
+  coordinator->test_load(array_name);
+
+  gettimeofday(&tim, NULL);  
+  double t2 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
+  printf("Load %s wall time: %.6lf secs\n", array_name.c_str(), t2 - t1);
+
+  // FILTER TEST
+  coordinator->test_filter(array_name);
+  gettimeofday(&tim, NULL);  
+  double t3 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
+  printf("Filter %s wall time: %.6lf secs\n", array_name.c_str(), t3 - t2);
+
+  // SUBARRAY TEST
+  coordinator->test_subarray(array_name);
+  gettimeofday(&tim, NULL);  
+  double t4 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
+  printf("Subarray %s wall time: %.6lf secs\n", array_name.c_str(), t4 - t3);
+
+  printf("%.6lf seconds elapsed running dataset %s\n", t4-t1, array_name.c_str());  
+
+}
+
 // This is the user
 int main(int argc, char** argv) {
   int myrank, nprocs;
@@ -61,28 +92,21 @@ int main(int argc, char** argv) {
   if (myrank == MASTER) {
     CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs);
 
-    struct timeval tim;  
-    gettimeofday(&tim, NULL);  
-    double t1=tim.tv_sec+(tim.tv_usec/1000000.0);  
+    std::string filename;
 
     if (argc <= 1 || strncmp(argv[1], "test",4) == 0) {
-        coordinator->run();
+        filename = "test";
     }else if (strncmp(argv[1], "500",3) == 0) {
-        std::string filename(get_filename(1, nprocs));
-        coordinator->test_load(filename);
+        filename = std::string(get_filename(1, nprocs));
     }else if (strncmp(argv[1], "1",1) == 0) {
-        std::string filename(get_filename(2, nprocs));
-        coordinator->test_load(filename);
+        filename = std::string(get_filename(2, nprocs));
     }else if (strncmp(argv[1], "2",1) == 0) {
-        std::string filename(get_filename(3, nprocs));
-        coordinator->test_load(filename);
+        filename = std::string(get_filename(3, nprocs));
     }else {
         DEBUG_MSG("not a valid total data size");
     }
 
-    gettimeofday(&tim, NULL);  
-    double t2=tim.tv_sec+(tim.tv_usec/1000000.0);  
-    printf("%.6lf seconds elapsed running dataset %s\n", t2-t1, argv[1]);  
+    run_test_suite(coordinator, filename);
 
     coordinator->quit_all();
   } else {
