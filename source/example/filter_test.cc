@@ -71,6 +71,7 @@ int main() {
 
 
     // testing serializing predicate
+    /*
     std::string serial = pred.serialize();
     std::cout << "serial: " << serial << "\n";
 
@@ -79,6 +80,7 @@ int main() {
     std::cout << "pred.op: " << pred1->op_ << "\n";
     std::cout << "pred.operand: " << pred1->operand_ << "\n";
     std::cout << "pred->to_string(): " << pred1->to_string() << "\n";
+    */
 
     // testing serializing FilterMsg
     /*
@@ -91,6 +93,8 @@ int main() {
     std::cout << "fmsg1.array_schema_: " << fmsg1.array_schema_.to_string() << "\n"; 
     */
 
+    double max = query_processor.aggregate(*array_schema_irreg, 1);
+    std::cout << "max of attribute 1: " << max << "\n";
   // Catching exceptions 
   } catch(StorageManagerException& sme) {
 

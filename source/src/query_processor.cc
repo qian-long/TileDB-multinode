@@ -204,7 +204,7 @@ double QueryProcessor::aggregate(const ArraySchema& array_schema,
         //append_cell(array_schema, cell_its, &csv_line);
         //csv_file << csv_line;
         //csv_line.clear();
-        if (*(cell_its[attr_index])>max_attr_value) {
+        if ((double) (*(cell_its[attr_index])) > max_attr_value) {
 	  max_attr_value=*(cell_its[attr_index]); 
         }
         for(unsigned int i=0; i<attribute_num+1; i++) 
@@ -220,20 +220,12 @@ double QueryProcessor::aggregate(const ArraySchema& array_schema,
     delete [] tile_its;
     delete [] cell_its;
 
-  }// catch(CSVFileException& cfe) {
-   // delete [] tile_its;
-   //delete [] cell_its;
-   // if(storage_manager_.is_open(array_schema.array_name())) 
-  // storage_manager_.close_array(array_schema.array_name());
-  //  remove(filename.c_str());
-  //  throw QueryProcessorException("CSVFileException caught by QueryProcessor: " 
-                                  + cfe.what(), array_schema.array_name());
   } catch(TileException& te) {
     delete [] tile_its;
     delete [] cell_its;
     if(storage_manager_.is_open(array_schema.array_name())) 
       storage_manager_.close_array(array_schema.array_name());
-    remove(filename.c_str());
+    //remove(filename.c_str());
     throw QueryProcessorException("TileException caught by QueryProcessor: " + 
                                   te.what(), array_schema.array_name());
   } catch(StorageManagerException& sme) {
@@ -241,7 +233,7 @@ double QueryProcessor::aggregate(const ArraySchema& array_schema,
     delete [] cell_its;
     if(storage_manager_.is_open(array_schema.array_name())) 
       storage_manager_.close_array(array_schema.array_name());
-    remove(filename.c_str());
+    //remove(filename.c_str());
     throw QueryProcessorException("StorageManagerException caught by "
                                   "QueryProcessor: " + sme.what(), 
                                    array_schema.array_name());
