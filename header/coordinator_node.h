@@ -30,6 +30,7 @@ class CoordinatorNode {
 
     void handle_get();
     void handle_load();
+    void handle_ack();
 
     /******** TESTING FUNCTIONS ********/
     // filename must be in the Data directory
@@ -43,6 +44,7 @@ class CoordinatorNode {
     // PRIVATE ATTRIBUTES
     int myrank_; // should be 0
     int nprocs_;
+    int nworkers_;
 
     // TODO other stuff like what ranges of coordinate values I hold
 

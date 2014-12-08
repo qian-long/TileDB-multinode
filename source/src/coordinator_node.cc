@@ -1,7 +1,7 @@
 #include <mpi.h>
 #include <string>
-#include "assert.h"
 #include <sstream>
+#include "assert.h"
 #include "coordinator_node.h"
 #include "debug.h"
 #include "csv_file.h"
@@ -10,6 +10,7 @@
 CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   myrank_ = rank;
   nprocs_ = nprocs; 
+  nworkers_ = nprocs - 1;
 }
 
 // TODO
@@ -55,7 +56,7 @@ void CoordinatorNode::run() {
 
   Loader::Order order = Loader::COLUMN_MAJOR;
   LoadMsg lmsg = LoadMsg(array_name, &array_schema, order);
-  send_all(lmsg);
+  send_and_receive(lmsg);
 
   DEBUG_MSG("sending filter instruction to all workers");
   int attr_index = 1;
@@ -65,7 +66,7 @@ void CoordinatorNode::run() {
   DEBUG_MSG(pred.to_string());
   FilterMsg<int> fmsg = FilterMsg<int>(array_schema.attribute_type(attr_index), array_schema, pred, "smallish_filter");
 
-  send_all(fmsg);
+  send_and_receive(fmsg);
 
   DEBUG_MSG("sending get test_filter instruction to all workers");
   GetMsg gmsg = GetMsg("smallish_filter");
@@ -77,7 +78,7 @@ void CoordinatorNode::run() {
   vec.push_back(10); vec.push_back(13);
 
   SubArrayMsg sbmsg("subarray", &array_schema, vec);
-  send_all(sbmsg);
+  send_and_receive(sbmsg);
   DEBUG_MSG("done sending subarray messages");
 
   DEBUG_MSG("sending get subarray instruction to all workers");
@@ -106,12 +107,13 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
     case GET_TAG:
       handle_get();
       break;
-    case INIT_TAG:
-      break;
-    case ARRAY_SCHEMA_TAG:
-      break;
     case LOAD_TAG:
-      handle_load();
+    case FILTER_TAG:
+    case SUBARRAY_TAG:
+      handle_ack();
+      break;
+    case AGGREGATE_TAG:
+      // TODO
       break;
     default:
       // don't do anything
@@ -129,6 +131,24 @@ void CoordinatorNode::send_array_schema(ArraySchema & array_schema) {
 
 void CoordinatorNode::handle_load() {
   // TODO print ok message to user
+}
+
+void CoordinatorNode::handle_ack() {
+
+  for (int i = 0; i < nworkers_; i++) {
+    MPI_Status status;
+    int nodeid = i + 1;
+    char *buf = new char[MAX_DATA];
+    int length;
+
+    MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    assert((status.MPI_TAG == DONE_TAG) || (status.MPI_TAG == ERROR_TAG));
+    MPI_Get_count(&status, MPI_CHAR, &length);
+
+    DEBUG_MSG("Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
+
+  }
+
 }
 
 // TODO make asynchronous

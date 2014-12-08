@@ -21,7 +21,7 @@ Msg* deserialize_msg(int type, const char* buf, int length){
       return ArraySchemaMsg::deserialize(buf, length);
     case LOAD_TAG: // TODO
       return LoadMsg::deserialize(buf, length);
-    case SUB_ARRAY_TAG: // TODO
+    case SUBARRAY_TAG: // TODO
       return SubArrayMsg::deserialize(buf, length);
   }
   throw std::invalid_argument("trying to deserailze msg of unknown type");
@@ -30,7 +30,7 @@ Msg* deserialize_msg(int type, const char* buf, int length){
 /******************************************************
  ******************* SubArray MESSAGE *****************
  ******************************************************/
-SubArrayMsg::SubArrayMsg(std::string result_name, ArraySchema* schema, std::vector<double> ranges) : Msg(SUB_ARRAY_TAG) {
+SubArrayMsg::SubArrayMsg(std::string result_name, ArraySchema* schema, std::vector<double> ranges) : Msg(SUBARRAY_TAG) {
   this->result_array_name = result_name;
   this->ranges = ranges;
   this->array_schema = schema;
