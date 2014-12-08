@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <cstdlib>
 
 
 const char* get_filename(int dataset_num, int numprocs) {
@@ -22,6 +23,9 @@ const char* get_filename(int dataset_num, int numprocs) {
           return "125MB_500MB";
         case 8:
           return "62.5MB_500MB";
+        default:
+          DEBUG_MSG("not a valid number of machines"); 
+          std::exit(-1);
       }
     case 2:
       switch(numprocs) {
@@ -33,6 +37,9 @@ const char* get_filename(int dataset_num, int numprocs) {
           return "125MB_1GB";
         case 8:
           return "62.5MB_1GB";
+        default:
+          DEBUG_MSG("not a valid number of machines"); 
+          std::exit(-1);
       }
     case 3:
       switch(numprocs) {
@@ -44,8 +51,13 @@ const char* get_filename(int dataset_num, int numprocs) {
           return "125MB_2GB";
         case 8:
           return "62.5MB_2GB";
+        default:
+          DEBUG_MSG("not a valid number of machines"); 
+          std::exit(-1);
       }
-
+    default:
+      DEBUG_MSG("not a valid data set number"); 
+      std::exit(-1);
   }
 }
 
