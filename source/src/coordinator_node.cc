@@ -3,21 +3,28 @@
 #include <sstream>
 #include "assert.h"
 #include "coordinator_node.h"
-#include "debug.h"
 #include "csv_file.h"
-#include "messages.h"
 
 CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   myrank_ = rank;
   nprocs_ = nprocs; 
   nworkers_ = nprocs - 1;
+
+  std::stringstream workspace;
+  // TODO put in config file
+  workspace << "./workspaces/workspace-0";
+  my_workspace_ = workspace.str();
+  //this->logger_ = new Logger(my_workspace_ + "/logfile");
+
 }
 
 // TODO
-CoordinatorNode::~CoordinatorNode() {}
+CoordinatorNode::~CoordinatorNode() {
+  delete logger_;
+}
 
 void CoordinatorNode::run() {
-  DEBUG_MSG("I am the master node");
+  //logger_->log("I am the master node");
   send_all("hello", DEF_TAG);
 
   // Set array name

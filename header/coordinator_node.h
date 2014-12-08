@@ -9,6 +9,7 @@
 #include "array_schema.h"
 #include "loader.h"
 #include "messages.h"
+#include "logger.h"
 
 class CoordinatorNode {
   public:
@@ -45,6 +46,8 @@ class CoordinatorNode {
     int myrank_; // should be 0
     int nprocs_;
     int nworkers_;
+    std::string my_workspace_;
+    Logger* logger_;
 
     // TODO other stuff like what ranges of coordinate values I hold
 
