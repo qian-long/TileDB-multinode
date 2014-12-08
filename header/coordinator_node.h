@@ -19,6 +19,9 @@ class CoordinatorNode {
     // DESTRUCTOR
     ~CoordinatorNode();
 
+    // GETTERS
+    Logger* logger();
+
     /** Runs coordinator. Shouldn't return */
     void run();
 
