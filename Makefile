@@ -110,6 +110,8 @@ mpi-run: $(MPI_EXEC)
 	./setup_env.sh
 	mpiexec -f machinefile_prod ./$(MPI_EXEC)
 
+mpi-prod: $(MPI_EXEC)
+	./setup_prod.sh
 
 mpi-run-local: $(MPI_EXEC)
 	./setup_env.sh
