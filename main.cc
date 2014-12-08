@@ -60,10 +60,12 @@ int main(int argc, char** argv) {
 
   if (myrank == MASTER) {
     CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs);
+
     struct timeval tim;  
     gettimeofday(&tim, NULL);  
     double t1=tim.tv_sec+(tim.tv_usec/1000000.0);  
-    if (strncmp(argv[1], "test",4) == 0) {
+
+    if (argc <= 1 || strncmp(argv[1], "test",4) == 0) {
         coordinator->run();
     }else if (strncmp(argv[1], "500",3) == 0) {
         std::string filename(get_filename(1, nprocs));
@@ -77,6 +79,7 @@ int main(int argc, char** argv) {
     }else {
         DEBUG_MSG("not a valid total data size");
     }
+
     gettimeofday(&tim, NULL);  
     double t2=tim.tv_sec+(tim.tv_usec/1000000.0);  
     printf("%.6lf seconds elapsed running dataset %s\n", t2-t1, argv[1]);  

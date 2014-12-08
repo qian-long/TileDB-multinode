@@ -55,10 +55,10 @@ void WorkerNode::run() {
         case GET_TAG:
         case ARRAY_SCHEMA_TAG:
         case LOAD_TAG: 
-        case SUB_ARRAY_TAG:
+        case SUBARRAY_TAG:
           msg = deserialize_msg(status.MPI_TAG, buf, length);
           result = handle_msg(msg->msg_tag, msg);
-          assert(result == 0);
+          respond_ack(result, status.MPI_TAG);
           break;
         case FILTER_TAG: 
           {
@@ -94,12 +94,15 @@ void WorkerNode::run() {
                 break;
             } 
 
+            respond_ack(result, status.MPI_TAG);
           }
           break;
         default:
           std::string content(buf, length);
           DEBUG_MSG(content);
       }
+
+
 
       // TODO delete stuff to avoid memory leak
     } catch (StorageManagerException& sme) {
@@ -111,6 +114,40 @@ void WorkerNode::run() {
     }
 
   }
+}
+
+void WorkerNode::respond_ack(int result, int tag) {
+  std::stringstream ss;
+
+  switch (tag) {
+    case GET_TAG:
+      ss << "GET";
+      break;
+    case ARRAY_SCHEMA_TAG:
+      ss << "ARRAY_SCHEMA_TAG";
+      break;
+    case LOAD_TAG:
+      ss << "LOAD";
+      break;
+    case SUBARRAY_TAG:
+      ss << "SUBARRAY";
+      break;
+    case FILTER_TAG:
+      ss << "FILTER";
+      break;
+    default:
+      break;
+  }
+  if (result == 0) {
+    tag = DONE_TAG;
+    ss << "[DONE]";
+  } else {
+    tag = ERROR_TAG;
+    ss << "[ERROR]";
+  }
+
+  MPI_Send(ss.str().c_str(), ss.str().length(), MPI::CHAR, MASTER, tag, MPI_COMM_WORLD);
+
 }
 
 /******************************************************
@@ -222,7 +259,6 @@ int WorkerNode::handle(SubArrayMsg* msg) {
 template<class T>
 int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type) {
   DEBUG_MSG("Received filter");
-  DEBUG_MSG("msg->array_schema->array_name(): " + msg->array_schema_.array_name());
 
   std::string global_schema_name = msg->array_schema_.array_name();
 
@@ -282,7 +318,7 @@ int WorkerNode::handle_msg(int type, Msg* msg){
       return handle((ArraySchemaMsg*) msg);
     case LOAD_TAG: // TODO
       return handle((LoadMsg*) msg);
-    case SUB_ARRAY_TAG:
+    case SUBARRAY_TAG:
       return handle((SubArrayMsg*) msg);
   }
   throw std::invalid_argument("trying to deserailze msg of unknown type");
