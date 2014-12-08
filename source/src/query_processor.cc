@@ -150,6 +150,107 @@ void QueryProcessor::subarray(const ArraySchema& array_schema,
     subarray_irregular(array_schema, range, result_array_name);
 }
 
+
+//TODO aggregate
+double QueryProcessor::aggregate(const ArraySchema& array_schema,
+                 const int attr_index){ 
+  // For easy reference
+  const std::string& array_name = array_schema.array_name();
+  const unsigned int attribute_num = array_schema.attribute_num();
+  const unsigned int dim_num = array_schema.dim_num();
+  double max_attr_value=0;
+
+  // Initialize iterators
+  StorageManager::const_iterator* tile_its = 
+       new StorageManager::const_iterator[attribute_num+1]; 
+  StorageManager::const_iterator tile_it_end; 
+  Tile::const_iterator* cell_its = 
+       new Tile::const_iterator[attribute_num+1]; 
+  Tile::const_iterator cell_it_end;
+
+  try { 
+    // Prepare array and CSV file
+    // CSVFile csv_file(filename, CSVFile::WRITE);
+    //CSVLine csv_line;
+    storage_manager_.open_array(array_name, StorageManager::READ);
+    if(storage_manager_.is_empty(array_name))  {
+      storage_manager_.close_array(array_name);
+      delete [] tile_its;
+      delete [] cell_its;
+      throw QueryProcessorException("Cannot procede to find  MAX: "
+                                    "array '" + array_name + "' is empty.");
+    }
+    init_tile_iterators(array_schema, tile_its, &tile_it_end);
+
+    // Iterate over all tiles
+    // Note that We use only the coordinate tile and cell iterators to check 
+    // the stopping conditions when iterating over tiles and cell, 
+    // since (i) the number of tiles is equal across all attributes, and
+    // (ii) the number of cells is equal across all attribute and coordinate
+    // tiles with the same id.
+    while(tile_its[attribute_num] != tile_it_end) {
+      // Iterate over all cells of each tile
+      //DEBUG_MSG("attribute_num: ");
+      //DEBUG_MSG(attribute_num);
+      for(unsigned int i=0; i<attribute_num+1; i++) {
+        //DEBUG_MSG("i: ");
+        //DEBUG_MSG(i);
+        //cell_its[i] = (*tile_its[i]).begin();
+        cell_its[i] = (*(tile_its[i])).begin();
+      }
+
+      cell_it_end = (*tile_its[attribute_num]).end();
+      while(cell_its[attribute_num] != cell_it_end) { 
+        //append_cell(array_schema, cell_its, &csv_line);
+        //csv_file << csv_line;
+        //csv_line.clear();
+        if (*(cell_its[attr_index])>max_attr_value) {
+	  max_attr_value=*(cell_its[attr_index]); 
+        }
+        for(unsigned int i=0; i<attribute_num+1; i++) 
+          ++cell_its[i];
+      }
+
+      for(unsigned int i=0; i<attribute_num+1; i++) 
+        ++tile_its[i];
+    }
+
+    // Clean up 
+    storage_manager_.close_array(array_name);
+    delete [] tile_its;
+    delete [] cell_its;
+
+  }// catch(CSVFileException& cfe) {
+   // delete [] tile_its;
+   //delete [] cell_its;
+   // if(storage_manager_.is_open(array_schema.array_name())) 
+  // storage_manager_.close_array(array_schema.array_name());
+  //  remove(filename.c_str());
+  //  throw QueryProcessorException("CSVFileException caught by QueryProcessor: " 
+                                  + cfe.what(), array_schema.array_name());
+  } catch(TileException& te) {
+    delete [] tile_its;
+    delete [] cell_its;
+    if(storage_manager_.is_open(array_schema.array_name())) 
+      storage_manager_.close_array(array_schema.array_name());
+    remove(filename.c_str());
+    throw QueryProcessorException("TileException caught by QueryProcessor: " + 
+                                  te.what(), array_schema.array_name());
+  } catch(StorageManagerException& sme) {
+    delete [] tile_its;
+    delete [] cell_its;
+    if(storage_manager_.is_open(array_schema.array_name())) 
+      storage_manager_.close_array(array_schema.array_name());
+    remove(filename.c_str());
+    throw QueryProcessorException("StorageManagerException caught by "
+                                  "QueryProcessor: " + sme.what(), 
+                                   array_schema.array_name());
+  } 
+return max_attr_value;
+}
+
+//end aggregate
+
 // TODO filter_reg
 template<class T>
 void QueryProcessor::filter_irregular(const ArraySchema& array_schema,
