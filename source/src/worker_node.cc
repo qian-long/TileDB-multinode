@@ -145,6 +145,7 @@ void WorkerNode::respond_ack(int result, int tag) {
     ss << "[ERROR]";
   }
 
+  logger_->log("Sending ack: " + ss.str());
   MPI_Send(ss.str().c_str(), ss.str().length(), MPI::CHAR, MASTER, tag, MPI_COMM_WORLD);
 
 }
