@@ -62,7 +62,7 @@ void WorkerNode::run() {
         case ARRAY_SCHEMA_TAG:
         case LOAD_TAG: 
         case SUBARRAY_TAG:
-
+        case AGGREGATE_TAG:
           gettimeofday(&tim, NULL);  
           tstart = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
@@ -74,17 +74,7 @@ void WorkerNode::run() {
 
           respond_ack(result, status.MPI_TAG, tend - tstart);
           break;
-        
-        case AGGREGATE_TAG:
 
-          msg = deserialize_msg(status.MPI_TAG, buf, length);
-          result = handle_msg(msg->msg_tag, msg);
-
-          gettimeofday(&tim, NULL);  
-          tend = tim.tv_sec+(tim.tv_usec/1000000.0);  
-          respond_ack(result, status.MPI_TAG, tend - tstart);
-
-          break;
         case FILTER_TAG: 
           {
             gettimeofday(&tim, NULL);  
