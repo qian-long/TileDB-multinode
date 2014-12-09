@@ -151,7 +151,7 @@ void QueryProcessor::subarray(const ArraySchema& array_schema,
 }
 
 
-//TODO aggregate
+//TODO aggregate add more aggregator types
 int QueryProcessor::aggregate(const ArraySchema& array_schema,
                  const int attr_index){ 
   // For easy reference

@@ -14,6 +14,7 @@
 #define LOAD_TAG 5
 #define FILTER_TAG 6
 #define SUB_ARRAY_TAG 7
+#define AGGREGATE_TAG 11
 
 class Msg {
 
@@ -122,5 +123,23 @@ class FilterMsg : public Msg {
   private:
 
 };
+
+
+class AggregateMsg : public Msg {
+  
+  public:   
+    ArraySchema array_schema_;
+    int attr_index_;
+
+    AggregateMsg();
+    AggregateMsg(const ArraySchema& array_schema, int attr_index);
+
+    ~AggregateMsg(){};
+
+    std::string serialize();
+    static AggregateMsg* deserialize(const char* buf, int len);
+};
+
+
 #endif 
 
