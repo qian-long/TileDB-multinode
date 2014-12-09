@@ -94,7 +94,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
   gettimeofday(&tim, NULL);  
   double t4 = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
-  len = snprintf(buffer, 100, "Subarray %s wall time: %.6lf secs\n", array_name.c_str(), t4 - t3);
+  len = snprintf(buffer, 100, "Aggregate %s wall time: %.6lf secs\n", array_name.c_str(), t4 - t3);
   coordinator->logger()->log(std::string(buffer, len));
   printf("%s", buffer);
 
