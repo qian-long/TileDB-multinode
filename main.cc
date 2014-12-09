@@ -30,13 +30,13 @@ const char* get_filename(int dataset_num, int numprocs) {
     case 2:
       switch(numprocs) {
         case 1:
-          return "500MB_1GB";
+          return "1GB_1GB";
         case 2:
-          return "250MB_1GB";
+          return "500MB_1GB";
         case 4:
-          return "125MB_1GB";
+          return "250MB_1GB";
         case 8:
-          return "62.5MB_1GB";
+          return "125MB_1GB";
         default:
           DEBUG_MSG("not a valid number of machines"); 
           std::exit(-1);
@@ -44,13 +44,13 @@ const char* get_filename(int dataset_num, int numprocs) {
     case 3:
       switch(numprocs) {
         case 1:
-          return "500MB_2GB";
+          return "2GB_2GB";
         case 2:
-          return "250MB_2GB";
+          return "1GB_2GB";
         case 4:
-          return "125MB_2GB";
+          return "500MB_2GB";
         case 8:
-          return "62.5MB_2GB";
+          return "250MB_2GB";
         default:
           DEBUG_MSG("not a valid number of machines"); 
           std::exit(-1);

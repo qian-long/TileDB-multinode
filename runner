@@ -17,7 +17,8 @@ echo $(($2+1))
 #ex: ./runner 500 8
 
 #run the actual thing
-make mpi-prod && mpiexec -n $2 -f machinefile_prod ./mpi_main $1 > $DATA_FOLDER/master.txt
+make mpi-prod 
+mpiexec -n $2 -f machinefile_prod ./mpi_main $1 2>&1 $DATA_FOLDER/master.txt | tee $DATA_FOLDER/master.txt
 
 #get the data from each machine
 if [ "$?" -eq "0" ]
