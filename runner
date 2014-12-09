@@ -12,8 +12,9 @@ do
   ssh qian-test$i -t "cd TileDB-multinode; make mpi-prod"
 done;
 
+echo $(($2+1))
 #1 = datatsize, 2 = number of nodes including master, 3 = trial number
-#ex: ./runner 500 8 
+#ex: ./runner 500 8
 
 #run the actual thing
 make mpi-prod && mpiexec -n $2 -f machinefile_prod ./mpi_main $1 > $DATA_FOLDER/master.txt
