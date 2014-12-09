@@ -88,8 +88,9 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
   coordinator->logger()->log(std::string(buffer, len));
   printf("%s", buffer);
 
-  // SUBARRAY TEST
-  coordinator->test_subarray(array_name);
+  // AGGREGATE TEST
+  coordinator->test_aggregate(array_name);
+
   gettimeofday(&tim, NULL);  
   double t4 = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
@@ -97,9 +98,14 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
   coordinator->logger()->log(std::string(buffer, len));
   printf("%s", buffer);
 
+
   len = snprintf(buffer, 100, "%.6lf seconds elapsed running dataset %s\n", t4-t1, array_name.c_str());  
   coordinator->logger()->log(std::string(buffer, len));
   printf("%s", buffer);
+
+  // SUBARRAY TEST
+  //coordinator->test_subarray(array_name);
+
 }
 
 // This is the user

@@ -34,6 +34,7 @@ class CoordinatorNode {
 
     void handle_get();
     void handle_load();
+    void handle_aggregate();
     void handle_ack();
 
     /******** TESTING FUNCTIONS ********/
@@ -42,6 +43,7 @@ class CoordinatorNode {
     void test_load(std::string);
     void test_filter(std::string);
     void test_subarray(std::string);
+    void test_aggregate(std::string);
 
     ArraySchema* get_test_arrayschema(std::string array_name);
   private:
