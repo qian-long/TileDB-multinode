@@ -281,6 +281,18 @@ void CoordinatorNode::test_subarray(std::string array_name) {
   //delete array_schema;
 }
 
+void CoordinatorNode::test_aggregate(std::string array_name) {
+  logger_->log("Start Aggregate test");
+
+  int attr_index = 1;
+  AggregateMsg amsg(array_name, 1);
+  send_and_receive(amsg);
+  logger_->log("Test Aggregate Done");
+
+  // don't leak memory
+  //delete array_schema;
+}
+
 ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
 
   // Set attribute names
