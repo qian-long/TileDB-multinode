@@ -52,7 +52,7 @@ int main() {
 
     // Load array from a CSV file
     // Make sure the CSV files in the path exist.
-    loader.load("~/projects/TileDB-multinode/Data/smallish.csv",
+    loader.load("~/projects/TileDB-multinode/Data/test.csv",
                  *array_schema_irreg, Loader::ROW_MAJOR);
 
 
@@ -93,7 +93,7 @@ int main() {
     std::cout << "fmsg1.array_schema_: " << fmsg1.array_schema_.to_string() << "\n"; 
     */
 
-    double max = query_processor.aggregate(*array_schema_irreg, 1);
+    int max = query_processor.aggregate(*array_schema_irreg, 1);
     std::cout << "max of attribute 1: " << max << "\n";
   // Catching exceptions 
   } catch(StorageManagerException& sme) {

@@ -88,8 +88,9 @@ class QueryProcessor {
                 const Range& range,
                 const std::string& result_array_name) const;
 
-  double aggregate(const ArraySchema& array_schema,
-                   const int attr_index);
+  // TODO revamp later to accept all types
+  int aggregate(const ArraySchema& array_schema,
+                const int attr_index);
 
   template<class T>
   void filter_irregular(const ArraySchema& array_schema,
