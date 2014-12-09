@@ -80,6 +80,9 @@ void WorkerNode::run() {
           msg = deserialize_msg(status.MPI_TAG, buf, length);
           result = handle_msg(msg->msg_tag, msg);
 
+          gettimeofday(&tim, NULL);  
+          tend = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
           break;
         case FILTER_TAG: 
           {

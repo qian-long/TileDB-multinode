@@ -129,7 +129,6 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
       handle_ack();
       break;
     case AGGREGATE_TAG:
-      // TODO
       handle_aggregate();
       break;
     default:
