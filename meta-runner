@@ -7,7 +7,6 @@ do
     for trial in 1 2 3;
     do 
       ./runner $dataset $num $trial
-      #echo $dataset $num $trial
     done;
   done;
 done;
