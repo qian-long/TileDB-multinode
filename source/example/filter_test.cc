@@ -94,7 +94,17 @@ int main() {
     */
 
     int max = query_processor.aggregate(*array_schema_irreg, 1);
+
     std::cout << "max of attribute 1: " << max << "\n";
+
+    // testing serializing AggregateMsg
+    AggregateMsg amsg = AggregateMsg("test", 1);
+    std::string asdf = amsg.serialize();
+
+    AggregateMsg *amsg1 = AggregateMsg::deserialize(asdf.c_str(), asdf.length());
+    std::cout << "amsg1.array_name: " << amsg1->array_name_ << "\n";
+    std::cout << "amsg1.attr_index_: " << amsg1->attr_index_ << "\n";
+
   // Catching exceptions 
   } catch(StorageManagerException& sme) {
 

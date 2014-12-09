@@ -74,6 +74,13 @@ void WorkerNode::run() {
 
           respond_ack(result, status.MPI_TAG, tend - tstart);
           break;
+        
+        case AGGREGATE_TAG:
+
+          msg = deserialize_msg(status.MPI_TAG, buf, length);
+          result = handle_msg(msg->msg_tag, msg);
+
+          break;
         case FILTER_TAG: 
           {
             gettimeofday(&tim, NULL);  
@@ -259,11 +266,11 @@ int WorkerNode::handle(SubArrayMsg* msg) {
   std::string global_schema_name = msg->array_schema->array_name();
   // temporary hack, create a copy of the array schema and replace the array
   // name
-  // TODO check if arrayname is in worker
+  // check if arrayname is in worker
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
     logger_->log("did not find schema!");
-    return 0; // TODO need to fix b/c coordinator would hang
+    return -1;
   }
 
   ArraySchema * new_schema = ((*global_schema_map_)[global_schema_name])->deep_copy(msg->result_array_name);
@@ -277,6 +284,28 @@ int WorkerNode::handle(SubArrayMsg* msg) {
   return 0;
 }
 
+/*************** HANDLE AggregateMsg **********************/
+int WorkerNode::handle(AggregateMsg* msg) {
+  logger_->log("Received aggregate");
+  logger_->log("arrayname: " + msg->array_name_);
+  std::string global_schema_name = msg->array_name_;
+  // check if arrayname is in worker
+  auto search = (*global_schema_map_).find(global_schema_name);
+  if (search == (*global_schema_map_).end()) {
+    logger_->log("did not find schema!");
+    return 0;
+  }
+
+  int max = query_processor_->aggregate(*(search->second), msg->attr_index_);
+
+  logger_->log("My computed MAX aggregate: " + std::to_string(max));
+
+  std::stringstream content;
+  content.write((char *) &max, sizeof(int));
+  MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, AGGREGATE_TAG, MPI_COMM_WORLD);
+
+  return 0;
+}
 
 /*************** HANDLE FILTER **********************/
 template<class T>
@@ -314,14 +343,6 @@ std::string WorkerNode::arrayname_to_csv_filename(std::string arrayname) {
   return ss.str();
 }
 
-/*
-std::string WorkerNode::get_arrayname(std::string arrayname) {
-  std::stringstream ss;
-  ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
-  return ss.str();
-}
-*/
-
 std::string WorkerNode::convert_filename(std::string filename) {
   std::stringstream ss;
   ss << "./Data/" << filename.c_str() << ".csv";
@@ -343,6 +364,8 @@ int WorkerNode::handle_msg(int type, Msg* msg){
       return handle((LoadMsg*) msg);
     case SUBARRAY_TAG:
       return handle((SubArrayMsg*) msg);
+    case AGGREGATE_TAG:
+      return handle((AggregateMsg*) msg);
   }
   throw std::invalid_argument("trying to deserailze msg of unknown type");
 }

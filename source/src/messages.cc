@@ -19,10 +19,12 @@ Msg* deserialize_msg(int type, const char* buf, int length){
       return GetMsg::deserialize(buf, length);
     case ARRAY_SCHEMA_TAG:
       return ArraySchemaMsg::deserialize(buf, length);
-    case LOAD_TAG: // TODO
+    case LOAD_TAG:
       return LoadMsg::deserialize(buf, length);
-    case SUBARRAY_TAG: // TODO
+    case SUBARRAY_TAG:
       return SubArrayMsg::deserialize(buf, length);
+    case AGGREGATE_TAG:
+      return AggregateMsg::deserialize(buf, length);
   }
   throw std::invalid_argument("trying to deserailze msg of unknown type");
 }
@@ -299,14 +301,21 @@ FilterMsg<T>* FilterMsg<T>::deserialize(const char* buffer, int buf_length) {
 /******************************************************
  ******************* AGGREGATE MESSAGE ****************
  ******************************************************/
+
+AggregateMsg::AggregateMsg() : Msg(AGGREGATE_TAG) {};
+
+AggregateMsg::AggregateMsg(std::string array_name, int attr_index): Msg(AGGREGATE_TAG) {
+  attr_index_ = attr_index;
+  array_name_ = array_name;
+}
+
 std::string AggregateMsg::serialize() {
   std::stringstream ss;
 
-  // serialize array schema
-  std::string schema_serial = array_schema_.serialize();
-  int schema_serial_length = schema_serial.size();
-  ss.write((char *) &schema_serial_length, sizeof(int));
-  ss.write((char *) schema_serial.c_str(), schema_serial_length);
+  // serialize array name
+  int length = array_name_.size();
+  ss.write((char *) &length, sizeof(int));
+  ss.write((char *) array_name_.c_str(), length);
 
   // serialize attr int
   ss.write((char *) &attr_index_, sizeof(int));
@@ -317,25 +326,22 @@ std::string AggregateMsg::serialize() {
 AggregateMsg* AggregateMsg::deserialize(const char* buf, int len) {
   int pos = 0;
 
-  // deserialize schema
+  // deserialize array name
   int length = (int) buf[pos];
   pos += sizeof(int);
 
-  ArraySchema* schema = ArraySchema::deserialize(&buf[pos], length);
+  std::string array_name = std::string(&buf[pos], length);
+  std::cout << array_name << "\n";
   pos += length;
 
   // deserialize attribute index
   int attr_index = (int) buf[pos];
+
   assert(pos + sizeof(int) == len);
-  return new AggregateMsg(*schema, attr_index);
+  return new AggregateMsg(array_name, attr_index);
 }
 
-AggregateMsg::AggregateMsg() : Msg(AGGREGATE_TAG) {};
 
-AggregateMsg::AggregateMsg(const ArraySchema& array_schema, int attr_index): Msg(AGGREGATE_TAG) {
-  array_schema_ = array_schema;
-  attr_index_ = attr_index;
-}
 
 ArraySchema::DataType parse_attr_type(const char* buffer, int buf_length) {
   // type is the first thing in the serial string, see serialize method

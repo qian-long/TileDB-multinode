@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <string>
 #include <sstream>
+#include <cstring>
 #include "assert.h"
 #include "coordinator_node.h"
 #include "csv_file.h"
@@ -30,7 +31,7 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "test";
+  std::string array_name = "smallish";
   // Set attribute names
   std::vector<std::string> attribute_names;
   attribute_names.push_back("attr1");
@@ -81,6 +82,7 @@ void CoordinatorNode::run() {
   GetMsg gmsg = GetMsg("smallish_filter");
   send_and_receive(gmsg);
 
+  /*
   DEBUG_MSG("sending subarray");
   std::vector<double> vec;
   vec.push_back(9); vec.push_back(11);
@@ -93,6 +95,11 @@ void CoordinatorNode::run() {
   DEBUG_MSG("sending get subarray instruction to all workers");
   GetMsg gmsg1 = GetMsg("subarray");
   send_and_receive(gmsg1);
+  */
+
+  DEBUG_MSG("sending aggregate instruction to all workers");
+  AggregateMsg amsg = AggregateMsg(array_name, 1);
+  send_and_receive(amsg);
 
 
   quit_all();
@@ -123,6 +130,7 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
       break;
     case AGGREGATE_TAG:
       // TODO
+      handle_aggregate();
       break;
     default:
       // don't do anything
@@ -183,6 +191,36 @@ void CoordinatorNode::handle_get() {
     } while (keep_receiving);
 
   }
+}
+
+// TODO other types
+void CoordinatorNode::handle_aggregate() {
+
+  int aggregate_max = -10000000;
+  int worker_max;
+  for (int i = 0; i < nworkers_; i++) {
+    MPI_Status status;
+    int nodeid = i + 1;
+    char *buf = new char[MAX_DATA];
+    int length;
+
+    MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, AGGREGATE_TAG, MPI_COMM_WORLD, &status);
+    MPI_Get_count(&status, MPI_CHAR, &length);
+
+    logger_->log("aggregate msg length: " + std::to_string(length));
+    memcpy(&worker_max, buf, sizeof(int));
+    
+    logger_->log("Received max from Worker " + std::to_string(nodeid) + ": " + std::to_string(worker_max));
+    if (worker_max > aggregate_max) {
+      aggregate_max = worker_max;
+    }
+
+  }
+
+  std::stringstream ss;
+  ss << "Max: " << aggregate_max;
+  logger_->log(ss.str());
+  std::cout << ss.str() << "\n";
 }
 
 void CoordinatorNode::quit_all() {

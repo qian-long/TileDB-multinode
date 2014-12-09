@@ -115,7 +115,8 @@ int main(int argc, char** argv) {
         DEBUG_MSG("not a valid total data size");
     }
 
-    run_test_suite(coordinator, filename);
+    //run_test_suite(coordinator, filename);
+    coordinator->run();
 
     coordinator->quit_all();
   } else {

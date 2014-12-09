@@ -34,6 +34,7 @@ class CoordinatorNode {
 
     void handle_get();
     void handle_load();
+    void handle_aggregate();
     void handle_ack();
 
     /******** TESTING FUNCTIONS ********/

@@ -130,11 +130,12 @@ class FilterMsg : public Msg {
 class AggregateMsg : public Msg {
   
   public:   
-    ArraySchema array_schema_;
+    //ArraySchema array_schema_;
+    std::string array_name_;
     int attr_index_;
 
     AggregateMsg();
-    AggregateMsg(const ArraySchema& array_schema, int attr_index);
+    AggregateMsg(std::string array_name, int attr_index);
 
     ~AggregateMsg(){};
 
