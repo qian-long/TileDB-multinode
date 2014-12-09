@@ -125,5 +125,24 @@ class FilterMsg : public Msg {
   private:
 
 };
+
+
+class AggregateMsg : public Msg {
+  
+  public:   
+    //ArraySchema array_schema_;
+    std::string array_name_;
+    int attr_index_;
+
+    AggregateMsg();
+    AggregateMsg(std::string array_name, int attr_index);
+
+    ~AggregateMsg(){};
+
+    std::string serialize();
+    static AggregateMsg* deserialize(const char* buf, int len);
+};
+
+
 #endif 
 

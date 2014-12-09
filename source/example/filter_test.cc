@@ -52,7 +52,7 @@ int main() {
 
     // Load array from a CSV file
     // Make sure the CSV files in the path exist.
-    loader.load("~/projects/TileDB-multinode/Data/smallish.csv",
+    loader.load("~/projects/TileDB-multinode/Data/test.csv",
                  *array_schema_irreg, Loader::ROW_MAJOR);
 
 
@@ -71,6 +71,7 @@ int main() {
 
 
     // testing serializing predicate
+    /*
     std::string serial = pred.serialize();
     std::cout << "serial: " << serial << "\n";
 
@@ -79,6 +80,7 @@ int main() {
     std::cout << "pred.op: " << pred1->op_ << "\n";
     std::cout << "pred.operand: " << pred1->operand_ << "\n";
     std::cout << "pred->to_string(): " << pred1->to_string() << "\n";
+    */
 
     // testing serializing FilterMsg
     /*
@@ -90,6 +92,18 @@ int main() {
     std::cout << "fmsg1.predicate_: " << fmsg1.predicate_.to_string() << "\n"; 
     std::cout << "fmsg1.array_schema_: " << fmsg1.array_schema_.to_string() << "\n"; 
     */
+
+    int max = query_processor.aggregate(*array_schema_irreg, 1);
+
+    std::cout << "max of attribute 1: " << max << "\n";
+
+    // testing serializing AggregateMsg
+    AggregateMsg amsg = AggregateMsg("test", 1);
+    std::string asdf = amsg.serialize();
+
+    AggregateMsg *amsg1 = AggregateMsg::deserialize(asdf.c_str(), asdf.length());
+    std::cout << "amsg1.array_name: " << amsg1->array_name_ << "\n";
+    std::cout << "amsg1.attr_index_: " << amsg1->attr_index_ << "\n";
 
   // Catching exceptions 
   } catch(StorageManagerException& sme) {
