@@ -142,6 +142,10 @@ void WorkerNode::run() {
       logger_->log("QueryProcessorException: ");
       logger_->log(qpe.what());
       respond_ack(-1, status.MPI_TAG, -1);
+    } catch(LoaderException& le) {
+      logger_->log("LoaderException: ");
+      logger_->log(le.what());
+      respond_ack(-1, status.MPI_TAG, -1);
     }
 
   }
@@ -295,13 +299,15 @@ int WorkerNode::handle(AggregateMsg* msg) {
   // check if arrayname is in worker
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
-    logger_->log("did not find schema!");
-    return 0;
+    logger_->log("Aggregate did not find schema!");
+    // TODO move to while loop in run somehow
+    respond_ack(-1, ERROR_TAG, -1); 
+    return -1;
   }
 
   int max = query_processor_->aggregate(*(search->second), msg->attr_index_);
 
-  logger_->log("My computed MAX aggregate: " + std::to_string(max));
+  logger_->log("Sending my computed MAX aggregate: " + std::to_string(max));
 
   std::stringstream content;
   content.write((char *) &max, sizeof(int));

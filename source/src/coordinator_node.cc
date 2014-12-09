@@ -196,22 +196,28 @@ void CoordinatorNode::handle_get() {
 void CoordinatorNode::handle_aggregate() {
 
   int aggregate_max = -10000000;
-  int worker_max;
+  int worker_max = -10000000;
   for (int i = 0; i < nworkers_; i++) {
     MPI_Status status;
     int nodeid = i + 1;
     char *buf = new char[MAX_DATA];
     int length;
 
-    MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, AGGREGATE_TAG, MPI_COMM_WORLD, &status);
+    MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+    assert((status.MPI_TAG == AGGREGATE_TAG) || (status.MPI_TAG == ERROR_TAG));
     MPI_Get_count(&status, MPI_CHAR, &length);
 
-    logger_->log("aggregate msg length: " + std::to_string(length));
-    memcpy(&worker_max, buf, sizeof(int));
-    
-    logger_->log("Received max from Worker " + std::to_string(nodeid) + ": " + std::to_string(worker_max));
-    if (worker_max > aggregate_max) {
-      aggregate_max = worker_max;
+    if (status.MPI_TAG == ERROR_TAG) {
+      logger_->log("Received aggregate error from worker: " + std::to_string(nodeid));
+
+    } else {
+      memcpy(&worker_max, buf, sizeof(int));
+      
+      logger_->log("Received max from Worker " + std::to_string(nodeid) + ": " + std::to_string(worker_max));
+      if (worker_max > aggregate_max) {
+        aggregate_max = worker_max;
+      }
     }
 
   }
