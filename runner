@@ -4,7 +4,7 @@ TEMP_NAME=$( date +"%d-%H_%M")
 TRIAL=${3:-$TEMP_NAME}
 RUN_NAME=$2_$1_$TRIAL
 DATA_FOLDER=Result/$RUN_NAME
-mkdir -p DATA_FOLDER
+mkdir -p $DATA_FOLDER
 
 #clear the machines for running
 for i in `seq 1 $2`;
@@ -19,7 +19,12 @@ done;
 make mpi-prod && mpiexec -n $2 -f machinefile_prod ./mpi_main $1 > $DATA_FOLDER/master.txt
 
 #get the data from each machine
-for i in `seq 1 $2`;
-do
-  scp qian-test$i:~/TileDB-multinode/workspaces/workspaces-$i/logfile $DATA_FOLDER/machine_$i.txt
-done;
+if [ "$?" -eq "0" ]
+then
+  for i in `seq 1 $2`;
+  do
+    scp qian-test$i:~/TileDB-multinode/workspaces/workspaces-$i/logfile $DATA_FOLDER/machine_$i.txt
+  done;
+else
+  echo "Test script failed"
+fi
