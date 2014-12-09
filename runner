@@ -16,13 +16,18 @@ done;
 #ex: ./runner 500 8
 
 #run the actual thing
+#cp host thing
+sudo cp hosts /etc/hosts
 make mpi-prod 
 mpiexec -n $(($2+1)) -f machinefile_prod ./mpi_main $1 > $DATA_FOLDER/master.txt
 cat $DATA_FOLDER/master.txt
 
+
 #get the data from each machine
 if [ "$?" -eq "0" ]
 then
+  #get data from master
+  cp ~/TileDB-multinode/workspaces/workspace-0/logfile $DATA_FOLDER/master_logfile.txt
   for i in `seq 1 $2`;
   do
     scp qian-test$i:~/TileDB-multinode/workspaces/workspace-$i/logfile $DATA_FOLDER/machine_$i.txt
@@ -30,4 +35,5 @@ then
 else
   echo "Test script failed"
 fi
+
 
