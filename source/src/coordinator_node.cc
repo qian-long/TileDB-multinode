@@ -208,16 +208,21 @@ void CoordinatorNode::handle_aggregate() {
     assert((status.MPI_TAG == AGGREGATE_TAG) || (status.MPI_TAG == ERROR_TAG));
     MPI_Get_count(&status, MPI_CHAR, &length);
 
-    if (status.MPI_TAG == ERROR_TAG) {
+    if (status.MPI_TAG == ERROR_TAG) { // Error
       logger_->log("Received aggregate error from worker: " + std::to_string(nodeid));
 
-    } else {
+    } else { // Success
       memcpy(&worker_max, buf, sizeof(int));
-      
       logger_->log("Received max from Worker " + std::to_string(nodeid) + ": " + std::to_string(worker_max));
       if (worker_max > aggregate_max) {
         aggregate_max = worker_max;
       }
+
+      MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      assert(status.MPI_TAG == DONE_TAG);
+      MPI_Get_count(&status, MPI_CHAR, &length);
+
+      logger_->log("Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
     }
 
   }

@@ -82,6 +82,7 @@ void WorkerNode::run() {
 
           gettimeofday(&tim, NULL);  
           tend = tim.tv_sec+(tim.tv_usec/1000000.0);  
+          respond_ack(result, status.MPI_TAG, tend - tstart);
 
           break;
         case FILTER_TAG: 
@@ -169,6 +170,9 @@ void WorkerNode::respond_ack(int result, int tag, double time) {
       break;
     case FILTER_TAG:
       ss << "FILTER";
+      break;
+    case AGGREGATE_TAG:
+      ss << "AGGREGATE";
       break;
     default:
       break;
@@ -301,7 +305,7 @@ int WorkerNode::handle(AggregateMsg* msg) {
   if (search == (*global_schema_map_).end()) {
     logger_->log("Aggregate did not find schema!");
     // TODO move to while loop in run somehow
-    respond_ack(-1, ERROR_TAG, -1); 
+    //respond_ack(-1, ERROR_TAG, -1); 
     return -1;
   }
 
