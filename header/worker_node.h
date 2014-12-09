@@ -37,7 +37,7 @@ class WorkerNode {
     template<class T>
     int handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type);
 
-    void respond_ack(int result, int tag);
+    void respond_ack(int result, int tag, double time);
 
     // HELPER FUNCTIONS
     std::string get_arrayname(std::string);
