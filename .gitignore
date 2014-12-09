@@ -14,3 +14,7 @@ doc/
 # executables
 source/bin
 mpi_main
+
+myrank
+
+Data/*
