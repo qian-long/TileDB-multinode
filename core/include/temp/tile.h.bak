@@ -40,6 +40,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <iostream>
 
 /**
  * Tile is an abstract class. It allows polymorphism to easily access
@@ -80,7 +81,9 @@ class Tile {
   /** Returns the tile id. */
   uint64_t tile_id() const { return tile_id_; }
   /** Returns the tile size (in bytes). */
-  uint64_t tile_size() const { return cell_num_ * cell_size_; } 
+  uint64_t tile_size() const { 
+    return cell_num_ * cell_size_; 
+  } 
  
   // OPERATORS
   /** 

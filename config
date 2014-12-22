@@ -1,0 +1,36 @@
+Host qian-test-ubuntu14
+  HostName 128.52.174.84
+  User ubuntu
+  IdentityFile ~/.ssh/qian_mit
+Host qian-test1
+  HostName 128.52.175.65
+  User ubuntu
+  IdentityFile ~/.ssh/qian_mit
+Host qian-test2
+  HostName 128.52.174.166
+  User ubuntu
+  IdentityFile ~/.ssh/qian_mit
+Host qian-test3
+  HostName 128.52.174.185
+  User ubuntu
+  IdentityFile ~/.ssh/qian_mit
+Host qian-test4
+  HostName 128.52.174.187
+  User ubuntu
+  IdentityFile ~/.ssh/qian_mit
+Host qian-test5
+  HostName 128.52.174.188
+  User ubuntu
+  IdentityFile ~/.ssh/qian_mit
+Host qian-test6
+  HostName 128.52.174.189
+  User ubuntu
+  IdentityFile ~/.ssh/qian_mit
+Host qian-test7
+  HostName 128.52.174.190
+  User ubuntu
+  IdentityFile ~/.ssh/qian_mit
+Host qian-test8
+  HostName 128.52.174.191
+  User ubuntu
+  IdentityFile ~/.ssh/qian_mit

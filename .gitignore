@@ -1,5 +1,21 @@
+# vim stuff
 *.swp
+*.swo
+
+# object files
+source/obj
+source/example/obj
+source/test/obj
+*.o
+
+# documentation
 doc/
-source/bin/
-source/example/obj/
-source/obj/
+
+# executables
+source/bin
+mpi_main
+
+myrank
+
+Data/*
+Result/*
