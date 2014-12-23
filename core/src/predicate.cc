@@ -3,7 +3,6 @@
 #include <sstream>
 #include <typeinfo>
 #include <iostream>
-#include "debug.h"
 #include <cstring>
 
 template<class T>

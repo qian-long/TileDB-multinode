@@ -4,6 +4,8 @@
 
 # --- Compiler --- #
 CXX = g++
+#CXX = mpic++ -std=c++11
+DFLAGS = -DDEBUG
 
 # --- Directories --- #
 CORE_INCLUDE_DIR = core/include
@@ -22,9 +24,14 @@ TEST_SRC_DIR = test/src
 TEST_OBJ_DIR = test/obj
 TEST_BIN_DIR = test/bin
 DOC_DIR = doc
+MULTINODE_SRC_DIR = src
+MULTINODE_OBJ_DIR = obj
+MULTINODE_EXEC = multinode_launcher
+
 
 # --- Paths --- #
 CORE_INCLUDE_PATHS = -I$(CORE_INCLUDE_DIR)
+MULTINODE_INCLUDE_PATHS = -I$(MULTINODE_SRC_DIR)
 
 # --- Files --- #
 CORE_INCLUDE := $(wildcard $(CORE_INCLUDE_DIR)/*.h)
@@ -37,12 +44,15 @@ GTEST_INCLUDE := $(wildcard $(GTEST_INCLUDE_DIR)/*.h)
 GTEST_OBJ := $(patsubst $(GTEST_SRC_DIR)/%.cc, $(GTEST_OBJ_DIR)/%.o, $(GTEST_SRC))
 TEST_SRC := $(wildcard $(TEST_SRC_DIR)/*.cc)
 TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.cc, $(TEST_OBJ_DIR)/%.o, $(TEST_SRC))
+MULTINODE_INCLUDE := $(wildcard $(MULTINODE_SRC_DIR)/*.h)
+MULTINODE_SRC := $(wildcard $(MULTINODE_SRC_DIR)/*.cc)
+MULTINODE_OBJ := $(patsubst $(MULTINODE_SRC_DIR)/%.cc, $(MULTINODE_OBJ_DIR)/%.o, $(MULTINODE_SRC))
 
 ###################
 # General Targets #
 ###################
 
-.PHONY: core example gtest test doc doc_doxygen clean_core clean_example clean_gtest clean_test clean
+.PHONY: core example gtest test doc doc_doxygen clean_core clean_example clean_gtest clean_test clean_multinode clean
 
 all: core example gtest test doc
 
@@ -56,7 +66,7 @@ test: $(TEST_OBJ)
 
 doc: doxyfile.inc
 
-clean: clean_core clean_example clean_gtest clean_test
+clean: clean_core clean_example clean_gtest clean_test clean_multinode
 
 ###############
 # Core TileDB #
@@ -157,6 +167,44 @@ doxyfile.inc: $(CORE_INCLUDE)
 	@echo INPUT         =  $(DOC_DIR)/mainpage.dox $(CORE_INCLUDE) > doxyfile.inc
 	@echo FILE_PATTERNS =  *.h >> doxyfile.inc
 	doxygen Doxyfile.mk
+
+####################
+# Multinode TileDB #
+####################
+# prints out debug messages
+multi-debug: CXX = mpic++ -std=c++11
+multi-debug: CXX += -DDEBUG -g
+multi-debug: multi
+
+# compiling multinode src
+$(MULTINODE_OBJ_DIR)/%.o: $(MULTINODE_SRC_DIR)/%.cc
+	echo 'hi' $@
+	mkdir -p $(MULTINODE_OBJ_DIR)
+	$(CXX) $(CORE_INCLUDE_PATHS) $(MULTINODE_INCLUDE_PATHS) -c $< -o $@
+
+# $< gets name of first matching dependency, $@ gets target name
+# $^ The names of all the prerequisites
+main.o: main.cc
+	$(CXX) $(CORE_INCLUDE_PATHS) $(MULTINODE_INCLUDE_PATHS) -c $< -o $@
+
+# linking
+$(MULTINODE_EXEC): main.o $(MULTINODE_OBJ) $(CORE_OBJ)
+	$(CXX) $(CORE_INCLUDE_PATHS) $(MULTINODE_INCLUDE_PATHS) -o $@ $^
+
+multi: $(MULTINODE_EXEC)
+	./setup_env.sh
+
+multi-run: $(MULTINODE_EXEC)
+	./setup_env.sh
+	mpiexec -f machinefile_prod ./$(MULTINODE_EXEC)
+
+multi-run-local: $(MULTINODE_EXEC)
+	./setup_env.sh
+	mpiexec -f machinefile_local ./$(MULTINODE_EXEC)
+
+clean_multinode:
+	rm -f $(MULTINODE_EXEC) $(MULTINODE_OBJ_DIR)/* main.o
+
 
 # LIB_PATHS = /usr/local/lib/libspatialindex.so
 # LIBS = -lpqxx -lpthread

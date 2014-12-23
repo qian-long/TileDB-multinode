@@ -5,6 +5,7 @@
 #include "assert.h"
 #include "coordinator_node.h"
 #include "csv_file.h"
+#include "debug.h"
 
 CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   myrank_ = rank;
@@ -38,9 +39,9 @@ void CoordinatorNode::run() {
   attribute_names.push_back("attr2");
 
   // Set attribute types
-  std::vector<ArraySchema::DataType> attribute_types;
-  attribute_types.push_back(ArraySchema::INT);
-  attribute_types.push_back(ArraySchema::INT);
+  std::vector<const std::type_info*> types;
+  types.push_back(&typeid(int));
+  types.push_back(&typeid(int));
 
   // Set dimension names
   std::vector<std::string> dim_names;
@@ -48,23 +49,24 @@ void CoordinatorNode::run() {
   dim_names.push_back("j");
 
   // Set dimension type
-  ArraySchema::DataType dim_type = ArraySchema::INT;
+  ArraySchema::CellType dim_type = ArraySchema::INT;
 
   // Set dimension domains
   std::vector<std::pair<double,double> > dim_domains;
   dim_domains.push_back(std::pair<double,double>(0, 999));
   dim_domains.push_back(std::pair<double,double>(0, 999));
+
   // Create an array with irregular tiles
   ArraySchema array_schema = ArraySchema(array_name,
-    attribute_names,
-    attribute_types,
-    dim_domains,
-    dim_names,
-    dim_type);
+      attribute_names,
+      dim_names,
+      dim_domains,
+      types,
+      ArraySchema::ROW_MAJOR);
 
   DEBUG_MSG("sending load instruction to all workers");
 
-  Loader::Order order = Loader::COLUMN_MAJOR;
+  ArraySchema::Order order = ArraySchema::COLUMN_MAJOR;
   LoadMsg lmsg = LoadMsg(array_name, &array_schema, order);
   send_and_receive(lmsg);
 
@@ -74,7 +76,7 @@ void CoordinatorNode::run() {
   int operand = 4;
   Predicate<int> pred(attr_index, op, operand);
   DEBUG_MSG(pred.to_string());
-  FilterMsg<int> fmsg = FilterMsg<int>(array_schema.attribute_type(attr_index), array_schema, pred, "smallish_filter");
+  FilterMsg<int> fmsg = FilterMsg<int>(array_schema.celltype(attr_index), array_schema, pred, "smallish_filter");
 
   send_and_receive(fmsg);
 
@@ -245,7 +247,7 @@ void CoordinatorNode::test_load(std::string array_name) {
   logger_->log("Start Load");
   logger_->log("loading array " + array_name);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
-  Loader::Order order = Loader::ROW_MAJOR;
+  ArraySchema::Order order = ArraySchema::ROW_MAJOR;
   LoadMsg lmsg = LoadMsg(array_name, array_schema, order);
 
   send_and_receive(lmsg);
@@ -266,7 +268,7 @@ void CoordinatorNode::test_filter(std::string array_name) {
   int operand = 500000;
   Predicate<int> pred(attr_index, op, operand);
   logger_->log(pred.to_string());
-  FilterMsg<int> fmsg = FilterMsg<int>(array_schema->attribute_type(attr_index), *array_schema, pred, array_name+"_filtered");
+  FilterMsg<int> fmsg = FilterMsg<int>(array_schema->celltype(attr_index), *array_schema, pred, array_name+"_filtered");
 
   send_and_receive(fmsg);
   logger_->log("Test Filter Done");
@@ -312,9 +314,10 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
   attribute_names.push_back("attr2");
 
   // Set attribute types
-  std::vector<ArraySchema::DataType> attribute_types;
-  attribute_types.push_back(ArraySchema::INT);
-  attribute_types.push_back(ArraySchema::INT);
+  std::vector<const std::type_info*> attribute_types;
+  attribute_types.push_back(&typeid(int));
+  attribute_types.push_back(&typeid(int));
+
 
   // Set dimension names
   std::vector<std::string> dim_names;
@@ -322,7 +325,7 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
   dim_names.push_back("j");
 
   // Set dimension type
-  ArraySchema::DataType dim_type = ArraySchema::DOUBLE;
+  ArraySchema::CellType dim_type = ArraySchema::DOUBLE;
 
   // Set dimension domains
   std::vector<std::pair<double,double> > dim_domains;
@@ -332,10 +335,10 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
   // Create an array with irregular tiles
   ArraySchema * array_schema = new ArraySchema(array_name,
     attribute_names,
-    attribute_types,
-    dim_domains,
     dim_names,
-    dim_type);
+    dim_domains,
+    attribute_types,
+    ArraySchema::ROW_MAJOR);
 
   return array_schema;
 }

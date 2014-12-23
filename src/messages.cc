@@ -46,7 +46,8 @@ std::string SubArrayMsg::serialize() {
   ss.write((char *) result_array_name.c_str(), filename_length);
 
   //serialize array schema
-  std::string schema_serial = array_schema->serialize();
+  std::pair<char*, int> pair = array_schema->serialize();
+  std::string schema_serial = std::string(pair.first, pair.second);
   int schema_serial_length = schema_serial.size();
   ss.write((char *) &schema_serial_length, sizeof(int));
   ss.write((char *) schema_serial.c_str(), schema_serial_length);
@@ -82,7 +83,10 @@ SubArrayMsg* SubArrayMsg::deserialize(const char* buffer, int buffer_length){
   int arrayschema_length = (int) buffer[counter];
   counter += sizeof(int);
   
-  ArraySchema* schema = ArraySchema::deserialize(&buffer[counter], arrayschema_length); 
+  
+  ArraySchema* schema = new ArraySchema();
+  schema->deserialize(&buffer[counter], arrayschema_length); 
+
   counter += arrayschema_length;
 
   //deserialize vector
@@ -110,10 +114,11 @@ std::string LoadMsg::serialize() {
   ss.write((char *) filename.c_str(), filename_length);
 
   // serialize order
-  ss.write((char *) &order, sizeof(Loader::Order));
+  ss.write((char *) &order, sizeof(ArraySchema::Order));
 
   // serialize array schema
-  std::string schema_serial = array_schema->serialize();
+  std::pair<char*, int> pair = array_schema->serialize();
+  std::string schema_serial = std::string(pair.first, pair.second);
   int schema_serial_length = schema_serial.size();
   ss.write((char *) &schema_serial_length, sizeof(int));
   ss.write((char *) schema_serial.c_str(), schema_serial_length);
@@ -124,7 +129,7 @@ std::string LoadMsg::serialize() {
 LoadMsg* LoadMsg::deserialize(const char * buffer, int buffer_length) {
   //Load vars
   std::string filename;
-  Loader::Order order;
+  ArraySchema::Order order;
   std::stringstream ss;
   int counter = 0;
 
@@ -135,14 +140,15 @@ LoadMsg* LoadMsg::deserialize(const char * buffer, int buffer_length) {
   filename = ss.str(); // first arg
   counter += filename_length;
 
-  memcpy(&order, &buffer[counter], sizeof(Loader::Order));
-  counter += sizeof(Loader::Order);
+  memcpy(&order, &buffer[counter], sizeof(ArraySchema::Order));
+  counter += sizeof(ArraySchema::Order);
 
   int arrayschema_length = (int) buffer[counter];
   counter += sizeof(int);
   
   // this is creating space for it on the heap. 
-  ArraySchema* schema = ArraySchema::deserialize(&buffer[counter], arrayschema_length); // 3rd arg
+  ArraySchema* schema = new ArraySchema();
+  schema->deserialize(&buffer[counter], arrayschema_length); // 3rd arg
 
   // finished parsing
   assert(counter + arrayschema_length == buffer_length);
@@ -151,7 +157,7 @@ LoadMsg* LoadMsg::deserialize(const char * buffer, int buffer_length) {
 
 LoadMsg::LoadMsg() : Msg(LOAD_TAG) { }
 
-LoadMsg::LoadMsg(const std::string filename, ArraySchema* array_schema, Loader::Order order) : 
+LoadMsg::LoadMsg(const std::string filename, ArraySchema* array_schema, ArraySchema::Order order) : 
   Msg(LOAD_TAG){
   this->filename = filename;
   this->order = order;
@@ -200,11 +206,14 @@ ArraySchemaMsg::ArraySchemaMsg(ArraySchema* schema) : Msg(ARRAY_SCHEMA_TAG)  {
 }
 
 std::string ArraySchemaMsg::serialize() {
-  return this->array_schema->serialize();
+  std::pair<char*, int> pair = this->array_schema->serialize();
+
+  return std::string(pair.first, pair.second);
 }
 
 ArraySchemaMsg* ArraySchemaMsg::deserialize(const char* buffer, int buffer_length) {
-  ArraySchema* schema = ArraySchema::deserialize(buffer, buffer_length);
+  ArraySchema* schema = new ArraySchema();
+  schema->deserialize(buffer, buffer_length);
   return new ArraySchemaMsg(schema);
 }
 
@@ -218,7 +227,7 @@ FilterMsg<T>::FilterMsg() : Msg(FILTER_TAG) {}
 
 template<class T>
 FilterMsg<T>::FilterMsg(
-    const ArraySchema::DataType& attr_type, 
+    const ArraySchema::CellType& attr_type, 
     ArraySchema& array_schema, 
     Predicate<T>& predicate, 
     const std::string& result_array_name) : Msg(FILTER_TAG) {
@@ -240,7 +249,7 @@ std::string FilterMsg<T>::serialize() {
   std::stringstream ss;
 
   // serialize attr_type_
-  ss.write((char *) &attr_type_, sizeof(ArraySchema::DataType));
+  ss.write((char *) &attr_type_, sizeof(ArraySchema::CellType));
 
   // serialize resulting array name
   int length = result_array_name_.size();
@@ -255,7 +264,9 @@ std::string FilterMsg<T>::serialize() {
   ss.write((char *) pred_serial.c_str(), pred_serial_length);
 
   // serialize array schema
-  std::string schema_serial = array_schema_.serialize();
+  std::pair<char*, int> pair = array_schema_.serialize();
+  std::string schema_serial = std::string(pair.first, pair.second);
+
   int schema_serial_length = schema_serial.size();
   ss.write((char *) &schema_serial_length, sizeof(int));
   ss.write((char *) schema_serial.c_str(), schema_serial_length);
@@ -269,8 +280,8 @@ FilterMsg<T>* FilterMsg<T>::deserialize(const char* buffer, int buf_length) {
   int pos = 0;
 
   // parse attribute type
-  ArraySchema::DataType datatype = static_cast<ArraySchema::DataType>(buffer[0]);
-  pos += sizeof(ArraySchema::DataType);
+  ArraySchema::CellType datatype = static_cast<ArraySchema::CellType>(buffer[0]);
+  pos += sizeof(ArraySchema::CellType);
 
   // parse result array name
   int length = (int) buffer[pos];
@@ -289,7 +300,8 @@ FilterMsg<T>* FilterMsg<T>::deserialize(const char* buffer, int buf_length) {
   // parse array schema
   length = (int) buffer[pos];
   pos += sizeof(int);
-  ArraySchema *schema = ArraySchema::deserialize(&buffer[pos], length);
+  ArraySchema *schema = new ArraySchema();
+  schema->deserialize(&buffer[pos], length);
 
   // finished parsing
   assert(length + pos == buf_length);
@@ -343,9 +355,9 @@ AggregateMsg* AggregateMsg::deserialize(const char* buf, int len) {
 
 
 
-ArraySchema::DataType parse_attr_type(const char* buffer, int buf_length) {
+ArraySchema::CellType parse_attr_type(const char* buffer, int buf_length) {
   // type is the first thing in the serial string, see serialize method
-  return static_cast<ArraySchema::DataType>(buffer[0]);
+  return static_cast<ArraySchema::CellType>(buffer[0]);
 }
 
 // template instantiations

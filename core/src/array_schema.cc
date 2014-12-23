@@ -302,6 +302,25 @@ const std::type_info* ArraySchema::type(unsigned int i) const {
   return types_[i];
 }
 
+const ArraySchema::CellType ArraySchema::celltype(unsigned int i) const {
+  assert(i <= attribute_num_);
+
+  CellType type;
+  if(*types_[i] == typeid(char))
+      type = CHAR;
+  else if(*types_[i] == typeid(int))
+      type = INT;
+  else if(*types_[i] == typeid(int64_t))
+      type = INT64_T;
+  else if(*types_[i] == typeid(float))
+      type = FLOAT;
+  else if(*types_[i] == typeid(double))
+      type = DOUBLE;
+
+
+  return type;
+}
+
 /******************************************************
 *********************** MUTATORS **********************
 ******************************************************/
@@ -600,6 +619,11 @@ uint64_t ArraySchema::tile_id_row_major(
   }	
 
   return tile_ID;
+}
+
+// TODO
+std::string ArraySchema::to_string() {
+  return "TODO arrayschema to_string()";
 }
 
 /******************************************************

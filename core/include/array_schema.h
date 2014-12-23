@@ -141,6 +141,9 @@ class ArraySchema {
   std::pair<char*, uint64_t> serialize() const; 
   /** Returns the type of the i-th attribute. */
   const std::type_info* type(unsigned int i) const;
+
+  /** Returns the enum type of the i-th attribute. */
+  const ArraySchema::CellType celltype(unsigned int i) const;
   
   // MUTATORS
   /** It assigns values to the members of the object from the input buffer. */
@@ -191,18 +194,6 @@ class ArraySchema {
 
   /** String representation of array schema **/
   std::string to_string();
-
-  /** Print array schema **/
-  void print();
-
-  /** Serialize array schema object into char array **/
-  std::string serialize();
-
-  /** Deserialize char array into array schema object **/
-  static ArraySchema* deserialize(const char * buf, int buf_len);
-
-  /** deep copy of array schema **/
-  ArraySchema * deep_copy(std::string new_array_name);
 
  private:
   // PRIVATE ATTRIBUTES

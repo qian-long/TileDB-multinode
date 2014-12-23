@@ -7,15 +7,19 @@ source/obj
 source/example/obj
 source/test/obj
 *.o
+gtest/obj/gtest-all.o
+core/obj
 
 # documentation
 doc/
 
 # executables
 source/bin
-mpi_main
+example/bin/*
+multinode_launcher
 
 myrank
 
+# data
 Data/*
 Result/*

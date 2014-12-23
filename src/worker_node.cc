@@ -17,7 +17,7 @@ WorkerNode::WorkerNode(int rank, int nprocs) {
   my_workspace_ = workspace.str();
   storage_manager_ = new StorageManager(my_workspace_);
   loader_ = new Loader(my_workspace_, *storage_manager_);
-  query_processor_ = new QueryProcessor(*storage_manager_);
+  query_processor_ = new QueryProcessor(my_workspace_, *storage_manager_);
   logger_ = new Logger(my_workspace_ + "/logfile");
 
   // catalogue data structures
@@ -51,7 +51,7 @@ void WorkerNode::run() {
   double tstart;
   double tend;
   while (loop) {
-    try {
+    //try {
       MPI_Recv(buf, MAX_DATA, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
       switch (status.MPI_TAG) {
@@ -84,7 +84,7 @@ void WorkerNode::run() {
             // this is really awkward with templating because the type of the
             // attribute must be known before we create the filtermsg obj...
             // // TODO look for a better way later
-            ArraySchema::DataType attr_type = static_cast<ArraySchema::DataType>(buf[0]);
+            ArraySchema::CellType attr_type = static_cast<ArraySchema::CellType>(buf[0]);
             switch(attr_type) {
               case ArraySchema::INT:
                 {
@@ -123,7 +123,7 @@ void WorkerNode::run() {
           logger_->log(content);
       }
 
-
+   /*
       // TODO delete stuff to avoid memory leak
     } catch (StorageManagerException& sme) {
       logger_->log("StorageManagerException: ");
@@ -138,6 +138,7 @@ void WorkerNode::run() {
       logger_->log(le.what());
       respond_ack(-1, status.MPI_TAG, -1);
     }
+    */
 
   }
 }
@@ -201,9 +202,11 @@ int WorkerNode::handle(GetMsg* msg) {
     return 0; // TODO need to fix b/c coordinator would hang
   }
 
-  ArraySchema * schema = (*global_schema_map_)[msg->array_name];
+  ArraySchema* schema = (*global_schema_map_)[msg->array_name];
 
-  query_processor_->export_to_CSV(*(*global_schema_map_)[msg->array_name], result_filename);
+  StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(schema->array_name());
+
+  query_processor_->export_to_CSV(desc, result_filename);
 
   logger_->log("finished export to CSV");
   CSVFile file(result_filename, CSVFile::READ, MAX_DATA);
@@ -212,7 +215,8 @@ int WorkerNode::handle(GetMsg* msg) {
   std::stringstream content;
   bool keep_receiving = true;
   int count = 0;
-  try {
+  // TODO figure out correct exceptions
+  //try {
     while(file >> line) {
       // encode "there is more coming" in the last byte
       if (content.str().length() + line.str().length() + 1 >= MAX_DATA) {
@@ -224,11 +228,13 @@ int WorkerNode::handle(GetMsg* msg) {
       content << line.str() << "\n";
     }
 
+  /*
   } catch(CSVFileException& e) {
     std::cout << e.what() << "\n";
     // TODO send error
     return 0;
   }
+  */
 
   // final send, tell coordinator to stop receiving
   keep_receiving = false;
@@ -254,7 +260,7 @@ int WorkerNode::handle(LoadMsg* msg) {
   logger_->log("Received load\n");
 
   (*global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
-  loader_->load(convert_filename(msg->filename), *msg->array_schema, msg->order);
+  loader_->load(convert_filename(msg->filename), *msg->array_schema);
 
   logger_->log("Finished load");
   return 0;
@@ -274,11 +280,13 @@ int WorkerNode::handle(SubArrayMsg* msg) {
     return -1;
   }
 
-  ArraySchema * new_schema = ((*global_schema_map_)[global_schema_name])->deep_copy(msg->result_array_name);
+  ArraySchema new_schema = ((*global_schema_map_)[global_schema_name])->clone(msg->result_array_name);
 
-  (*global_schema_map_)[msg->result_array_name] = new_schema;
+  (*global_schema_map_)[msg->result_array_name] = &new_schema;
 
-  query_processor_->subarray(*(msg->array_schema), msg->ranges, msg->result_array_name);
+  StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_schema->array_name());
+
+  query_processor_->subarray(desc, msg->ranges, msg->result_array_name);
 
   logger_->log("Finished subarray ");
 
@@ -299,7 +307,9 @@ int WorkerNode::handle(AggregateMsg* msg) {
     return -1;
   }
 
-  int max = query_processor_->aggregate(*(search->second), msg->attr_index_);
+  // TODO add back
+  //int max = query_processor_->aggregate(*(search->second), msg->attr_index_);
+  int max = 0;
 
   logger_->log("Sending my computed MAX aggregate: " + std::to_string(max));
 
@@ -312,7 +322,7 @@ int WorkerNode::handle(AggregateMsg* msg) {
 
 /*************** HANDLE FILTER **********************/
 template<class T>
-int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type) {
+int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type) {
   logger_->log("Received filter");
 
   std::string global_schema_name = msg->array_schema_.array_name();
@@ -326,11 +336,12 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::DataType attr_type
     return -1; // TODO need to fix b/c coordinator would hang
   }
 
-  ArraySchema * new_schema = ((*global_schema_map_)[global_schema_name])->deep_copy(msg->result_array_name_);
+  ArraySchema new_schema = ((*global_schema_map_)[global_schema_name])->clone(msg->result_array_name_);
 
-  (*global_schema_map_)[msg->result_array_name_] = new_schema;
+  (*global_schema_map_)[msg->result_array_name_] = &new_schema;
 
-  query_processor_->filter_irregular<T>(msg->array_schema_, msg->predicate_, msg->result_array_name_); 
+  // TODO add back
+  //query_processor_->filter_irregular<T>(msg->array_schema_, msg->predicate_, msg->result_array_name_); 
   logger_->log("Finished filter");
   return 0;
 }
