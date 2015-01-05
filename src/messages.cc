@@ -103,18 +103,25 @@ SubArrayMsg* SubArrayMsg::deserialize(const char* buffer, int buffer_length){
   return new SubArrayMsg(array_name, schema, ranges);
 
 }
+
 /******************************************************
  ********************* LOAD MESSAGE *******************
  ******************************************************/
+LoadMsg::LoadMsg() : Msg(LOAD_TAG) { }
+
+LoadMsg::LoadMsg(const std::string filename, ArraySchema* array_schema) : 
+  Msg(LOAD_TAG){
+  this->filename = filename;
+  this->array_schema = array_schema;
+}
+
 std::string LoadMsg::serialize() {
   std::stringstream ss;
+
   // serialize filename
   int filename_length = filename.size();
   ss.write((char *) &filename_length, sizeof(int));
   ss.write((char *) filename.c_str(), filename_length);
-
-  // serialize order
-  ss.write((char *) &order, sizeof(ArraySchema::Order));
 
   // serialize array schema
   std::pair<char*, int> pair = array_schema->serialize();
@@ -140,35 +147,22 @@ LoadMsg* LoadMsg::deserialize(const char * buffer, int buffer_length) {
   filename = ss.str(); // first arg
   counter += filename_length;
 
-  memcpy(&order, &buffer[counter], sizeof(ArraySchema::Order));
-  counter += sizeof(ArraySchema::Order);
-
   int arrayschema_length = (int) buffer[counter];
   counter += sizeof(int);
   
   // this is creating space for it on the heap. 
   ArraySchema* schema = new ArraySchema();
-  schema->deserialize(&buffer[counter], arrayschema_length); // 3rd arg
+  schema->deserialize(&buffer[counter], arrayschema_length); // second arg
 
   // finished parsing
   assert(counter + arrayschema_length == buffer_length);
-  return new LoadMsg(filename, schema, order);
+  return new LoadMsg(filename, schema);
 }
 
-LoadMsg::LoadMsg() : Msg(LOAD_TAG) { }
-
-LoadMsg::LoadMsg(const std::string filename, ArraySchema* array_schema, ArraySchema::Order order) : 
-  Msg(LOAD_TAG){
-  this->filename = filename;
-  this->order = order;
-  this->array_schema = array_schema;
-}
 
 /******************************************************
  ********************* GET MESSAGE ********************
  ******************************************************/
-
-
 GetMsg::GetMsg() : Msg(GET_TAG) {};
 
 GetMsg::GetMsg(std::string arrayname) : Msg(GET_TAG)  {

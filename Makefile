@@ -3,8 +3,8 @@
 ##########
 
 # --- Compiler --- #
-CXX = g++
-#CXX = mpic++ -std=c++11
+#CXX = g++
+CXX = mpic++ -std=c++11
 DFLAGS = -DDEBUG
 
 # --- Directories --- #
@@ -171,10 +171,10 @@ clean_gtest:
 #########
 
 # Building GTester
-$(GTESTER): CXXFLAGS += -I$(GTEST_INCLUDE_DIR) $(CORE_INCLUDE_PATHS)
-$(GTESTER): $(CORE_INCLUDE) $(CORE_OBJ) $(UNIT_TEST_OBJ) libgtest.a
+$(GTESTER): CXXFLAGS += -I$(GTEST_INCLUDE_DIR) $(CORE_INCLUDE_PATHS) $(MULTINODE_INCLUDE_PATHS)
+$(GTESTER): $(CORE_INCLUDE) $(CORE_OBJ) $(UNIT_TEST_OBJ) $(MULTINODE_OBJ) libgtest.a
 $(GTESTER):
-	$(CXX) $(CXXFLAGS) -o $@ $(UNIT_TEST_OBJ) $(CORE_OBJ) libgtest.a -lpthread
+	$(CXX) $(CXXFLAGS) -o $@ $(UNIT_TEST_OBJ) $(CORE_OBJ) $(MULTINODE_OBJ) libgtest.a -lpthread
 
 clean_test:
 	rm $(GTESTER) libgtest.a $(UNIT_TEST_DIR)/*.o

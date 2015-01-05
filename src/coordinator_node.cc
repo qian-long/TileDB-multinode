@@ -69,7 +69,7 @@ void CoordinatorNode::run() {
   DEBUG_MSG("sending load instruction to all workers");
 
   ArraySchema::Order order = ArraySchema::COLUMN_MAJOR;
-  LoadMsg lmsg = LoadMsg(array_name, &array_schema, order);
+  LoadMsg lmsg = LoadMsg(array_name, &array_schema);
   send_and_receive(lmsg);
 
   /*
@@ -254,13 +254,13 @@ void CoordinatorNode::test_load(std::string array_name) {
   logger_->log("loading array " + array_name);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
   ArraySchema::Order order = ArraySchema::ROW_MAJOR;
-  LoadMsg lmsg = LoadMsg(array_name, array_schema, order);
+  LoadMsg lmsg = LoadMsg(array_name, array_schema);
 
   send_and_receive(lmsg);
 
   logger_->log("Test Load Done");
 
-  // don't leak memory
+  // TODO don't leak memory
   //delete array_schema;
 }
 

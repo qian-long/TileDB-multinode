@@ -52,10 +52,8 @@ namespace {
     ArraySchema new_array_schema = ArraySchema();
     new_array_schema.deserialize(pair.first, pair.second);
 
-    new_array_schema.print();
+    std::string actual_str = new_array_schema.to_string();
 
-    std::pair<char*, uint64_t> new_pair = new_array_schema.serialize();
-    std::string actual_str = std::string(new_pair.first, new_pair.second);
-    EXPECT_STREQ(expected_str, actual_str);
+    EXPECT_STREQ(expected_str.c_str(), actual_str.c_str());
   }
 }

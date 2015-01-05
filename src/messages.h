@@ -51,11 +51,10 @@ class LoadMsg : public Msg {
   
   public:   
     std::string filename;
-    ArraySchema::Order order;
     ArraySchema* array_schema;
 
     LoadMsg();
-    LoadMsg(const std::string filename, ArraySchema* array_schema, ArraySchema::Order order);
+    LoadMsg(const std::string filename, ArraySchema* array_schema);
 
     ~LoadMsg(){};
 
