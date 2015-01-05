@@ -178,7 +178,6 @@ multi-debug: multi
 
 # compiling multinode src
 $(MULTINODE_OBJ_DIR)/%.o: $(MULTINODE_SRC_DIR)/%.cc
-	echo 'hi' $@
 	mkdir -p $(MULTINODE_OBJ_DIR)
 	$(CXX) $(CORE_INCLUDE_PATHS) $(MULTINODE_INCLUDE_PATHS) -c $< -o $@
 
