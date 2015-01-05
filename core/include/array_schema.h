@@ -193,7 +193,7 @@ class ArraySchema {
 
 
   /** String representation of array schema **/
-  std::string to_string();
+  std::string to_string() const;
 
  private:
   // PRIVATE ATTRIBUTES

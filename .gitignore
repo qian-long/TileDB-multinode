@@ -9,6 +9,7 @@ source/test/obj
 *.o
 gtest/obj/gtest-all.o
 core/obj
+tests/*.o
 
 # documentation
 doc/

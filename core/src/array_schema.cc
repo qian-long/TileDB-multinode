@@ -38,6 +38,7 @@
 #include <math.h>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 /******************************************************
 ************ CONSTRUCTORS & DESTRUCTORS ***************
@@ -532,45 +533,52 @@ bool ArraySchema::is_aligned_with(const ArraySchema& array_schema) const {
 }
 
 void ArraySchema::print() const {
-  std::cout << "Array name: " << array_name_ << "\n";
-  std::cout << "Order: ";
+  std::cout << to_string();
+}
+
+std::string ArraySchema::to_string() const {
+  std::stringstream ss;
+  ss << "Array name: " << array_name_ << "\n";
+  ss << "Order: ";
   if(order_ == COLUMN_MAJOR)
-    std::cout << "COLUMN MAJOR\n";
+    ss << "COLUMN MAJOR\n";
   else if(order_ == HILBERT)
-    std::cout << "HILBERT\n";
+    ss << "HILBERT\n";
   if(order_ == ROW_MAJOR)
-    std::cout << "ROW_MAJOR\n";
-  std::cout << "Capacity: " << capacity_ << "\n";
-  std::cout << "Attribute num: " << attribute_num_ << "\n";
-  std::cout << "Attribute names:\n";
+    ss << "ROW_MAJOR\n";
+  ss << "Capacity: " << capacity_ << "\n";
+  ss << "Attribute num: " << attribute_num_ << "\n";
+  ss << "Attribute names:\n";
   for(unsigned int i=0; i<attribute_num_; i++)
-    std::cout << "\t" << attribute_names_[i] << "\n";
-  std::cout << "Dimension num: " << dim_num_ << "\n";
-  std::cout << "Dimension names:\n";
+    ss << "\t" << attribute_names_[i] << "\n";
+  ss << "Dimension num: " << dim_num_ << "\n";
+  ss << "Dimension names:\n";
   for(unsigned int i=0; i<dim_num_; i++)
-    std::cout << "\t" << dim_names_[i] << "\n";
-  std::cout << "Dimension domains:\n";
+    ss << "\t" << dim_names_[i] << "\n";
+  ss << "Dimension domains:\n";
   for(unsigned int i=0; i<dim_num_; i++)
-    std::cout << "\t[" << dim_domains_[i].first << "," 
+    ss << "\t[" << dim_domains_[i].first << "," 
                         << dim_domains_[i].second << "]\n";
-  std::cout << (has_regular_tiles() ? "Regular" : "Irregular") << " tiles\n";
+  ss << (has_regular_tiles() ? "Regular" : "Irregular") << " tiles\n";
   if(has_regular_tiles()) {
-    std::cout << "Tile extents:\n";
+    ss << "Tile extents:\n";
     for(unsigned int i=0; i<dim_num_; i++)
-      std::cout << "\t" << tile_extents_[i] << "\n";
+      ss << "\t" << tile_extents_[i] << "\n";
   }
-  std::cout << "Types:\n";
+  ss << "Types:\n";
   for(unsigned int i=0; i<=attribute_num_; i++)
     if(*types_[i] == typeid(char))
-      std::cout << "\tchar\n";
+      ss << "\tchar\n";
     else if(*types_[i] == typeid(int))
-      std::cout << "\tint\n";
+      ss << "\tint\n";
     else if(*types_[i] == typeid(int64_t))
-      std::cout << "\tint64_t\n";
+      ss << "\tint64_t\n";
     else if(*types_[i] == typeid(float))
-      std::cout << "\tfloat\n";
+      ss << "\tfloat\n";
     else if(*types_[i] == typeid(double))
-      std::cout << "\tdouble\n";
+      ss << "\tdouble\n";
+
+  return ss.str();
 }
 
 template<typename T>
@@ -621,10 +629,6 @@ uint64_t ArraySchema::tile_id_row_major(
   return tile_ID;
 }
 
-// TODO
-std::string ArraySchema::to_string() {
-  return "TODO arrayschema to_string()";
-}
 
 /******************************************************
 ******************* PRIVATE METHODS *******************
