@@ -26,8 +26,7 @@ TEST_BIN_DIR = test/bin
 DOC_DIR = doc
 MULTINODE_SRC_DIR = src
 MULTINODE_OBJ_DIR = obj
-MULTINODE_EXEC = multinode_launcher
-
+UNIT_TEST_DIR = tests
 
 # --- Paths --- #
 CORE_INCLUDE_PATHS = -I$(CORE_INCLUDE_DIR)
@@ -47,6 +46,13 @@ TEST_OBJ := $(patsubst $(TEST_SRC_DIR)/%.cc, $(TEST_OBJ_DIR)/%.o, $(TEST_SRC))
 MULTINODE_INCLUDE := $(wildcard $(MULTINODE_SRC_DIR)/*.h)
 MULTINODE_SRC := $(wildcard $(MULTINODE_SRC_DIR)/*.cc)
 MULTINODE_OBJ := $(patsubst $(MULTINODE_SRC_DIR)/%.cc, $(MULTINODE_OBJ_DIR)/%.o, $(MULTINODE_SRC))
+UNIT_TEST_SRC := $(wildcard $(UNIT_TEST_DIR)/*.cc)
+UNIT_TEST_OBJ := $(UNIT_TEST_SRC:.cc=.o)
+
+# --- Executables --- #
+MULTINODE_EXEC = multinode_launcher
+GTESTER = gtester
+
 
 ###################
 # General Targets #
@@ -62,11 +68,13 @@ example: $(EXAMPLE_BIN)
 
 gtest: $(GTEST_OBJ_DIR)/gtest-all.o
 
-test: $(TEST_OBJ)
+test: $(GTESTER)
+	./$(GTESTER)
 
 doc: doxyfile.inc
 
 clean: clean_core clean_example clean_gtest clean_test clean_multinode
+	rm -f *.o
 
 ###############
 # Core TileDB #
@@ -77,7 +85,7 @@ clean: clean_core clean_example clean_gtest clean_test clean_multinode
 -include $(CORE_OBJ:.o=.d)
 
 $(CORE_OBJ_DIR)/%.o: $(CORE_SRC_DIR)/%.cc
-	@test -d $(CORE_OBJ_DIR) || mkdir -p $(CORE_OBJ_DIR)
+	mkdir -p $(CORE_OBJ_DIR)
 	$(CXX) $(CORE_INCLUDE_PATHS) -c $< -o $@
 	@$(CXX) -MM $(CORE_INCLUDE_PATHS) $< > $(@:.o=.d)
 	@mv -f $(@:.o=.d) $(@:.o=.d.tmp)
@@ -96,7 +104,7 @@ clean_core:
 -include $(EXAMPLE_OBJ:.o=.d)
 
 $(EXAMPLE_OBJ_DIR)/%.o: $(EXAMPLE_SRC_DIR)/%.cc
-	@test -d $(EXAMPLE_OBJ_DIR) || mkdir -p $(EXAMPLE_OBJ_DIR)
+	mkdir -p $(EXAMPLE_OBJ_DIR)
 	$(CXX) $(CORE_INCLUDE_PATHS) -c $< -o $@
 	@$(CXX) -MM $(CORE_INCLUDE_PATHS) $< > $(@:.o=.d)
 	@mv -f $(@:.o=.d) $(@:.o=.d.tmp)
@@ -110,35 +118,35 @@ clean_example:
 
 $(EXAMPLE_BIN_DIR)/example_array_schema: $(EXAMPLE_OBJ_DIR)/example_array_schema.o \
  $(CORE_OBJ_DIR)/array_schema.o $(CORE_OBJ_DIR)/hilbert_curve.o
-	@test -d $(EXAMPLE_BIN_DIR) || mkdir -p $(EXAMPLE_BIN_DIR)
+	mkdir -p $(EXAMPLE_BIN_DIR)
 	$(CXX) $(INCLUDE_PATHS) -o $@ $^
 
 $(EXAMPLE_BIN_DIR)/example_csv_file: $(EXAMPLE_OBJ_DIR)/example_csv_file.o \
  $(CORE_OBJ_DIR)/csv_file.o $(CORE_OBJ_DIR)/tile.o
-	@test -d $(EXAMPLE_BIN_DIR) || mkdir -p $(EXAMPLE_BIN_DIR)
+	mkdir -p $(EXAMPLE_BIN_DIR)
 	$(CXX) $(INCLUDE_PATHS) -o $@ $^
 
 $(EXAMPLE_BIN_DIR)/example_loader: $(EXAMPLE_OBJ_DIR)/example_loader.o \
  $(CORE_OBJ_DIR)/loader.o $(CORE_OBJ_DIR)/tile.o $(CORE_OBJ_DIR)/array_schema.o \
  $(CORE_OBJ_DIR)/csv_file.o $(CORE_OBJ_DIR)/storage_manager.o $(CORE_OBJ_DIR)/hilbert_curve.o
-	@test -d $(EXAMPLE_BIN_DIR) || mkdir -p $(EXAMPLE_BIN_DIR)
+	mkdir -p $(EXAMPLE_BIN_DIR)
 	$(CXX) $(INCLUDE_PATHS) -o $@ $^
 
 $(EXAMPLE_BIN_DIR)/example_query_processor: $(EXAMPLE_OBJ_DIR)/example_query_processor.o \
  $(CORE_OBJ_DIR)/query_processor.o $(CORE_OBJ_DIR)/tile.o $(CORE_OBJ_DIR)/array_schema.o \
  $(CORE_OBJ_DIR)/csv_file.o $(CORE_OBJ_DIR)/storage_manager.o $(CORE_OBJ_DIR)/hilbert_curve.o
-	@test -d $(EXAMPLE_BIN_DIR) || mkdir -p $(EXAMPLE_BIN_DIR)
+	mkdir -p $(EXAMPLE_BIN_DIR)
 	$(CXX) $(INCLUDE_PATHS) -o $@ $^
 
 $(EXAMPLE_BIN_DIR)/example_storage_manager: $(EXAMPLE_OBJ_DIR)/example_storage_manager.o \
  $(CORE_OBJ_DIR)/storage_manager.o $(CORE_OBJ_DIR)/tile.o $(CORE_OBJ_DIR)/array_schema.o \
  $(CORE_OBJ_DIR)/csv_file.o $(CORE_OBJ_DIR)/hilbert_curve.o
-	@test -d $(EXAMPLE_BIN_DIR) || mkdir -p $(EXAMPLE_BIN_DIR)
+	mkdir -p $(EXAMPLE_BIN_DIR)
 	$(CXX) $(INCLUDE_PATHS) -o $@ $^
 
 $(EXAMPLE_BIN_DIR)/example_tile: $(EXAMPLE_OBJ_DIR)/example_tile.o \
  $(CORE_OBJ_DIR)/tile.o $(CORE_OBJ_DIR)/csv_file.o
-	@test -d $(EXAMPLE_BIN_DIR) || mkdir -p $(EXAMPLE_BIN_DIR)
+	mkdir -p $(EXAMPLE_BIN_DIR)
 	$(CXX) $(INCLUDE_PATHS) -o $@ $^
 
 
@@ -146,19 +154,30 @@ $(EXAMPLE_BIN_DIR)/example_tile: $(EXAMPLE_OBJ_DIR)/example_tile.o \
 # Google test #
 ###############
 
+$(GTEST_OBJ_DIR)/gtest-all.o: CXX = g++
+$(GTEST_OBJ_DIR)/gtest-all.o: CXXFLAGS += -I$(GTEST_INCLUDE_DIR) -I$(GTEST_DIR) -DGTEST_HAS_TR1_TUPLE=0
 $(GTEST_OBJ_DIR)/gtest-all.o: gtest/src/gtest-all.cc $(wildcard gtest/include/gtest/*.h)
-	@test -d $(GTEST_OBJ_DIR) || mkdir -p $(GTEST_OBJ_DIR)
+	mkdir -p $(GTEST_OBJ_DIR)
 	$(CXX) -isystem $(GTEST_INCLUDE_DIR) -I$(GTEST_DIR) -pthread -c $< -o $@
 
+libgtest.a: $(GTEST_OBJ_DIR)/gtest-all.o
+	ar r $@ $<
+
 clean_gtest:
-	rm -f $(GTEST_OBJ_DIR)/* $(GTEST_BIN_DIR)/* 
+	rm -f $(GTEST_OBJ_DIR)/* $(GTEST_BIN_DIR)/*
 
 #########
 # Tests #
 #########
 
-# Coming up soon...
+# Building GTester
+$(GTESTER): CXXFLAGS += -I$(GTEST_INCLUDE_DIR) $(CORE_INCLUDE_PATHS)
+$(GTESTER): $(CORE_INCLUDE) $(CORE_OBJ) $(UNIT_TEST_OBJ) libgtest.a
+$(GTESTER):
+	$(CXX) $(CXXFLAGS) -o $@ $(UNIT_TEST_OBJ) $(CORE_OBJ) libgtest.a -lpthread
 
+clean_test:
+	rm $(GTESTER) libgtest.a $(UNIT_TEST_DIR)/*.o
 #########################
 # Documentation doxygen #
 #########################

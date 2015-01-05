@@ -32,7 +32,8 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "smallish";
+  std::string array_name = "test";
+
   // Set attribute names
   std::vector<std::string> attribute_names;
   attribute_names.push_back("attr1");
@@ -43,13 +44,14 @@ void CoordinatorNode::run() {
   types.push_back(&typeid(int));
   types.push_back(&typeid(int));
 
+
+  // Set dimension type
+  types.push_back(&typeid(int));
+
   // Set dimension names
   std::vector<std::string> dim_names;
   dim_names.push_back("i");
   dim_names.push_back("j");
-
-  // Set dimension type
-  ArraySchema::CellType dim_type = ArraySchema::INT;
 
   // Set dimension domains
   std::vector<std::pair<double,double> > dim_domains;
@@ -70,6 +72,7 @@ void CoordinatorNode::run() {
   LoadMsg lmsg = LoadMsg(array_name, &array_schema, order);
   send_and_receive(lmsg);
 
+  /*
   DEBUG_MSG("sending filter instruction to all workers");
   int attr_index = 1;
   Op op = GT;
@@ -83,6 +86,7 @@ void CoordinatorNode::run() {
   DEBUG_MSG("sending get test_filter instruction to all workers");
   GetMsg gmsg = GetMsg("smallish_filter");
   send_and_receive(gmsg);
+  */
 
   /*
   DEBUG_MSG("sending subarray");
@@ -99,9 +103,11 @@ void CoordinatorNode::run() {
   send_and_receive(gmsg1);
   */
 
+  /*
   DEBUG_MSG("sending aggregate instruction to all workers");
   AggregateMsg amsg = AggregateMsg(array_name, 1);
   send_and_receive(amsg);
+  */
 
 
   quit_all();
