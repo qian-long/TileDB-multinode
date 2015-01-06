@@ -190,19 +190,19 @@ void WorkerNode::respond_ack(int result, int tag, double time) {
 
 /*************** HANDLE GET **********************/
 int WorkerNode::handle(GetMsg* msg) {
-  logger_->log("Receive get msg: " + msg->array_name);
+  logger_->log("ReceiveD Get Msg: " + msg->array_name());
 
-  std::string result_filename = arrayname_to_csv_filename(msg->array_name);
+  std::string result_filename = arrayname_to_csv_filename(msg->array_name());
   logger_->log("Result filename: " + result_filename);
 
   // check if arrayname is in worker
-  auto search = (*global_schema_map_).find(msg->array_name);
+  auto search = (*global_schema_map_).find(msg->array_name());
   if (search == (*global_schema_map_).end()) {
     logger_->log("did not find schema!");
     return 0; // TODO need to fix b/c coordinator would hang
   }
 
-  ArraySchema* schema = (*global_schema_map_)[msg->array_name];
+  ArraySchema* schema = (*global_schema_map_)[msg->array_name()];
 
   StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(schema->array_name());
 
@@ -249,9 +249,9 @@ int WorkerNode::handle(GetMsg* msg) {
 /*************** HANDLE ARRAY SCHEMA ***************/
 int WorkerNode::handle(ArraySchemaMsg* msg) {
 
-  (*global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
+  (*global_schema_map_)[msg->array_schema()->array_name()] = msg->array_schema();
 
-  logger_->log("received array schema: \n" + msg->array_schema->to_string());
+  logger_->log("received array schema: \n" + msg->array_schema()->to_string());
   return 0;
 }
 
@@ -259,8 +259,8 @@ int WorkerNode::handle(ArraySchemaMsg* msg) {
 int WorkerNode::handle(LoadMsg* msg) {
   logger_->log("Received load\n");
 
-  (*global_schema_map_)[msg->array_schema->array_name()] = msg->array_schema;
-  loader_->load(convert_filename(msg->filename), *msg->array_schema);
+  (*global_schema_map_)[msg->array_schema()->array_name()] = msg->array_schema();
+  loader_->load(convert_filename(msg->filename()), *msg->array_schema());
 
   logger_->log("Finished load");
   return 0;
@@ -270,7 +270,7 @@ int WorkerNode::handle(LoadMsg* msg) {
 int WorkerNode::handle(SubArrayMsg* msg) {
   logger_->log("Received subarray \n");
 
-  std::string global_schema_name = msg->array_schema->array_name();
+  std::string global_schema_name = msg->array_schema()->array_name();
   // temporary hack, create a copy of the array schema and replace the array
   // name
   // check if arrayname is in worker
@@ -280,13 +280,13 @@ int WorkerNode::handle(SubArrayMsg* msg) {
     return -1;
   }
 
-  ArraySchema new_schema = ((*global_schema_map_)[global_schema_name])->clone(msg->result_array_name);
+  ArraySchema new_schema = ((*global_schema_map_)[global_schema_name])->clone(msg->result_arrayname());
 
-  (*global_schema_map_)[msg->result_array_name] = &new_schema;
+  (*global_schema_map_)[msg->result_arrayname()] = &new_schema;
 
-  StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_schema->array_name());
+  StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_schema()->array_name());
 
-  query_processor_->subarray(desc, msg->ranges, msg->result_array_name);
+  query_processor_->subarray(desc, msg->ranges(), msg->result_arrayname());
 
   logger_->log("Finished subarray ");
 
@@ -296,8 +296,8 @@ int WorkerNode::handle(SubArrayMsg* msg) {
 /*************** HANDLE AggregateMsg **********************/
 int WorkerNode::handle(AggregateMsg* msg) {
   logger_->log("Received aggregate");
-  logger_->log("arrayname: " + msg->array_name_);
-  std::string global_schema_name = msg->array_name_;
+  logger_->log("arrayname: " + msg->array_name());
+  std::string global_schema_name = msg->array_name();
   // check if arrayname is in worker
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
@@ -325,7 +325,7 @@ template<class T>
 int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type) {
   logger_->log("Received filter");
 
-  std::string global_schema_name = msg->array_schema_.array_name();
+  std::string global_schema_name = msg->array_schema().array_name();
 
   // temporary hack, create a copy of the array schema and replace the array
   // name
@@ -336,9 +336,9 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type
     return -1; // TODO need to fix b/c coordinator would hang
   }
 
-  ArraySchema new_schema = ((*global_schema_map_)[global_schema_name])->clone(msg->result_array_name_);
+  ArraySchema new_schema = ((*global_schema_map_)[global_schema_name])->clone(msg->result_array_name());
 
-  (*global_schema_map_)[msg->result_array_name_] = &new_schema;
+  (*global_schema_map_)[msg->result_array_name()] = &new_schema;
 
   // TODO add back
   //query_processor_->filter_irregular<T>(msg->array_schema_, msg->predicate_, msg->result_array_name_); 

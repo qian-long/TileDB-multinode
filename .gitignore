@@ -10,6 +10,7 @@ source/test/obj
 gtest/obj/gtest-all.o
 core/obj
 tests/*.o
+libgtest.a
 
 # documentation
 doc/
@@ -18,6 +19,7 @@ doc/
 source/bin
 example/bin/*
 multinode_launcher
+gtester
 
 myrank
 
