@@ -72,6 +72,12 @@ void CoordinatorNode::run() {
   LoadMsg lmsg = LoadMsg(array_name, &array_schema);
   send_and_receive(lmsg);
 
+  DEBUG_MSG("sending get test instruction to all workers");
+  GetMsg gmsg = GetMsg("test");
+  send_and_receive(gmsg);
+
+
+  /*
   DEBUG_MSG("sending filter instruction to all workers");
   int attr_index = 1;
   Op op = GT;
@@ -82,11 +88,6 @@ void CoordinatorNode::run() {
 
   send_and_receive(fmsg);
 
-  DEBUG_MSG("sending get test_filter instruction to all workers");
-  GetMsg gmsg = GetMsg("smallish_filter");
-  send_and_receive(gmsg);
-
-  /*
   DEBUG_MSG("sending subarray");
   std::vector<double> vec;
   vec.push_back(9); vec.push_back(11);

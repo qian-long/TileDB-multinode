@@ -58,7 +58,6 @@ template<class T>
 std::string Predicate<T>::to_string() {
   std::stringstream ss;
   ss << "Predicate{attr_index: " << attr_index_ << ", op: ";
-    
   switch(op_) {
     case LT:
       ss << "LT";
