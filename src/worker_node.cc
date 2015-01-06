@@ -359,8 +359,8 @@ std::string WorkerNode::arrayname_to_csv_filename(std::string arrayname) {
 
 std::string WorkerNode::convert_filename(std::string filename) {
   std::stringstream ss;
-  ss << "./Data/" << filename.c_str() << ".csv";
-  //ss << my_workspace_ << "/" << filename.c_str() << "_rnk" << myrank_ << ".csv";
+  // TODO move to config file
+  ss << "./data/" << filename.c_str() << ".csv";
   return ss.str();
 }
 
