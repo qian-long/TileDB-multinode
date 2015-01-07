@@ -29,6 +29,7 @@ Logger* CoordinatorNode::logger() {
 
 void CoordinatorNode::run() {
   logger_->log("I am the master node");
+  /*
   send_all("hello", DEF_TAG);
 
   // Set array name
@@ -77,7 +78,6 @@ void CoordinatorNode::run() {
   send_and_receive(gmsg);
 
 
-  /*
   DEBUG_MSG("sending filter instruction to all workers");
   int attr_index = 1;
   Op op = GT;
@@ -118,7 +118,7 @@ void CoordinatorNode::send_all(Msg& msg) {
 }
 
 void CoordinatorNode::send_all(std::string serial_str, int tag) {
-  this->send_all(serial_str.c_str(), serial_str.length());
+  this->send_all(serial_str.c_str(), serial_str.length(), tag);
 }
 void CoordinatorNode::send_all(const char* buffer, int buffer_size, int tag) {
   assert(buffer_size < MAX_DATA);
