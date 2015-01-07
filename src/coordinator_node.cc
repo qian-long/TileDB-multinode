@@ -69,7 +69,7 @@ void CoordinatorNode::run() {
   DEBUG_MSG("sending load instruction to all workers");
 
   ArraySchema::Order order = ArraySchema::COLUMN_MAJOR;
-  LoadMsg lmsg = LoadMsg(array_name, &array_schema);
+  LoadMsg lmsg = LoadMsg(array_name, array_schema);
   send_and_receive(lmsg);
 
   DEBUG_MSG("sending get test instruction to all workers");
@@ -113,14 +113,18 @@ void CoordinatorNode::run() {
 }
 
 void CoordinatorNode::send_all(Msg& msg) {
-  this->send_all(msg.serialize(), msg.msg_tag);
+  std::pair<char*, int> serial_pair = msg.serialize();
+  this->send_all(serial_pair.first, serial_pair.second, msg.msg_tag);
 }
 
-void CoordinatorNode::send_all(std::string content, int tag) {
-  assert( content.length() < MAX_DATA);
+void CoordinatorNode::send_all(std::string serial_str, int tag) {
+  this->send_all(serial_str.c_str(), serial_str.length());
+}
+void CoordinatorNode::send_all(const char* buffer, int buffer_size, int tag) {
+  assert(buffer_size < MAX_DATA);
   // TODO make asynchronous
   for (int i = 1; i < nprocs_; i++) {
-    MPI_Send(content.c_str(), content.length(), MPI::CHAR, i, tag, MPI_COMM_WORLD);
+    MPI_Send(buffer, buffer_size, MPI::CHAR, i, tag, MPI_COMM_WORLD);
   }
 }
 
@@ -253,7 +257,7 @@ void CoordinatorNode::test_load(std::string array_name) {
   logger_->log("loading array " + array_name);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
   ArraySchema::Order order = ArraySchema::ROW_MAJOR;
-  LoadMsg lmsg = LoadMsg(array_name, array_schema);
+  LoadMsg lmsg = LoadMsg(array_name, *array_schema);
 
   send_and_receive(lmsg);
 
@@ -291,7 +295,7 @@ void CoordinatorNode::test_subarray(std::string array_name) {
   vec.push_back(0); vec.push_back(1000000);
   vec.push_back(0); vec.push_back(500000);
 
-  SubArrayMsg sbmsg(array_name+"_subarray", array_schema, vec);
+  SubArrayMsg sbmsg(array_name+"_subarray", *array_schema, vec);
   send_and_receive(sbmsg);
   logger_->log("Test Subarray Done");
 

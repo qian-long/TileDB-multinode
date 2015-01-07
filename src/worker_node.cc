@@ -249,9 +249,9 @@ int WorkerNode::handle(GetMsg* msg) {
 /*************** HANDLE ARRAY SCHEMA ***************/
 int WorkerNode::handle(ArraySchemaMsg* msg) {
 
-  (*global_schema_map_)[msg->array_schema()->array_name()] = msg->array_schema();
+  (*global_schema_map_)[msg->array_schema().array_name()] = &msg->array_schema();
 
-  logger_->log("received array schema: \n" + msg->array_schema()->to_string());
+  logger_->log("received array schema: \n" + msg->array_schema().to_string());
   return 0;
 }
 
@@ -259,8 +259,8 @@ int WorkerNode::handle(ArraySchemaMsg* msg) {
 int WorkerNode::handle(LoadMsg* msg) {
   logger_->log("Received load\n");
 
-  (*global_schema_map_)[msg->array_schema()->array_name()] = msg->array_schema();
-  loader_->load(convert_filename(msg->filename()), *msg->array_schema());
+  (*global_schema_map_)[msg->array_schema().array_name()] = &msg->array_schema();
+  loader_->load(convert_filename(msg->filename()), msg->array_schema());
 
   logger_->log("Finished load");
   return 0;
@@ -270,7 +270,7 @@ int WorkerNode::handle(LoadMsg* msg) {
 int WorkerNode::handle(SubArrayMsg* msg) {
   logger_->log("Received subarray \n");
 
-  std::string global_schema_name = msg->array_schema()->array_name();
+  std::string global_schema_name = msg->array_schema().array_name();
   // temporary hack, create a copy of the array schema and replace the array
   // name
   // check if arrayname is in worker
@@ -284,7 +284,7 @@ int WorkerNode::handle(SubArrayMsg* msg) {
 
   (*global_schema_map_)[msg->result_arrayname()] = &new_schema;
 
-  StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_schema()->array_name());
+  StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_schema().array_name());
 
   query_processor_->subarray(desc, msg->ranges(), msg->result_arrayname());
 

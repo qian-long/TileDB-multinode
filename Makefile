@@ -177,7 +177,7 @@ $(GTESTER):
 	$(CXX) $(CXXFLAGS) -o $@ $(UNIT_TEST_OBJ) $(CORE_OBJ) $(MULTINODE_OBJ) libgtest.a -lpthread
 
 clean_test:
-	rm $(GTESTER) libgtest.a $(UNIT_TEST_DIR)/*.o
+	rm -f $(GTESTER) libgtest.a $(UNIT_TEST_DIR)/*.o
 #########################
 # Documentation doxygen #
 #########################

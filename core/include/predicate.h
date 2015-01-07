@@ -23,7 +23,7 @@ class Predicate {
 
 
     // METHODS
-    std::string serialize();
+    std::pair<char*, int> serialize();
     static Predicate<T>* deserialize(const char* buffer, int length);
     std::string to_string();
 

@@ -26,8 +26,9 @@ class CoordinatorNode {
     void run();
 
     void send_and_receive(Msg&);
-    void send_all(std::string, int);
     void send_all(Msg&);
+    void send_all(std::string serial_str, int tag);
+    void send_all(const char* buffer, int buffer_size, int tag);
     void quit_all();
 
     void partition_initial_file();

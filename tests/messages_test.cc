@@ -34,7 +34,7 @@ namespace {
         dim_domains.push_back(std::pair<double,double>(0, 999));
 
         // Create an array with irregular tiles
-        array_schema = new ArraySchema(array_name,
+        array_schema = ArraySchema(array_name,
             attribute_names,
             dim_names,
             dim_domains,
@@ -44,27 +44,25 @@ namespace {
 
       }
 
-      virtual void TearDown() {
-        delete array_schema;
-      }
+      virtual void TearDown() {}
 
       // Test variables
-      ArraySchema* array_schema;
+      ArraySchema array_schema;
   };
 
   TEST_F(MessagesTest, LoadMsgTest) {
 
     LoadMsg lmsg = LoadMsg("foo.csv", array_schema);
 
-    std::string lserial = lmsg.serialize();
+    std::pair<char*, int> lserial = lmsg.serialize();
 
-    LoadMsg* new_lmsg = LoadMsg::deserialize(lserial.c_str(), lserial.length());
+    LoadMsg* new_lmsg = LoadMsg::deserialize(lserial.first, lserial.second);
 
     // comparing message contents
     EXPECT_STREQ(lmsg.filename().c_str(), (new_lmsg->filename()).c_str());
     EXPECT_STREQ(
-      ((lmsg.array_schema())->to_string()).c_str(), 
-      ((new_lmsg->array_schema())->to_string()).c_str());
+      lmsg.array_schema().to_string().c_str(), 
+      (new_lmsg->array_schema()).to_string().c_str());
   }
 
 
@@ -75,18 +73,18 @@ namespace {
     Predicate<int> pred(attr_index, op, operand);
     std::string result_array_name = "filter_test";
     FilterMsg<int> fmsg = FilterMsg<int>(
-      array_schema->celltype(attr_index), 
-      *array_schema, 
+      array_schema.celltype(attr_index), 
+      array_schema, 
       pred, 
       result_array_name);
 
-    std::string fserial = fmsg.serialize();
+    std::pair<char*, int> fserial = fmsg.serialize();
 
-    FilterMsg<int>* new_fmsg = FilterMsg<int>::deserialize(fserial.c_str(), fserial.length()); 
+    FilterMsg<int>* new_fmsg = FilterMsg<int>::deserialize(fserial.first, fserial.second); 
 
     // comparing message contents
-    EXPECT_STREQ((fmsg.array_schema()).to_string().c_str(),
-        (new_fmsg->array_schema()).to_string().c_str());
+    EXPECT_STREQ(fmsg.array_schema().to_string().c_str(),
+        new_fmsg->array_schema().to_string().c_str());
 
     EXPECT_STREQ(fmsg.result_array_name().c_str(),
         new_fmsg->result_array_name().c_str());

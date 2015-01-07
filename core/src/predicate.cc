@@ -17,10 +17,10 @@ template<class T>
 Predicate<T>::~Predicate() {};
 
 template<class T>
-std::string Predicate<T>::serialize() {
+std::pair<char*, int> Predicate<T>::serialize() {
 
   int length = sizeof(int) + sizeof(Op) + sizeof(T);
-  char buffer[length];
+  char* buffer = new char[length];
   int pos = 0;
 
   // serialize attribute index
@@ -33,7 +33,8 @@ std::string Predicate<T>::serialize() {
 
   // serialize operand
   memcpy(&buffer[pos], &operand_, sizeof(T));
-  return std::string(buffer, length);
+
+  return std::pair<char*, int>(buffer, length);
 }
 
 template<class T>

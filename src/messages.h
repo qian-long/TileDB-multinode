@@ -28,18 +28,20 @@ class Msg {
 
     ~Msg(){};
 
-    virtual std::string serialize();
+    virtual std::pair<char*, int> serialize();
     //static void deserialize(Msg* msg, const char* buffer, int buffer_length);
 
 };
 
+Msg* deserialize_msg(int MsgType, char* buffer, int buffer_length);
 
-Msg* deserialize_msg(int MsgType, const char* buffer, int buffer_length);
-
+/******************************************************
+ ******************* SubArray MESSAGE *****************
+ ******************************************************/
 class SubArrayMsg : public Msg {
   public:
     // Constructor
-    SubArrayMsg(std::string result_name, ArraySchema* schema, std::vector<double> ranges);
+    SubArrayMsg(std::string result_name, ArraySchema schema, std::vector<double> ranges);
 
     // Destructor
     ~SubArrayMsg(){};
@@ -47,42 +49,49 @@ class SubArrayMsg : public Msg {
     // Getters
     std::string result_arrayname() { return result_arrayname_; }
     std::vector<double> ranges() { return ranges_; }
-    ArraySchema* array_schema() { return array_schema_; }
+    ArraySchema array_schema() { return array_schema_; }
 
     // Methods
-    std::string serialize();
-    static SubArrayMsg* deserialize(const char* buffer, int buffer_length);
+    std::pair<char*, int> serialize();
+    static SubArrayMsg* deserialize(char* buffer, int buffer_length);
 
   private:
     std::string result_arrayname_;
     std::vector<double> ranges_;
-    ArraySchema* array_schema_;
+    ArraySchema array_schema_;
 
 };
 
+/******************************************************
+ ********************* GET MESSAGE ********************
+ ******************************************************/
 class LoadMsg : public Msg {
 
   public:
     // CONSTRUCTORS
     LoadMsg();
-    LoadMsg(const std::string filename, ArraySchema* array_schema);
+    LoadMsg(const std::string filename, ArraySchema& array_schema);
 
     // DESTRUCTORS
     ~LoadMsg(){};
 
     // ACCESSORS
     std::string filename() { return filename_; }
-    ArraySchema* array_schema() { return array_schema_; }
+    ArraySchema& array_schema() { return array_schema_; }
 
     // METHODS
-    std::string serialize();
-    static LoadMsg* deserialize(const char* buffer, int buffer_length);
+    std::pair<char*, int> serialize();
+    static LoadMsg* deserialize(char* buffer, int buffer_length);
 
   private:
     std::string filename_;
-    ArraySchema* array_schema_;
+    ArraySchema array_schema_;
 };
 
+
+/******************************************************
+ ********************* GET MESSAGE ********************
+ ******************************************************/
 class GetMsg : public Msg {
 
   public:
@@ -97,35 +106,43 @@ class GetMsg : public Msg {
     std::string array_name() { return array_name_; }
 
     // METHODS
-    std::string serialize();
-    static GetMsg* deserialize(const char* buffer, int buffer_length);
+    std::pair<char*, int> serialize();
+    static GetMsg* deserialize(char* buffer, int buffer_length);
 
   private:
     std::string array_name_;
 
 };
 
+/******************************************************
+ *************** ARRAYSCHEMA MESSAGE ******************
+ ******************************************************/
 class ArraySchemaMsg : public Msg {
 
   public:
     // CONSTRUCTOR
     ArraySchemaMsg();
-    ArraySchemaMsg(ArraySchema* array_schema);
+    ArraySchemaMsg(ArraySchema& array_schema);
 
     // DESTRUCTOR
     ~ArraySchemaMsg(){};
 
     // ACCESSORS
-    ArraySchema* array_schema() { return array_schema_; }
+    ArraySchema& array_schema() { return array_schema_; }
 
     // METHODS
-    std::string serialize();
-    static ArraySchemaMsg* deserialize(const char* buffer, int buffer_length);
+    std::pair<char*, int> serialize();
+
+    // TODO Caller should delete internal array_schema?
+    static ArraySchemaMsg* deserialize(char* buffer, int buffer_length);
 
   private:
-    ArraySchema* array_schema_;
+    ArraySchema array_schema_;
 };
 
+/*******************************************************
+ ******************* FILTER MESSAGE ********************
+ *******************************************************/
 template<class T>
 class FilterMsg : public Msg {
 
@@ -138,17 +155,17 @@ class FilterMsg : public Msg {
     ~FilterMsg();
 
     // ACCESSORS
-    ArraySchema array_schema() { return array_schema_; }
+    ArraySchema& array_schema() { return array_schema_; }
     std::string result_array_name() { return result_array_name_; }
-    Predicate<T> predicate() { return predicate_; }
+    Predicate<T>& predicate() { return predicate_; }
     ArraySchema::CellType attr_type() { return attr_type_; }
 
     // METHODS
-    std::string serialize();
-    static FilterMsg<T>* deserialize(const char* buffer, int buf_length);
+    std::pair<char*, int> serialize();
+    static FilterMsg<T>* deserialize(char* buffer, int buf_length);
 
     // HELPER METHODS
-    static ArraySchema::CellType parse_attr_type(const char* buffer, int buf_length);
+    static ArraySchema::CellType parse_attr_type(char* buffer, int buf_length);
 
   private:
     // MEMBERS
@@ -156,11 +173,11 @@ class FilterMsg : public Msg {
     std::string result_array_name_;
     Predicate<T> predicate_;
     ArraySchema::CellType attr_type_;
-
-
 };
 
-
+/*******************************************************
+ ***************** AGGREGATE MESSAGE *******************
+ *******************************************************/
 // TODO finish?
 class AggregateMsg : public Msg {
   public:
@@ -176,16 +193,12 @@ class AggregateMsg : public Msg {
     int attr_index() { return attr_index_; }
 
     // METHODS
-    std::string serialize();
-    static AggregateMsg* deserialize(const char* buf, int len);
+    std::pair<char*, int> serialize();
+    static AggregateMsg* deserialize(char* buf, int len);
 
   private:
     std::string array_name_;
     int attr_index_;
-
-
 };
 
-
-#endif 
-
+#endif
