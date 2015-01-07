@@ -22,7 +22,7 @@ Msg* deserialize_msg(int type, char* buf, int length){
     case LOAD_TAG:
       return LoadMsg::deserialize(buf, length);
     case SUBARRAY_TAG:
-      return SubArrayMsg::deserialize(buf, length);
+      return SubarrayMsg::deserialize(buf, length);
     case AGGREGATE_TAG:
       return AggregateMsg::deserialize(buf, length);
   }
@@ -33,45 +33,64 @@ Msg* deserialize_msg(int type, char* buf, int length){
  ******************* SubArray MESSAGE *****************
  ******************************************************/
 
-SubArrayMsg::SubArrayMsg(std::string result_name, ArraySchema schema, std::vector<double> ranges) : Msg(SUBARRAY_TAG) {
-  result_arrayname_ = result_name;
+SubarrayMsg::SubarrayMsg(std::string result_name, ArraySchema schema, std::vector<double> ranges) : Msg(SUBARRAY_TAG) {
+  result_array_name_ = result_name;
   ranges_ = ranges;
   array_schema_ = schema;
 }
 
-std::pair<char*, int> SubArrayMsg::serialize() {
-  std::stringstream ss;
+std::pair<char*, int> SubarrayMsg::serialize() {
+  int buffer_size = 0, pos = 0;
+  char* buffer;
+  int length;
 
-  // serialize filename
-  int filename_length = result_arrayname_.size();
-  ss.write((char *) &filename_length, sizeof(int));
-  ss.write((char *) result_arrayname_.c_str(), filename_length);
+  // serialize relevant sub components
+  std::pair<char*, int> as_pair = array_schema_.serialize();
 
-  //serialize array schema
-  std::pair<char*, int> pair = array_schema_.serialize();
-  std::string schema_serial = std::string(pair.first, pair.second);
-  int schema_serial_length = schema_serial.size();
-  ss.write((char *) &schema_serial_length, sizeof(int));
-  ss.write((char *) schema_serial.c_str(), schema_serial_length);
+  // calculating buffer_size
+  buffer_size += sizeof(int); // result arrayname length
+  buffer_size += result_array_name_.size(); // result_arrayname
+  buffer_size += sizeof(int); // array schema length
+  buffer_size += as_pair.second; // array schema
+  buffer_size += ranges_.size(); // ranges length
 
-  //serailze ranges
-  int ranges_size = ranges_.size();
-  ss.write((char *) &ranges_size, sizeof(int));
-
-  std::vector<double>::iterator it = ranges_.begin();
-  for (; it != ranges_.end(); it++) {
-    double extent = *it;
-
-    ss.write((char *) &extent, sizeof(double));
+  for (int i = 0; i < ranges_.size(); ++i) {
+    buffer_size += sizeof(double); // add each range part
   }
 
-  int buffer_size = ss.str().length();
-  char* buffer = new char[buffer_size];
-  std::strcpy(buffer, ss.str().c_str());
+  // creating buffer
+  buffer = new char[buffer_size];
+
+  // serialize filename
+  length = result_array_name_.size();
+  memcpy(&buffer[pos], &length, sizeof(int));
+  pos += sizeof(int);
+  memcpy(&buffer[pos], result_array_name_.c_str(), length);
+  pos += length;
+
+  // serialize array schema
+  length = as_pair.second;
+  memcpy(&buffer[pos], &length, sizeof(int));
+  pos += sizeof(int);
+  memcpy(&buffer[pos], as_pair.first, length);
+  pos += length;
+
+  // serialize ranges
+  length = ranges_.size();
+  memcpy(&buffer[pos], &length, sizeof(int));
+  pos += sizeof(int);
+
+  std::vector<double>::iterator it = ranges_.begin();
+  for (; it != ranges_.end(); it++, pos += sizeof(double)) {
+    double extent = *it;
+
+    memcpy(&buffer[pos], &extent, sizeof(double));
+  }
+
   return std::pair<char*, int>(buffer, buffer_size);
 }
 
-SubArrayMsg* SubArrayMsg::deserialize(char* buffer, int buffer_length){
+SubarrayMsg* SubarrayMsg::deserialize(char* buffer, int buffer_length){
 
   int counter = 0;
   std::stringstream ss;
@@ -104,7 +123,7 @@ SubArrayMsg* SubArrayMsg::deserialize(char* buffer, int buffer_length){
     counter += sizeof(double);
   }
 
-  return new SubArrayMsg(array_name, *schema, ranges);
+  return new SubarrayMsg(array_name, *schema, ranges);
 
 }
 
@@ -189,14 +208,20 @@ GetMsg::GetMsg(std::string array_name) : Msg(GET_TAG)  {
 }
 
 std::pair<char*, int> GetMsg::serialize() {
-  std::stringstream ss;
-  int array_name_length = array_name_.size();
-  ss.write((char *) &array_name_length, sizeof(int));
-  ss.write((char *) array_name_.c_str(), array_name_length);
+  int buffer_size = 0, pos = 0;
+  char* buffer;
 
-  int buffer_size = ss.str().length();
-  char* buffer = new char[buffer_size];
-  std::strcpy(buffer, ss.str().c_str());
+  int length = array_name_.size();
+  buffer_size += sizeof(int);
+  buffer_size += length;
+
+  buffer = new char[buffer_size];
+
+  memcpy(&buffer[pos], &length, sizeof(int));
+  pos += sizeof(int);
+  memcpy(&buffer[pos], array_name_.c_str(), length);
+
+  assert(pos + length == buffer_size);
   return std::pair<char*, int>(buffer, buffer_size);
 }
 
@@ -364,19 +389,28 @@ AggregateMsg::AggregateMsg(std::string array_name, int attr_index): Msg(AGGREGAT
 }
 
 std::pair<char*, int> AggregateMsg::serialize() {
-  std::stringstream ss;
+
+  int buffer_size = 0, pos = 0;
+  char* buffer;
+
+  // calculate buffer size
+  buffer_size += sizeof(int); // array name size
+  buffer_size += array_name_.size(); // array name
+  buffer_size += sizeof(int); // attr index
+
+  buffer = new char[buffer_size];
 
   // serialize array name
   int length = array_name_.size();
-  ss.write((char *) &length, sizeof(int));
-  ss.write((char *) array_name_.c_str(), length);
+  memcpy(&buffer[pos], &length, sizeof(int));
+  pos += sizeof(int);
+  memcpy(&buffer[pos], array_name_.c_str(), length);
+  pos += length;
 
   // serialize attr int
-  ss.write((char *) &attr_index_, sizeof(int));
+  memcpy(&buffer[pos], &attr_index_, sizeof(int));
+  assert(pos += sizeof(int) == buffer_size);
 
-  int buffer_size = ss.str().length();
-  char* buffer = new char[buffer_size];
-  std::strcpy(buffer, ss.str().c_str());
   return std::pair<char*, int>(buffer, buffer_size);
 }
 
@@ -388,7 +422,6 @@ AggregateMsg* AggregateMsg::deserialize(char* buf, int len) {
   pos += sizeof(int);
 
   std::string array_name = std::string(&buf[pos], length);
-  std::cout << array_name << "\n";
   pos += length;
 
   // deserialize attribute index
@@ -397,8 +430,6 @@ AggregateMsg* AggregateMsg::deserialize(char* buf, int len) {
   assert(pos + sizeof(int) == len);
   return new AggregateMsg(array_name, attr_index);
 }
-
-
 
 ArraySchema::CellType parse_attr_type(const char* buffer, int buf_length) {
   // type is the first thing in the serial string, see serialize method

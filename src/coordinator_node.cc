@@ -93,7 +93,7 @@ void CoordinatorNode::run() {
   vec.push_back(9); vec.push_back(11);
   vec.push_back(10); vec.push_back(13);
 
-  SubArrayMsg sbmsg("subarray", &array_schema, vec);
+  SubarrayMsg sbmsg("subarray", &array_schema, vec);
   send_and_receive(sbmsg);
   DEBUG_MSG("done sending subarray messages");
 
@@ -295,7 +295,7 @@ void CoordinatorNode::test_subarray(std::string array_name) {
   vec.push_back(0); vec.push_back(1000000);
   vec.push_back(0); vec.push_back(500000);
 
-  SubArrayMsg sbmsg(array_name+"_subarray", *array_schema, vec);
+  SubarrayMsg sbmsg(array_name+"_subarray", *array_schema, vec);
   send_and_receive(sbmsg);
   logger_->log("Test Subarray Done");
 

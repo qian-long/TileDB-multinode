@@ -267,7 +267,7 @@ int WorkerNode::handle(LoadMsg* msg) {
 }
 
 /*************** HANDLE SubarrayMsg **********************/
-int WorkerNode::handle(SubArrayMsg* msg) {
+int WorkerNode::handle(SubarrayMsg* msg) {
   logger_->log("Received subarray \n");
 
   std::string global_schema_name = msg->array_schema().array_name();
@@ -280,13 +280,13 @@ int WorkerNode::handle(SubArrayMsg* msg) {
     return -1;
   }
 
-  ArraySchema new_schema = ((*global_schema_map_)[global_schema_name])->clone(msg->result_arrayname());
+  ArraySchema new_schema = ((*global_schema_map_)[global_schema_name])->clone(msg->result_array_name());
 
-  (*global_schema_map_)[msg->result_arrayname()] = &new_schema;
+  (*global_schema_map_)[msg->result_array_name()] = &new_schema;
 
   StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_schema().array_name());
 
-  query_processor_->subarray(desc, msg->ranges(), msg->result_arrayname());
+  query_processor_->subarray(desc, msg->ranges(), msg->result_array_name());
 
   logger_->log("Finished subarray ");
 
@@ -377,7 +377,7 @@ int WorkerNode::handle_msg(int type, Msg* msg){
     case LOAD_TAG: // TODO
       return handle((LoadMsg*) msg);
     case SUBARRAY_TAG:
-      return handle((SubArrayMsg*) msg);
+      return handle((SubarrayMsg*) msg);
     case AGGREGATE_TAG:
       return handle((AggregateMsg*) msg);
   }

@@ -52,17 +52,17 @@ namespace {
 
   TEST_F(MessagesTest, LoadMsgTest) {
 
-    LoadMsg lmsg = LoadMsg("foo.csv", array_schema);
+    std::string filename = "foo.csv";
+    LoadMsg lmsg = LoadMsg(filename, array_schema);
 
     std::pair<char*, int> lserial = lmsg.serialize();
 
     LoadMsg* new_lmsg = LoadMsg::deserialize(lserial.first, lserial.second);
 
     // comparing message contents
-    EXPECT_STREQ(lmsg.filename().c_str(), (new_lmsg->filename()).c_str());
-    EXPECT_STREQ(
-      lmsg.array_schema().to_string().c_str(), 
-      (new_lmsg->array_schema()).to_string().c_str());
+    EXPECT_STREQ(filename.c_str(), new_lmsg->filename().c_str());
+    EXPECT_STREQ(array_schema.to_string().c_str(),
+      new_lmsg->array_schema().to_string().c_str());
   }
 
 
@@ -83,18 +83,84 @@ namespace {
     FilterMsg<int>* new_fmsg = FilterMsg<int>::deserialize(fserial.first, fserial.second); 
 
     // comparing message contents
-    EXPECT_STREQ(fmsg.array_schema().to_string().c_str(),
+    EXPECT_STREQ(array_schema.to_string().c_str(),
         new_fmsg->array_schema().to_string().c_str());
 
-    EXPECT_STREQ(fmsg.result_array_name().c_str(),
+    EXPECT_STREQ(result_array_name.c_str(),
         new_fmsg->result_array_name().c_str());
 
-    EXPECT_STREQ(fmsg.predicate().to_string().c_str(),
-        (new_fmsg->predicate()).to_string().c_str());
+    EXPECT_STREQ(pred.to_string().c_str(),
+        new_fmsg->predicate().to_string().c_str());
 
-    EXPECT_EQ(fmsg.attr_type(), new_fmsg->attr_type());
+    EXPECT_EQ(array_schema.celltype(attr_index), new_fmsg->attr_type());
 
     // cleanup
     delete new_fmsg;
    }
+
+  TEST_F(MessagesTest, SubarrayMsgTest) {
+    std::string result_name = "subarray_test";
+    std::vector<double> ranges;
+
+    ranges.push_back(0); ranges.push_back(5);
+    ranges.push_back(0); ranges.push_back(5);
+
+    SubarrayMsg smsg = SubarrayMsg(result_name, array_schema, ranges);
+
+    std::pair<char*, int> sserial = smsg.serialize();
+
+    SubarrayMsg* new_smsg = SubarrayMsg::deserialize(sserial.first, sserial.second);
+
+    // comparing message contents
+    EXPECT_STREQ(result_name.c_str(), new_smsg->result_array_name().c_str());
+
+    EXPECT_STREQ(array_schema.to_string().c_str(),
+        new_smsg->array_schema().to_string().c_str());
+
+    auto it1 = ranges.begin();
+    auto it2 = new_smsg->ranges().begin();
+    for(; it1 != ranges.end(); it1++, it2++) {
+      EXPECT_EQ(*it1, *it2);
+    }
+  }
+
+  TEST_F(MessagesTest, GetMsgTest) {
+    std::string array_name = "get_test";
+    GetMsg gmsg = GetMsg(array_name);
+
+    std::pair<char*, int> gserial = gmsg.serialize();
+
+    GetMsg* new_gmsg = GetMsg::deserialize(gserial.first, gserial.second);
+
+    // comparing message contents
+    EXPECT_STREQ(array_name.c_str(), new_gmsg->array_name().c_str());
+  }
+
+
+  TEST_F(MessagesTest, ArraySchemaMsgTest) {
+    ArraySchemaMsg amsg = ArraySchemaMsg(array_schema);
+
+    std::pair<char*, int> aserial = amsg.serialize();
+
+    ArraySchemaMsg* new_amsg = ArraySchemaMsg::deserialize(aserial.first, aserial.second);
+
+    // comparing message contents
+    EXPECT_STREQ(array_schema.to_string().c_str(),
+        new_amsg->array_schema().to_string().c_str());
+  }
+
+  TEST_F(MessagesTest, AggregateMsgTest) {
+    int attr_index = 3;
+    std::string array_name = "aggregate_test";
+
+    AggregateMsg amsg = AggregateMsg(array_name, attr_index);
+
+    std::pair<char*, int> aserial = amsg.serialize();
+
+    AggregateMsg* new_amsg = AggregateMsg::deserialize(aserial.first, aserial.second);
+
+    // comparing message contents
+    EXPECT_STREQ(array_name.c_str(), new_amsg->array_name().c_str());
+    EXPECT_EQ(attr_index, new_amsg->attr_index());
+  }
 }

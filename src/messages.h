@@ -38,25 +38,25 @@ Msg* deserialize_msg(int MsgType, char* buffer, int buffer_length);
 /******************************************************
  ******************* SubArray MESSAGE *****************
  ******************************************************/
-class SubArrayMsg : public Msg {
+class SubarrayMsg : public Msg {
   public:
     // Constructor
-    SubArrayMsg(std::string result_name, ArraySchema schema, std::vector<double> ranges);
+    SubarrayMsg(std::string result_name, ArraySchema schema, std::vector<double> ranges);
 
     // Destructor
-    ~SubArrayMsg(){};
+    ~SubarrayMsg(){};
 
     // Getters
-    std::string result_arrayname() { return result_arrayname_; }
+    std::string result_array_name() { return result_array_name_; }
     std::vector<double> ranges() { return ranges_; }
     ArraySchema array_schema() { return array_schema_; }
 
     // Methods
     std::pair<char*, int> serialize();
-    static SubArrayMsg* deserialize(char* buffer, int buffer_length);
+    static SubarrayMsg* deserialize(char* buffer, int buffer_length);
 
   private:
-    std::string result_arrayname_;
+    std::string result_array_name_;
     std::vector<double> ranges_;
     ArraySchema array_schema_;
 

@@ -32,7 +32,7 @@ class WorkerNode {
     int handle(ArraySchemaMsg* msg);
     int handle(LoadMsg* msg);
     int handle(GetMsg* msg);
-    int handle(SubArrayMsg* msg);
+    int handle(SubarrayMsg* msg);
     int handle(AggregateMsg* msg);
     
     int handle_aggregate(AggregateMsg* msg);
