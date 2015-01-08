@@ -17,6 +17,7 @@
 #define AGGREGATE_TAG     8
 #define ERROR_TAG         9
 #define DONE_TAG          10
+#define PARALLEL_LOAD_TAG 11
 
 class Msg {
 
@@ -201,4 +202,32 @@ class AggregateMsg : public Msg {
     int attr_index_;
 };
 
+/********************************************************
+ **************** PARALLEL LOAD MESSAGE *****************
+ ********************************************************/
+
+class ParallelLoadMsg : public Msg {
+  public:
+    // which load algo to use
+    enum LoadType {NAIVE, SPACE_PARTITION, MERGE_SORT, SAMPLING};
+
+    // CONSTRUCTORS
+    ParallelLoadMsg();
+    ParallelLoadMsg(std::string filename, LoadType load_type);
+
+    // DESTRUCTORS
+    ~ParallelLoadMsg(){};
+
+    // ACCESSORS
+    std::string filename() { return filename_; }
+    LoadType load_type() { return load_type_; }
+
+    // METHODS
+    std::pair<char*, int> serialize();
+    static ParallelLoadMsg* deserialize(char* buffer, int buffer_size);
+
+  private:
+    std::string filename_;
+    LoadType load_type_;
+};
 #endif

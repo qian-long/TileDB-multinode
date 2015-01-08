@@ -29,7 +29,6 @@ Logger* CoordinatorNode::logger() {
 
 void CoordinatorNode::run() {
   logger_->log("I am the master node");
-  /*
   send_all("hello", DEF_TAG);
 
   // Set array name
@@ -78,6 +77,7 @@ void CoordinatorNode::run() {
   send_and_receive(gmsg);
 
 
+  /*
   DEBUG_MSG("sending filter instruction to all workers");
   int attr_index = 1;
   Op op = GT;
@@ -93,7 +93,7 @@ void CoordinatorNode::run() {
   vec.push_back(9); vec.push_back(11);
   vec.push_back(10); vec.push_back(13);
 
-  SubarrayMsg sbmsg("subarray", &array_schema, vec);
+  SubarrayMsg sbmsg("subarray", array_schema, vec);
   send_and_receive(sbmsg);
   DEBUG_MSG("done sending subarray messages");
 

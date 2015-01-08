@@ -347,7 +347,7 @@ FilterMsg<T>* FilterMsg<T>::deserialize(char* buffer, int buf_length) {
   int pos = 0;
 
   // parse attribute type
-  ArraySchema::CellType datatype = static_cast<ArraySchema::CellType>(buffer[0]);
+  ArraySchema::CellType datatype = static_cast<ArraySchema::CellType>(buffer[pos]);
   pos += sizeof(ArraySchema::CellType);
 
   // parse result array name
@@ -375,6 +375,66 @@ FilterMsg<T>* FilterMsg<T>::deserialize(char* buffer, int buf_length) {
 
   return new FilterMsg(datatype, *schema, *pred, result_array_name);
 }
+
+
+/*********************************************************
+ ***************** PARALLEL LOAD MESSAGE *****************
+ *********************************************************/
+ParallelLoadMsg::ParallelLoadMsg() : Msg(PARALLEL_LOAD_TAG) {}
+
+ParallelLoadMsg::ParallelLoadMsg(
+    std::string filename,
+    LoadType load_type) : Msg(PARALLEL_LOAD_TAG) {
+
+  filename_ = filename;
+  load_type_ = load_type;
+}
+
+std::pair<char*, int> ParallelLoadMsg::serialize() {
+  int buffer_size = 0, pos = 0;
+  char* buffer;
+
+  // calculate buffer size
+  buffer_size += sizeof(int); // filename length
+  buffer_size += filename_.size(); // filename
+  buffer_size += sizeof(LoadType); // load type
+
+  // creating buffer
+  buffer = new char[buffer_size];
+
+  // serialize filename
+  int length = filename_.size();
+  memcpy(&buffer[pos], &length, sizeof(int));
+  pos += sizeof(int);
+  memcpy(&buffer[pos], filename_.c_str(), length);
+  pos += length;
+
+  // serialize load type
+  memcpy(&buffer[pos], (char *) &load_type_, sizeof(LoadType));
+
+  assert(pos += sizeof(LoadType) == buffer_size);
+  return std::pair<char*, int>(buffer, buffer_size);
+}
+
+ParallelLoadMsg*  ParallelLoadMsg::deserialize(char* buffer, int buffer_size) {
+
+  std::string filename;
+  int pos = 0;
+
+  // filename
+  int length = (int) buffer[pos];
+  pos += sizeof(int);
+  //std::strncpy(filename, buffer[pos], length);
+  filename = std::string(&buffer[pos], length);
+  pos += length;
+
+  // load type
+  LoadType load_type = static_cast<LoadType>(buffer[pos]);
+
+  assert(pos + sizeof(LoadType) == buffer_size);
+  return new ParallelLoadMsg(filename, load_type);
+}
+
 
 
 /******************************************************
@@ -431,6 +491,7 @@ AggregateMsg* AggregateMsg::deserialize(char* buf, int len) {
   return new AggregateMsg(array_name, attr_index);
 }
 
+// HELPER METHODS
 ArraySchema::CellType parse_attr_type(const char* buffer, int buf_length) {
   // type is the first thing in the serial string, see serialize method
   return static_cast<ArraySchema::CellType>(buffer[0]);

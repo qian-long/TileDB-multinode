@@ -163,4 +163,20 @@ namespace {
     EXPECT_STREQ(array_name.c_str(), new_amsg->array_name().c_str());
     EXPECT_EQ(attr_index, new_amsg->attr_index());
   }
+
+  TEST_F(MessagesTest, ParallelLoadMsgTest) {
+    std::string filename = "test";
+    ParallelLoadMsg::LoadType load_type = ParallelLoadMsg::NAIVE;
+
+    ParallelLoadMsg pmsg = ParallelLoadMsg(filename, load_type);
+
+    std::pair<char*, int> pserial = pmsg.serialize();
+
+    ParallelLoadMsg* new_pmsg = ParallelLoadMsg::deserialize(pserial.first, pserial.second);
+
+    // comparing message contents
+    EXPECT_STREQ(filename.c_str(), new_pmsg->filename().c_str());
+    EXPECT_EQ(load_type, new_pmsg->load_type());
+
+  }
 }

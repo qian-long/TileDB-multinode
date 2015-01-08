@@ -341,7 +341,7 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type
   (*global_schema_map_)[msg->result_array_name()] = &new_schema;
 
   // TODO add back
-  //query_processor_->filter_irregular<T>(msg->array_schema_, msg->predicate_, msg->result_array_name_); 
+  //query_processor_->filter_irregular<T>(&msg->array_schema(), msg->predicate(), msg->result_array_name()); 
   logger_->log("Finished filter");
   return 0;
 }
