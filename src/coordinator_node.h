@@ -31,12 +31,12 @@ class CoordinatorNode {
     void send_all(const char* buffer, int buffer_size, int tag);
     void quit_all();
 
-    void partition_initial_file();
 
     void handle_get();
     void handle_load();
     void handle_aggregate();
     void handle_ack();
+    void handle_parallel_load(std::string filename);
 
     /******** TESTING FUNCTIONS ********/
     // filename must be in the Data directory

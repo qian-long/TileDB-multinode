@@ -63,6 +63,7 @@ void WorkerNode::run() {
         case LOAD_TAG: 
         case SUBARRAY_TAG:
         case AGGREGATE_TAG:
+        case PARALLEL_LOAD_TAG: // TODO
           gettimeofday(&tim, NULL);  
           tstart = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
@@ -320,6 +321,19 @@ int WorkerNode::handle(AggregateMsg* msg) {
   return 0;
 }
 
+/*************** HANDLE PARALLEL LOAD ***************/
+int WorkerNode::handle(ParallelMsg* msg) {
+  logger_->log("Received Parallel Load Message");
+  logger_->log("Filename: " + msg->filename());
+
+  // TODO check that filename exists, error if doesn't
+  
+  // TODO pass array schema and save it
+  // open file and send back to master, chunk by chunk
+  std::string filepath = "./data/" + msg->filename();
+  
+  return 0;
+}
 /*************** HANDLE FILTER **********************/
 template<class T>
 int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type) {

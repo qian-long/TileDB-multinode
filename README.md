@@ -29,6 +29,14 @@ sudo cp hosts /etc/hosts
 
 3. run one of the bash scripts 
 
+## Setting up open stack instance
+Using CSAIL-Ubuntu-14.04LTS image
+1.
+```
+sudo apt-get install git
+sudo apt-get install mpich2
+```
+2. git clone repo
 ## Dependencies
 ```
 sudo apt-get install mpich2

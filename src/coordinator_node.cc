@@ -2,6 +2,8 @@
 #include <string>
 #include <sstream>
 #include <cstring>
+#include <iostream>
+#include <fstream>
 #include "assert.h"
 #include "coordinator_node.h"
 #include "csv_file.h"
@@ -142,6 +144,9 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
     case AGGREGATE_TAG:
       handle_aggregate();
       break;
+    case PARALLEL_LOAD_TAG:
+      handle_parallel_load(std::string filename);
+      break;
     default:
       // don't do anything
       break;
@@ -155,10 +160,6 @@ void CoordinatorNode::send_array_schema(ArraySchema & array_schema) {
   send_all(array_schema.serialize(), ARRAY_SCHEMA_TAG);
 }
 */
-
-void CoordinatorNode::handle_load() {
-  // TODO print ok message to user
-}
 
 void CoordinatorNode::handle_ack() {
 
@@ -178,13 +179,13 @@ void CoordinatorNode::handle_ack() {
 
 }
 
-// TODO make asynchronous
 void CoordinatorNode::handle_get() {
   std::stringstream ss;
+
+  char *buf = new char[MAX_DATA];
   for (int i = 0; i < nprocs_ - 1; i++) {
     MPI_Status status;
     int nodeid = i + 1;
-    char *buf = new char[MAX_DATA];
     int length;
     bool keep_receiving = true;
 
@@ -201,6 +202,8 @@ void CoordinatorNode::handle_get() {
     } while (keep_receiving);
 
   }
+
+  delete [] buf;
 }
 
 // TODO other types
@@ -236,6 +239,8 @@ void CoordinatorNode::handle_aggregate() {
       logger_->log("Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
     }
 
+    delete[] buf;
+
   }
 
   std::stringstream ss;
@@ -244,9 +249,44 @@ void CoordinatorNode::handle_aggregate() {
   std::cout << ss.str() << "\n";
 }
 
+// TODO
+void CoordinatorNode::handle_parallel_load(std::string filename) {
+  std::stringstream ss;
+
+  char *buf = new char[MAX_DATA];
+  std::string tmp_filename = filename + ".tmp";
+  std::ofstream tmpfile;
+  tmpfile.open(tmp_filename);
+  for (int i = 0; i < nprocs_ - 1; i++) {
+    MPI_Status status;
+    int nodeid = i + 1;
+    int length;
+    bool keep_receiving = true;
+    int count = 0;
+    int content_length;
+    do {
+      MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD, &status);
+      MPI_Get_count(&status, MPI_CHAR, &length);
+
+      content_length = length - 1;
+      // check last byte
+      keep_receiving = (bool) buf[content_length];
+
+      // TODO write to temp file
+      tmpfile << std::string(buf, content_length);
+      // TODO sort
+      // TODO send partitions back to worker nodes
+    } while (keep_receiving);
+
+  }
+
+  delete[] buf;
+}
+
 void CoordinatorNode::quit_all() {
   send_all("quit", QUIT_TAG);
 }
+
 
 /******************************************************
  *************** TESTING FUNCTIONS ********************

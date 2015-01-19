@@ -21,7 +21,7 @@ def row_to_string(row):
 def gen_file(myrank, num_node, output_size):
     filename = str(output_size) + "MB.csv"
     num_rows = size_to_rows(output_size)
-    with open("Data"+"/"+filename, 'w') as myfile:
+    with open("../data"+"/"+filename, 'w') as myfile:
         for i in xrange(num_rows*num_node):
             row = gen_row()
             if (i % num_node) == myrank-1:
