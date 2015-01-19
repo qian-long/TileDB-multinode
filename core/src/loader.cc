@@ -123,11 +123,13 @@ void Loader::append_cell(const ArraySchema& array_schema,
 
   // Append coordinates first
   if(!(*csv_line >> *tiles[attribute_num]))
-    throw LoaderException("Cannot read coordinates from CSV file.");
+    throw LoaderException("[Append cell] Cannot read coordinates "
+                          "from CSV file.");
   // Append attribute values
   for(unsigned int i=0; i<attribute_num; i++)
     if(!(*csv_line >> *tiles[i]))
-      throw LoaderException("Cannot read attribute value from CSV file.");
+      throw LoaderException("[Append cell] Cannot read attribute "
+                            "value from CSV file.");
 }
 
 bool Loader::check_on_load(const std::string& filename) const {
@@ -138,17 +140,6 @@ bool Loader::check_on_load(const std::string& filename) const {
   close(fd);
 
   return true;
-}
-
-inline
-void Loader::new_tiles(const ArraySchema& array_schema, 
-                       uint64_t tile_id, Tile** tiles) const {
-  // For easy reference
-  unsigned int attribute_num = array_schema.attribute_num();
-  uint64_t capacity = array_schema.capacity();
-
-  for(unsigned int i=0; i<=attribute_num; i++)
-    tiles[i] = storage_manager_.new_tile(array_schema, i, tile_id, capacity);
 }
 
 void Loader::create_workspace() const {
@@ -292,6 +283,18 @@ void Loader::make_tiles_regular(const std::string& filename,
   delete [] tiles; 
 }
 
+inline
+void Loader::new_tiles(const ArraySchema& array_schema, 
+                       uint64_t tile_id, Tile** tiles) const {
+  // For easy reference
+  unsigned int attribute_num = array_schema.attribute_num();
+  uint64_t capacity = array_schema.capacity();
+
+  for(unsigned int i=0; i<=attribute_num; i++)
+    tiles[i] = storage_manager_.new_tile(array_schema, i, tile_id, capacity);
+}
+
+
 bool Loader::path_exists(const std::string& path) const {
   struct stat st;
   stat(path.c_str(), &st);
@@ -318,12 +321,10 @@ void Loader::sort_csv_file(const std::string& to_be_sorted_filename,
                            const std::string& sorted_filename,    
                            const ArraySchema& array_schema) const {
   // Prepare Linux sort command
-  unsigned int buffer_size = LD_SORT_BUFFER_SIZE; 
   char sub_cmd[50];
   std::string cmd;
 
-  sprintf(sub_cmd, "sort -t, -S %uG ", buffer_size);
-  cmd += sub_cmd;
+  cmd = "sort -t, ";
   
   // For easy reference
   unsigned int dim_num = array_schema.dim_num();
@@ -336,9 +337,9 @@ void Loader::sort_csv_file(const std::string& to_be_sorted_filename,
     // The tile order is determined by tile_id for regular tiles,
     // or hilbert_cell_id for irregular tiles.
     // Ties are broken by default by sorting according to ROW_MAJOR.
-    cmd += "-k1,1g ";
+    cmd += "-k1,1n ";
     for(unsigned int i=2; i<dim_num+2; i++) {
-      sprintf(sub_cmd, "-k%u,%ug ", i, i);
+      sprintf(sub_cmd, "-k%u,%un ", i, i);
       cmd += sub_cmd;
     }
   } else { // Irregular tiles + [ROW_MAJOR or COLUMN_MAJOR]
@@ -346,9 +347,9 @@ void Loader::sort_csv_file(const std::string& to_be_sorted_filename,
     // dim#1,dim#2,...,attr#1,attr#2,...
     for(unsigned int i=1; i<dim_num+1; i++) {
       if(order == ArraySchema::ROW_MAJOR)
-        sprintf(sub_cmd, "-k%u,%ug ", i, i);
+        sprintf(sub_cmd, "-k%u,%un ", i, i);
       else if (order == ArraySchema::COLUMN_MAJOR) 
-        sprintf(sub_cmd, "-k%u,%ug ", dim_num+1-i, dim_num+1-i);
+        sprintf(sub_cmd, "-k%u,%un ", dim_num+1-i, dim_num+1-i);
       else // Unsupported order
         assert(0);
       cmd += sub_cmd;
