@@ -2,8 +2,12 @@
 #include <string>
 #include <sstream>
 #include <cstring>
+#include <ostream>
 #include <iostream>
+#include <istream>
 #include <fstream>
+#include <algorithm>
+#include <cstdio>
 #include "assert.h"
 #include "coordinator_node.h"
 #include "csv_file.h"
@@ -18,6 +22,8 @@ CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   my_workspace_ = "./workspaces/workspace-0";
   logger_ = new Logger(my_workspace_ + "/logfile");
 
+  storage_manager_ = new StorageManager(my_workspace_);
+  loader_ = new Loader(my_workspace_, *storage_manager_);
 }
 
 // TODO
@@ -34,7 +40,8 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "test";
+  std::string array_name = "test_A";
+  std::string filename = array_name + ".csv";
 
   // Set attribute names
   std::vector<std::string> attribute_names;
@@ -66,8 +73,12 @@ void CoordinatorNode::run() {
       dim_names,
       dim_domains,
       types,
-      ArraySchema::ROW_MAJOR);
+      ArraySchema::HILBERT);
 
+  DEBUG_MSG("sending parallel load instructions to all workers");
+  ParallelLoadMsg pmsg = ParallelLoadMsg(filename, ParallelLoadMsg::NAIVE, array_schema);
+  send_and_receive(pmsg);
+  /*
   DEBUG_MSG("sending load instruction to all workers");
 
   ArraySchema::Order order = ArraySchema::COLUMN_MAJOR;
@@ -75,8 +86,9 @@ void CoordinatorNode::run() {
   send_and_receive(lmsg);
 
   DEBUG_MSG("sending get test instruction to all workers");
-  GetMsg gmsg = GetMsg("test");
+  GetMsg gmsg = GetMsg("test_A");
   send_and_receive(gmsg);
+  */
 
 
   /*
@@ -115,6 +127,7 @@ void CoordinatorNode::run() {
 }
 
 void CoordinatorNode::send_all(Msg& msg) {
+  DEBUG_MSG("send_all: " + msg.msg_tag);
   std::pair<char*, int> serial_pair = msg.serialize();
   this->send_all(serial_pair.first, serial_pair.second, msg.msg_tag);
 }
@@ -145,7 +158,7 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
       handle_aggregate();
       break;
     case PARALLEL_LOAD_TAG:
-      handle_parallel_load(std::string filename);
+      handle_parallel_load((dynamic_cast<ParallelLoadMsg&>(msg)));
       break;
     default:
       // don't do anything
@@ -249,37 +262,108 @@ void CoordinatorNode::handle_aggregate() {
   std::cout << ss.str() << "\n";
 }
 
-// TODO
-void CoordinatorNode::handle_parallel_load(std::string filename) {
+// TODO make asynchronous?
+void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
+  DEBUG_MSG("In handle_parallel_load");
   std::stringstream ss;
 
+  std::string filename = pmsg.filename();
   char *buf = new char[MAX_DATA];
-  std::string tmp_filename = filename + ".tmp";
+  std::string tmp_filepath = my_workspace_ + "/" + filename + ".tmp";
   std::ofstream tmpfile;
-  tmpfile.open(tmp_filename);
+  tmpfile.open(tmp_filepath);
+
   for (int i = 0; i < nprocs_ - 1; i++) {
     MPI_Status status;
     int nodeid = i + 1;
     int length;
     bool keep_receiving = true;
-    int count = 0;
     int content_length;
+
+    DEBUG_MSG("Waiting for content from worker " + std::to_string(nodeid));
     do {
       MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
 
       content_length = length - 1;
-      // check last byte
+
+      // check last byte to see if keep receiving
       keep_receiving = (bool) buf[content_length];
 
       // TODO write to temp file
       tmpfile << std::string(buf, content_length);
-      // TODO sort
-      // TODO send partitions back to worker nodes
     } while (keep_receiving);
-
   }
 
+  tmpfile.flush();
+  tmpfile.close();
+
+  // sort
+  std::string sorted_filepath = my_workspace_ + "/sorted_" + filename + ".tmp";
+
+  logger_->log("Sorting csv file tmp_filepath: " + tmp_filepath);
+  loader_->sort_csv_file(tmp_filepath, sorted_filepath, pmsg.array_schema());
+  logger_->log("Finished sorting csv file");
+
+  // TODO send partitions back to worker nodes
+  logger_->log("Counting num_lines");
+  std::ifstream sorted_file;
+  sorted_file.open(sorted_filepath);
+  // using cpp count algo function
+  int num_lines = std::count(std::istreambuf_iterator<char>(sorted_file), 
+                             std::istreambuf_iterator<char>(), '\n');
+
+  logger_->log("num_lines: " + std::to_string(num_lines));
+
+  logger_->log("Splitting and sending sorted content to workers");
+  int lines_per_worker = num_lines / (nprocs_ - 1);
+  // if not evenly split
+  int remainder = num_lines % (nprocs_ - 1);
+
+  int pos = 0;
+  int total = lines_per_worker;
+
+  if (remainder > 0) {
+    total++;
+  }
+
+  sorted_file.seekg(0, std::ios::beg);
+  for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
+    std::string line;
+    std::stringstream content;
+    int end = pos + lines_per_worker;
+    if (remainder > 0) {
+      end++;
+    }
+
+    bool keep_receiving = true;
+    for(; pos < end; ++pos) {
+      if (content.str().length() + line.length() + 1 >= MAX_DATA) {
+        // encode "there is more coming" in the last byte
+        content.write((char *) &keep_receiving, sizeof(bool));
+
+        // send content to nodeid
+        MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
+
+        content.str(std::string()); // clear buffer
+
+      }
+      // TODO use stavros's csvfile?
+      std::getline(sorted_file, line);
+      std::cout << line;
+      content << line << "\n";
+    }
+
+    // final send
+    keep_receiving = false;
+    content.write((char *) &keep_receiving, sizeof(bool));
+    MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
+    --remainder;
+  }
+
+
+  sorted_file.close();
+  // TODO Cleanup
   delete[] buf;
 }
 

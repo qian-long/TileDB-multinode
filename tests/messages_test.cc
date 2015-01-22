@@ -34,7 +34,7 @@ namespace {
         dim_domains.push_back(std::pair<double,double>(0, 999));
 
         // Create an array with irregular tiles
-        array_schema = ArraySchema(array_name,
+        array_schema_ = ArraySchema(array_name,
             attribute_names,
             dim_names,
             dim_domains,
@@ -47,13 +47,14 @@ namespace {
       virtual void TearDown() {}
 
       // Test variables
-      ArraySchema array_schema;
+      ArraySchema array_schema_;
   };
 
+  // LOAD MSG TEST
   TEST_F(MessagesTest, LoadMsgTest) {
 
     std::string filename = "foo.csv";
-    LoadMsg lmsg = LoadMsg(filename, array_schema);
+    LoadMsg lmsg = LoadMsg(filename, array_schema_);
 
     std::pair<char*, int> lserial = lmsg.serialize();
 
@@ -61,11 +62,12 @@ namespace {
 
     // comparing message contents
     EXPECT_STREQ(filename.c_str(), new_lmsg->filename().c_str());
-    EXPECT_STREQ(array_schema.to_string().c_str(),
+    EXPECT_STREQ(array_schema_.to_string().c_str(),
       new_lmsg->array_schema().to_string().c_str());
   }
 
 
+  // FILTER MSG TEST
   TEST_F(MessagesTest, FilterMsgTest) {
     int attr_index = 1;
     Op op = GT;
@@ -73,8 +75,8 @@ namespace {
     Predicate<int> pred(attr_index, op, operand);
     std::string result_array_name = "filter_test";
     FilterMsg<int> fmsg = FilterMsg<int>(
-      array_schema.celltype(attr_index), 
-      array_schema, 
+      array_schema_.celltype(attr_index), 
+      array_schema_, 
       pred, 
       result_array_name);
 
@@ -83,7 +85,7 @@ namespace {
     FilterMsg<int>* new_fmsg = FilterMsg<int>::deserialize(fserial.first, fserial.second); 
 
     // comparing message contents
-    EXPECT_STREQ(array_schema.to_string().c_str(),
+    EXPECT_STREQ(array_schema_.to_string().c_str(),
         new_fmsg->array_schema().to_string().c_str());
 
     EXPECT_STREQ(result_array_name.c_str(),
@@ -92,12 +94,13 @@ namespace {
     EXPECT_STREQ(pred.to_string().c_str(),
         new_fmsg->predicate().to_string().c_str());
 
-    EXPECT_EQ(array_schema.celltype(attr_index), new_fmsg->attr_type());
+    EXPECT_EQ(array_schema_.celltype(attr_index), new_fmsg->attr_type());
 
     // cleanup
     delete new_fmsg;
    }
 
+  // SUBARRAY MSG TEST
   TEST_F(MessagesTest, SubarrayMsgTest) {
     std::string result_name = "subarray_test";
     std::vector<double> ranges;
@@ -105,7 +108,7 @@ namespace {
     ranges.push_back(0); ranges.push_back(5);
     ranges.push_back(0); ranges.push_back(5);
 
-    SubarrayMsg smsg = SubarrayMsg(result_name, array_schema, ranges);
+    SubarrayMsg smsg = SubarrayMsg(result_name, array_schema_, ranges);
 
     std::pair<char*, int> sserial = smsg.serialize();
 
@@ -114,7 +117,7 @@ namespace {
     // comparing message contents
     EXPECT_STREQ(result_name.c_str(), new_smsg->result_array_name().c_str());
 
-    EXPECT_STREQ(array_schema.to_string().c_str(),
+    EXPECT_STREQ(array_schema_.to_string().c_str(),
         new_smsg->array_schema().to_string().c_str());
 
     auto it1 = ranges.begin();
@@ -124,6 +127,7 @@ namespace {
     }
   }
 
+  // GET MSG TEST
   TEST_F(MessagesTest, GetMsgTest) {
     std::string array_name = "get_test";
     GetMsg gmsg = GetMsg(array_name);
@@ -137,18 +141,20 @@ namespace {
   }
 
 
+  // ARRAY SCHEMA MSG TEST
   TEST_F(MessagesTest, ArraySchemaMsgTest) {
-    ArraySchemaMsg amsg = ArraySchemaMsg(array_schema);
+    ArraySchemaMsg amsg = ArraySchemaMsg(array_schema_);
 
     std::pair<char*, int> aserial = amsg.serialize();
 
     ArraySchemaMsg* new_amsg = ArraySchemaMsg::deserialize(aserial.first, aserial.second);
 
     // comparing message contents
-    EXPECT_STREQ(array_schema.to_string().c_str(),
+    EXPECT_STREQ(array_schema_.to_string().c_str(),
         new_amsg->array_schema().to_string().c_str());
   }
 
+  // AGGREGATE MSG TEST
   TEST_F(MessagesTest, AggregateMsgTest) {
     int attr_index = 3;
     std::string array_name = "aggregate_test";
@@ -164,11 +170,12 @@ namespace {
     EXPECT_EQ(attr_index, new_amsg->attr_index());
   }
 
+  // PARALLEL LOAD MSG TEST
   TEST_F(MessagesTest, ParallelLoadMsgTest) {
     std::string filename = "test";
     ParallelLoadMsg::LoadType load_type = ParallelLoadMsg::NAIVE;
 
-    ParallelLoadMsg pmsg = ParallelLoadMsg(filename, load_type);
+    ParallelLoadMsg pmsg = ParallelLoadMsg(filename, load_type, array_schema_);
 
     std::pair<char*, int> pserial = pmsg.serialize();
 
@@ -177,6 +184,8 @@ namespace {
     // comparing message contents
     EXPECT_STREQ(filename.c_str(), new_pmsg->filename().c_str());
     EXPECT_EQ(load_type, new_pmsg->load_type());
+    EXPECT_STREQ(array_schema_.to_string().c_str(),
+      new_pmsg->array_schema().to_string().c_str());
 
   }
 }

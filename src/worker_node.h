@@ -34,8 +34,9 @@ class WorkerNode {
     int handle(GetMsg* msg);
     int handle(SubarrayMsg* msg);
     int handle(AggregateMsg* msg);
+    int handle(ParallelLoadMsg* msg);
     
-    int handle_aggregate(AggregateMsg* msg);
+    //int handle_aggregate(AggregateMsg* msg);
     template<class T>
     int handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type);
 

@@ -62,9 +62,11 @@ void Loader::load(const std::string& filename,
 
   // Prepare filenames
   std::string to_be_sorted_filename = filename;
-  if(to_be_sorted_filename[0] == '~') 
+  if(to_be_sorted_filename[0] == '~') {
     to_be_sorted_filename = std::string(getenv("HOME")) +
         to_be_sorted_filename.substr(1, workspace_.size()-1);
+  }
+
   assert(check_on_load(to_be_sorted_filename));
   std::string sorted_filename = workspace_ + "/sorted_" +
                                 array_schema.array_name() + ".csv";
@@ -190,7 +192,6 @@ void Loader::inject_ids_to_csv_file(const std::string& filename,
     } else { // Irregular tiles + Hilbert cell order
         line_out = array_schema.cell_id_hilbert(coordinates);
     }
-    
     // Append the input line to the output line, 
     // and then into the output CSV file
     line_out << line_in;
@@ -358,6 +359,7 @@ void Loader::sort_csv_file(const std::string& to_be_sorted_filename,
   cmd += to_be_sorted_filename + " > " + sorted_filename;
 
   // Invoke Linux sort command
+  std::cout << "linux sort command: " << cmd << "\n";
   system(cmd.c_str());
 }
 

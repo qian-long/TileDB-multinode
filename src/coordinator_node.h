@@ -36,7 +36,7 @@ class CoordinatorNode {
     void handle_load();
     void handle_aggregate();
     void handle_ack();
-    void handle_parallel_load(std::string filename);
+    void handle_parallel_load(ParallelLoadMsg& pmsg);
 
     /******** TESTING FUNCTIONS ********/
     // filename must be in the Data directory
@@ -54,6 +54,8 @@ class CoordinatorNode {
     int nworkers_;
     std::string my_workspace_;
     Logger* logger_;
+    Loader* loader_;
+    StorageManager* storage_manager_;
 
     // TODO other stuff like what ranges of coordinate values I hold
 

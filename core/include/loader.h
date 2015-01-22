@@ -66,6 +66,30 @@ class Loader {
    */
   void load(const std::string& filename, const ArraySchema& array_schema) const; 
 
+  /**  Sorts the csv file depending on the type of tiles and order. */
+  void sort_csv_file(const std::string& to_be_sorted_filename,
+                     const std::string& sorted_filename,
+                     const ArraySchema& array_schema) const;
+
+  /**
+   * Injects tile/cell ids to the CSV file prior to loading (applies only to
+   * regular tiles with any order, and irregular tiles with Hilbert order). 
+   */
+  void inject_ids_to_csv_file(const std::string& filename, 
+                              const std::string& injected_filename,
+                              const ArraySchema& array_schema) const;
+
+  std::string workspace() { return workspace_; }
+
+  /** Creates the (irregular) tiles and sends them to the storage manager. */
+  void make_tiles_irregular(const std::string& filename,
+                            const StorageManager::ArrayDescriptor* ad,
+                            const ArraySchema& array_schema) const;
+  /** Creates the (regular) tiles and sends them to the storage manager. */
+  void make_tiles_regular(const std::string& filename,
+                          const StorageManager::ArrayDescriptor* ad,
+                          const ArraySchema& array_schema) const;
+ 
  private:
   // PRIVATE ATTRIBUTES
   /** The StorageManager object the loader interfaces with. */
@@ -85,22 +109,7 @@ class Loader {
   bool check_on_load(const std::string& filename) const;
   /** Creates the workspace folder. */
   void create_workspace() const;
-  /**
-   * Injects tile/cell ids to the CSV file prior to loading (applies only to
-   * regular tiles with any order, and irregular tiles with Hilbert order). 
-   */
-  void inject_ids_to_csv_file(const std::string& filename, 
-                              const std::string& injected_filename,
-                              const ArraySchema& array_schema) const;
-  /** Creates the (irregular) tiles and sends them to the storage manager. */
-  void make_tiles_irregular(const std::string& filename,
-                            const StorageManager::ArrayDescriptor* ad,
-                            const ArraySchema& array_schema) const;
-  /** Creates the (regular) tiles and sends them to the storage manager. */
-  void make_tiles_regular(const std::string& filename,
-                          const StorageManager::ArrayDescriptor* ad,
-                          const ArraySchema& array_schema) const;
-  /** 
+ /** 
    * Creates an array of new tile pointers with the input tile id, 
    * and based on the input array info. 
    */
@@ -110,10 +119,6 @@ class Loader {
   bool path_exists(const std::string& path) const;
   /** Simply sets the workspace. */
   void set_workspace(const std::string& path);
-  /**  Sorts the csv file depending on the type of tiles and order. */
-  void sort_csv_file(const std::string& to_be_sorted_filename,
-                     const std::string& sorted_filename,
-                     const ArraySchema& array_schema) const;
   /** Sends the tiles to the storage manager. */
   void store_tiles(const StorageManager::ArrayDescriptor* ad,
                    Tile** tiles) const;

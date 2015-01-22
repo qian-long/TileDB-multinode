@@ -10,7 +10,7 @@ mkdir -p workspaces/workspace-5
 mkdir -p workspaces/workspace-6
 mkdir -p workspaces/workspace-7
 mkdir -p workspaces/workspace-8
-rm -rf workspaces/workspace-[0-9]/Loader workspaces/workspace-[0-9]/StorageManager
+rm -rf workspaces/workspace-[0-9]/Loader workspaces/workspace-[0-9]/StorageManager workspaces/workspace-[0-9]/*.tmp
 touch workspaces/workspace-0/logfile
 touch workspaces/workspace-1/logfile
 touch workspaces/workspace-2/logfile

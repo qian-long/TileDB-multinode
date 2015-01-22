@@ -3,6 +3,6 @@
 #include <cstdlib>
 
 #define MASTER 0 // coordinator node id
-#define MAX_DATA 4000 // num bytes
+#define MAX_DATA 200 // num bytes
 
 #endif

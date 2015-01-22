@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
     std::string filename;
 
     if (argc <= 1 || strncmp(argv[1], "test",4) == 0) {
-        filename = "test";
+        filename = "test_A.csv";
     }else if (strncmp(argv[1], "500",3) == 0) {
         filename = std::string(get_filename(1, nprocs));
     }else if (strncmp(argv[1], "1",1) == 0) {

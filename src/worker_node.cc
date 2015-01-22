@@ -1,12 +1,16 @@
+#include <ostream>
+#include <iostream>
+#include <istream>
+#include <fstream>
+#include <cstring>
+#include <stdexcept>      // std::invalid_argument
+#include <sys/time.h>
 #include "constants.h"
 #include "assert.h"
 #include "mpi.h"
 #include "worker_node.h"
 #include "debug.h"
 #include "csv_file.h"
-#include <cstring>
-#include <stdexcept>      // std::invalid_argument
-#include <sys/time.h>
 
 WorkerNode::WorkerNode(int rank, int nprocs) {
   myrank_ = rank;
@@ -51,7 +55,7 @@ void WorkerNode::run() {
   double tstart;
   double tend;
   while (loop) {
-    //try {
+    try {
       MPI_Recv(buf, MAX_DATA, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
       switch (status.MPI_TAG) {
@@ -134,12 +138,12 @@ void WorkerNode::run() {
       logger_->log("QueryProcessorException: ");
       logger_->log(qpe.what());
       respond_ack(-1, status.MPI_TAG, -1);
+   */
     } catch(LoaderException& le) {
       logger_->log("LoaderException: ");
       logger_->log(le.what());
       respond_ack(-1, status.MPI_TAG, -1);
     }
-    */
 
   }
 }
@@ -166,6 +170,8 @@ void WorkerNode::respond_ack(int result, int tag, double time) {
     case AGGREGATE_TAG:
       ss << "AGGREGATE";
       break;
+    case PARALLEL_LOAD_TAG:
+      ss << "PARALLEL_LOAD";
     default:
       break;
   }
@@ -322,16 +328,111 @@ int WorkerNode::handle(AggregateMsg* msg) {
 }
 
 /*************** HANDLE PARALLEL LOAD ***************/
-int WorkerNode::handle(ParallelMsg* msg) {
+int WorkerNode::handle(ParallelLoadMsg* msg) {
   logger_->log("Received Parallel Load Message");
   logger_->log("Filename: " + msg->filename());
 
-  // TODO check that filename exists, error if doesn't
-  
-  // TODO pass array schema and save it
-  // open file and send back to master, chunk by chunk
   std::string filepath = "./data/" + msg->filename();
+  // TODO check that filename exists in workspace, error if doesn't
+  // TODO save array schema?
   
+  // TODO open file and append tile-id/hilbert order
+    // inject ids if regular or hilbert order
+  bool regular = msg->array_schema().has_regular_tiles();
+  ArraySchema::Order order = msg->array_schema().order();
+  std::string injected_filename = filepath;
+  if (regular || order == ArraySchema::HILBERT) {
+    injected_filename = loader_->workspace() + "/injected_" +
+                        msg->array_schema().array_name() + ".csv";
+    try {
+
+      logger_->log("Injecting ids into " + filepath + ", outputting to " + injected_filename);
+      loader_->inject_ids_to_csv_file(filepath, injected_filename, msg->array_schema());
+    } catch(LoaderException& le) {
+      logger_->log("Caught loader exception");
+      remove(injected_filename.c_str());
+      storage_manager_->delete_array(msg->array_schema().array_name());
+      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
+    }
+  }
+
+  logger_->log("sending csv file back to master injected_filename: " + injected_filename);
+  // Send csv file back to master, chunk by chunk
+  // TODO refactor this out
+  CSVFile file(injected_filename, CSVFile::READ, MAX_DATA);
+  CSVLine line;
+  std::stringstream content;
+  bool keep_receiving = true;
+  while(file >> line) {
+    if (content.str().length() + line.str().length() + 1 >= MAX_DATA) {
+      // encode "there is more coming" in the last byte
+      content.write((char *) &keep_receiving, sizeof(bool));
+
+      // send content to master
+      MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
+
+      content.str(std::string()); // clear buffer
+    }
+
+    content << line.str() << "\n";
+
+  }
+
+  // final send, tell coordinator to stop receiving
+  keep_receiving = false;
+  content.write((char *) &keep_receiving, sizeof(bool));
+  MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
+
+
+  // TODO wait for sorted file from master
+  logger_->log("waiting for sorted file from master");
+  keep_receiving = true;
+  char *buf = new char[MAX_DATA];
+  MPI_Status status;
+  int length;
+  int content_length;
+
+  std::ofstream sorted_file;
+  std::string sorted_filename = injected_filename + ".sorted";
+  sorted_file.open(sorted_filename);
+
+  do {
+    MPI_Recv(buf, MAX_DATA, MPI_CHAR, MASTER, PARALLEL_LOAD_TAG, MPI_COMM_WORLD, &status);
+    MPI_Get_count(&status, MPI_CHAR, &length);
+
+    content_length = length - 1;
+
+    // check last byte to see if keep receiving
+    keep_receiving = (bool) buf[content_length];
+
+    // TODO write to temp file
+    sorted_file << std::string(buf, content_length);
+
+  } while (keep_receiving);
+
+  sorted_file.close();
+  // Invoke local load
+  // Open array in CREATE mode
+  StorageManager::ArrayDescriptor* ad = 
+      storage_manager_->open_array(msg->array_schema());
+
+  // Make tiles
+  try {
+    if(msg->array_schema().has_regular_tiles())
+      loader_->make_tiles_regular(sorted_filename, ad, msg->array_schema());
+    else
+      loader_->make_tiles_irregular(sorted_filename, ad, msg->array_schema());
+  } catch(LoaderException& le) {
+    //remove(sorted_filename.c_str());
+    //storage_manager_.delete_array(array_schema.array_name());
+    throw LoaderException("Error invoking local load" + msg->filename() + 
+                          "'.\n " + le.what());
+  } 
+
+
+  storage_manager_->close_array(ad);
+
+  // TODO cleanup
   return 0;
 }
 /*************** HANDLE FILTER **********************/
@@ -388,12 +489,14 @@ int WorkerNode::handle_msg(int type, Msg* msg){
       return handle((GetMsg*) msg);
     case ARRAY_SCHEMA_TAG:
       return handle((ArraySchemaMsg*) msg);
-    case LOAD_TAG: // TODO
+    case LOAD_TAG:
       return handle((LoadMsg*) msg);
     case SUBARRAY_TAG:
       return handle((SubarrayMsg*) msg);
     case AGGREGATE_TAG:
       return handle((AggregateMsg*) msg);
+    case PARALLEL_LOAD_TAG:
+      return handle((ParallelLoadMsg*) msg);
   }
   throw std::invalid_argument("trying to deserailze msg of unknown type");
 }

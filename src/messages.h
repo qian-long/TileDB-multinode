@@ -64,7 +64,7 @@ class SubarrayMsg : public Msg {
 };
 
 /******************************************************
- ********************* GET MESSAGE ********************
+ ******************** LOAD MESSAGE ********************
  ******************************************************/
 class LoadMsg : public Msg {
 
@@ -213,7 +213,7 @@ class ParallelLoadMsg : public Msg {
 
     // CONSTRUCTORS
     ParallelLoadMsg();
-    ParallelLoadMsg(std::string filename, LoadType load_type);
+    ParallelLoadMsg(std::string filename, LoadType load_type, ArraySchema& array_schema);
 
     // DESTRUCTORS
     ~ParallelLoadMsg(){};
@@ -221,6 +221,7 @@ class ParallelLoadMsg : public Msg {
     // ACCESSORS
     std::string filename() { return filename_; }
     LoadType load_type() { return load_type_; }
+    ArraySchema& array_schema() { return array_schema_;}
 
     // METHODS
     std::pair<char*, int> serialize();
@@ -229,5 +230,6 @@ class ParallelLoadMsg : public Msg {
   private:
     std::string filename_;
     LoadType load_type_;
+    ArraySchema array_schema_;
 };
 #endif
