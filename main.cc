@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <mpi.h>
-#include "debug.h"
-#include "coordinator_node.h"
-#include "worker_node.h"
-#include "constants.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
 #include <cstdlib>
+#include "debug.h"
+#include "coordinator_node.h"
+#include "worker_node.h"
+#include "constants.h"
+#include "logger.h"
 
 
 const char* get_filename(int dataset_num, int numprocs) {
@@ -76,7 +77,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
   double t2 = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
   len = snprintf(buffer, 100, "Load %s wall time: %.6lf secs\n", array_name.c_str(), t2 - t1);
-  coordinator->logger()->log(std::string(buffer, len));
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
 
   // FILTER TEST
@@ -85,7 +86,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
   double t3 = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
   len = snprintf(buffer, 100, "Filter %s wall time: %.6lf secs\n", array_name.c_str(), t3 - t2);
-  coordinator->logger()->log(std::string(buffer, len));
+  coordinator->logger()->log(LOG_INFO,std::string(buffer, len));
   printf("%s", buffer);
 
   // AGGREGATE TEST
@@ -95,12 +96,12 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
   double t4 = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
   len = snprintf(buffer, 100, "Aggregate %s wall time: %.6lf secs\n", array_name.c_str(), t4 - t3);
-  coordinator->logger()->log(std::string(buffer, len));
+  coordinator->logger()->log(LOG_INFO,std::string(buffer, len));
   printf("%s", buffer);
 
 
   len = snprintf(buffer, 100, "%.6lf seconds elapsed running dataset %s\n", t4-t1, array_name.c_str());  
-  coordinator->logger()->log(std::string(buffer, len));
+  coordinator->logger()->log(LOG_INFO,std::string(buffer, len));
   printf("%s", buffer);
 
   // SUBARRAY TEST

@@ -5,7 +5,7 @@
 #include <cstring>
 #include <stdexcept>      // std::invalid_argument
 #include <sys/time.h>
-#include "mpi.h"
+#include <mpi.h>
 #include "constants.h"
 #include "assert.h"
 #include "worker_node.h"
@@ -41,7 +41,7 @@ WorkerNode::~WorkerNode() {
 
 
 void WorkerNode::run() {
-  logger_->log("I am a worker node");
+  logger_->log(LOG_INFO, "I am a worker node");
 
   MPI_Status status;
   char *buf = new char[MAX_DATA];
@@ -127,7 +127,7 @@ void WorkerNode::run() {
           break;
         default:
           std::string content(buf, length);
-          logger_->log(content);
+          logger_->log(LOG_INFO, content);
       }
 
    /*
@@ -142,8 +142,8 @@ void WorkerNode::run() {
       respond_ack(-1, status.MPI_TAG, -1);
    */
     } catch(LoaderException& le) {
-      logger_->log("LoaderException: ");
-      logger_->log(le.what());
+      logger_->log(LOG_INFO, "LoaderException: ");
+      logger_->log(LOG_INFO, le.what());
       respond_ack(-1, status.MPI_TAG, -1);
     }
 
@@ -187,7 +187,7 @@ void WorkerNode::respond_ack(int result, int tag, double time) {
 
   ss << " Time[" << time << " secs]";
 
-  logger_->log("Sending ack: " + ss.str());
+  logger_->log(LOG_INFO, "Sending ack: " + ss.str());
   MPI_Send(ss.str().c_str(), ss.str().length(), MPI::CHAR, MASTER, tag, MPI_COMM_WORLD);
 
 }
@@ -199,15 +199,15 @@ void WorkerNode::respond_ack(int result, int tag, double time) {
 
 /*************** HANDLE GET **********************/
 int WorkerNode::handle(GetMsg* msg) {
-  logger_->log("ReceiveD Get Msg: " + msg->array_name());
+  logger_->log(LOG_INFO, "ReceiveD Get Msg: " + msg->array_name());
 
   std::string result_filename = arrayname_to_csv_filename(msg->array_name());
-  logger_->log("Result filename: " + result_filename);
+  logger_->log(LOG_INFO, "Result filename: " + result_filename);
 
   // check if arrayname is in worker
   auto search = (*global_schema_map_).find(msg->array_name());
   if (search == (*global_schema_map_).end()) {
-    logger_->log("did not find schema!");
+    logger_->log(LOG_INFO, "did not find schema!");
     return 0; // TODO need to fix b/c coordinator would hang
   }
 
@@ -215,10 +215,10 @@ int WorkerNode::handle(GetMsg* msg) {
 
   StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(schema->array_name());
 
-  logger_->log("exporting to CSV");
+  logger_->log(LOG_INFO, "exporting to CSV");
   query_processor_->export_to_CSV(desc, result_filename);
 
-  logger_->log("sending file to master");
+  logger_->log(LOG_INFO, "sending file to master");
   mpi_handler_->send_file(result_filename, MASTER, GET_TAG);
 
   return 0;
@@ -229,24 +229,24 @@ int WorkerNode::handle(ArraySchemaMsg* msg) {
 
   (*global_schema_map_)[msg->array_schema().array_name()] = &msg->array_schema();
 
-  logger_->log("received array schema: \n" + msg->array_schema().to_string());
+  logger_->log(LOG_INFO, "received array schema: \n" + msg->array_schema().to_string());
   return 0;
 }
 
 /*************** HANDLE LOAD **********************/
 int WorkerNode::handle(LoadMsg* msg) {
-  logger_->log("Received load\n");
+  logger_->log(LOG_INFO, "Received load\n");
 
   (*global_schema_map_)[msg->array_schema().array_name()] = &msg->array_schema();
   loader_->load(convert_filename(msg->filename()), msg->array_schema());
 
-  logger_->log("Finished load");
+  logger_->log(LOG_INFO, "Finished load");
   return 0;
 }
 
 /*************** HANDLE SubarrayMsg **********************/
 int WorkerNode::handle(SubarrayMsg* msg) {
-  logger_->log("Received subarray \n");
+  logger_->log(LOG_INFO, "Received subarray \n");
 
   std::string global_schema_name = msg->array_schema().array_name();
   // temporary hack, create a copy of the array schema and replace the array
@@ -254,7 +254,7 @@ int WorkerNode::handle(SubarrayMsg* msg) {
   // check if arrayname is in worker
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
-    logger_->log("did not find schema!");
+    logger_->log(LOG_INFO, "did not find schema!");
     return -1;
   }
 
@@ -266,20 +266,20 @@ int WorkerNode::handle(SubarrayMsg* msg) {
 
   query_processor_->subarray(desc, msg->ranges(), msg->result_array_name());
 
-  logger_->log("Finished subarray ");
+  logger_->log(LOG_INFO, "Finished subarray ");
 
   return 0;
 }
 
 /*************** HANDLE AggregateMsg **********************/
 int WorkerNode::handle(AggregateMsg* msg) {
-  logger_->log("Received aggregate");
-  logger_->log("arrayname: " + msg->array_name());
+  logger_->log(LOG_INFO, "Received aggregate");
+  logger_->log(LOG_INFO, "arrayname: " + msg->array_name());
   std::string global_schema_name = msg->array_name();
   // check if arrayname is in worker
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
-    logger_->log("Aggregate did not find schema!");
+    logger_->log(LOG_INFO, "Aggregate did not find schema!");
     // TODO move to while loop in run somehow
     //respond_ack(-1, ERROR_TAG, -1); 
     return -1;
@@ -289,7 +289,7 @@ int WorkerNode::handle(AggregateMsg* msg) {
   //int max = query_processor_->aggregate(*(search->second), msg->attr_index_);
   int max = 0;
 
-  logger_->log("Sending my computed MAX aggregate: " + std::to_string(max));
+  logger_->log(LOG_INFO, "Sending my computed MAX aggregate: " + std::to_string(max));
 
   std::stringstream content;
   content.write((char *) &max, sizeof(int));
@@ -300,8 +300,8 @@ int WorkerNode::handle(AggregateMsg* msg) {
 
 /*************** HANDLE PARALLEL LOAD ***************/
 int WorkerNode::handle(ParallelLoadMsg* msg) {
-  logger_->log("Received Parallel Load Message");
-  logger_->log("Filename: " + msg->filename());
+  logger_->log(LOG_INFO, "Received Parallel Load Message");
+  logger_->log(LOG_INFO, "Filename: " + msg->filename());
 
   std::string filepath = "./data/" + msg->filename();
   // TODO check that filename exists in workspace, error if doesn't
@@ -317,23 +317,23 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
                         msg->array_schema().array_name() + ".csv";
     try {
 
-      logger_->log("Injecting ids into " + filepath + ", outputting to " + injected_filename);
+      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filename);
       loader_->inject_ids_to_csv_file(filepath, injected_filename, msg->array_schema());
     } catch(LoaderException& le) {
-      logger_->log("Caught loader exception");
+      logger_->log(LOG_INFO, "Caught loader exception");
       remove(injected_filename.c_str());
       storage_manager_->delete_array(msg->array_schema().array_name());
       throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
     }
   }
 
-  logger_->log("sending csv file back to master injected_filename: " + injected_filename);
+  logger_->log(LOG_INFO, "sending csv file back to master injected_filename: " + injected_filename);
 
   // Send csv file back to master, chunk by chunk
   mpi_handler_->send_file(injected_filename, MASTER, PARALLEL_LOAD_TAG);
 
   // Wait for sorted file from master
-  logger_->log("Receiving sorted file from master");
+  logger_->log(LOG_INFO, "Receiving sorted file from master");
 
   std::ofstream sorted_file;
   std::string sorted_filename = injected_filename + ".sorted";
@@ -344,7 +344,7 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   sorted_file.close();
 
   // Invoke local load
-  logger_->log("Invoking local load");
+  logger_->log(LOG_INFO, "Invoking local load");
   // Open array in CREATE mode
   StorageManager::ArrayDescriptor* ad = 
       storage_manager_->open_array(msg->array_schema());
@@ -371,7 +371,7 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
 /*************** HANDLE FILTER **********************/
 template<class T>
 int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type) {
-  logger_->log("Received filter");
+  logger_->log(LOG_INFO, "Received filter");
 
   std::string global_schema_name = msg->array_schema().array_name();
 
@@ -380,7 +380,7 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type
   // TODO check if arrayname is in worker
   auto search = (*global_schema_map_).find(global_schema_name);
   if (search == (*global_schema_map_).end()) {
-    logger_->log("did not find schema!");
+    logger_->log(LOG_INFO, "did not find schema!");
     return -1; // TODO need to fix b/c coordinator would hang
   }
 
@@ -390,7 +390,7 @@ int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type
 
   // TODO add back
   //query_processor_->filter_irregular<T>(&msg->array_schema(), msg->predicate(), msg->result_array_name()); 
-  logger_->log("Finished filter");
+  logger_->log(LOG_INFO, "Finished filter");
   return 0;
 }
 

@@ -37,7 +37,7 @@ Logger* CoordinatorNode::logger() {
 }
 
 void CoordinatorNode::run() {
-  logger_->log("I am the master node");
+  logger_->log(LOG_INFO, "I am the master node");
   send_all("hello", DEF_TAG);
 
   // Set array name
@@ -187,7 +187,7 @@ void CoordinatorNode::handle_ack() {
     assert((status.MPI_TAG == DONE_TAG) || (status.MPI_TAG == ERROR_TAG));
     MPI_Get_count(&status, MPI_CHAR, &length);
 
-    logger_->log("Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
+    logger_->log(LOG_INFO, "Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
 
   }
 
@@ -237,11 +237,11 @@ void CoordinatorNode::handle_aggregate() {
     MPI_Get_count(&status, MPI_CHAR, &length);
 
     if (status.MPI_TAG == ERROR_TAG) { // Error
-      logger_->log("Received aggregate error from worker: " + std::to_string(nodeid));
+      logger_->log(LOG_INFO, "Received aggregate error from worker: " + std::to_string(nodeid));
 
     } else { // Success
       memcpy(&worker_max, buf, sizeof(int));
-      logger_->log("Received max from Worker " + std::to_string(nodeid) + ": " + std::to_string(worker_max));
+      logger_->log(LOG_INFO, "Received max from Worker " + std::to_string(nodeid) + ": " + std::to_string(worker_max));
       if (worker_max > aggregate_max) {
         aggregate_max = worker_max;
       }
@@ -250,7 +250,7 @@ void CoordinatorNode::handle_aggregate() {
       assert(status.MPI_TAG == DONE_TAG);
       MPI_Get_count(&status, MPI_CHAR, &length);
 
-      logger_->log("Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
+      logger_->log(LOG_INFO, "Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
     }
 
     delete[] buf;
@@ -259,7 +259,7 @@ void CoordinatorNode::handle_aggregate() {
 
   std::stringstream ss;
   ss << "Max: " << aggregate_max;
-  logger_->log(ss.str());
+  logger_->log(LOG_INFO, ss.str());
   std::cout << ss.str() << "\n";
 }
 
@@ -286,21 +286,21 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   // sort
   std::string sorted_filepath = my_workspace_ + "/sorted_" + filename + ".tmp";
 
-  logger_->log("Sorting csv file tmp_filepath: " + tmp_filepath);
+  logger_->log(LOG_INFO, "Sorting csv file tmp_filepath: " + tmp_filepath);
   loader_->sort_csv_file(tmp_filepath, sorted_filepath, pmsg.array_schema());
-  logger_->log("Finished sorting csv file");
+  logger_->log(LOG_INFO, "Finished sorting csv file");
 
   // TODO send partitions back to worker nodes
-  logger_->log("Counting num_lines");
+  logger_->log(LOG_INFO, "Counting num_lines");
   std::ifstream sorted_file;
   sorted_file.open(sorted_filepath);
   // using cpp count algo function
   int num_lines = std::count(std::istreambuf_iterator<char>(sorted_file), 
                              std::istreambuf_iterator<char>(), '\n');
 
-  logger_->log("num_lines: " + std::to_string(num_lines));
+  logger_->log(LOG_INFO, "num_lines: " + std::to_string(num_lines));
 
-  logger_->log("Splitting and sending sorted content to workers");
+  logger_->log(LOG_INFO, "Splitting and sending sorted content to workers");
   int lines_per_worker = num_lines / (nprocs_ - 1);
   // if not evenly split
   int remainder = num_lines % (nprocs_ - 1);
@@ -362,22 +362,22 @@ void CoordinatorNode::quit_all() {
  ******************************************************/
 
 void CoordinatorNode::test_load(std::string array_name) {
-  logger_->log("Start Load");
-  logger_->log("loading array " + array_name);
+  logger_->log(LOG_INFO, "Start Load");
+  logger_->log(LOG_INFO, "loading array " + array_name);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
   ArraySchema::Order order = ArraySchema::ROW_MAJOR;
   LoadMsg lmsg = LoadMsg(array_name, *array_schema);
 
   send_and_receive(lmsg);
 
-  logger_->log("Test Load Done");
+  logger_->log(LOG_INFO, "Test Load Done");
 
   // TODO don't leak memory
   //delete array_schema;
 }
 
 void CoordinatorNode::test_filter(std::string array_name) {
-  logger_->log("Start Filter");
+  logger_->log(LOG_INFO, "Start Filter");
   ArraySchema* array_schema = get_test_arrayschema(array_name);
 
   // .5 selectivity
@@ -385,18 +385,18 @@ void CoordinatorNode::test_filter(std::string array_name) {
   Op op = GE;
   int operand = 500000;
   Predicate<int> pred(attr_index, op, operand);
-  logger_->log(pred.to_string());
+  logger_->log(LOG_INFO, pred.to_string());
   FilterMsg<int> fmsg = FilterMsg<int>(array_schema->celltype(attr_index), *array_schema, pred, array_name+"_filtered");
 
   send_and_receive(fmsg);
-  logger_->log("Test Filter Done");
+  logger_->log(LOG_INFO, "Test Filter Done");
 
   // don't leak memory
   //delete array_schema;
 }
 
 void CoordinatorNode::test_subarray(std::string array_name) {
-  logger_->log("Start SubArray");
+  logger_->log(LOG_INFO, "Start SubArray");
   ArraySchema* array_schema = get_test_arrayschema(array_name);
   std::vector<double> vec;
 
@@ -406,19 +406,19 @@ void CoordinatorNode::test_subarray(std::string array_name) {
 
   SubarrayMsg sbmsg(array_name+"_subarray", *array_schema, vec);
   send_and_receive(sbmsg);
-  logger_->log("Test Subarray Done");
+  logger_->log(LOG_INFO, "Test Subarray Done");
 
   // don't leak memory
   //delete array_schema;
 }
 
 void CoordinatorNode::test_aggregate(std::string array_name) {
-  logger_->log("Start Aggregate test");
+  logger_->log(LOG_INFO, "Start Aggregate test");
 
   int attr_index = 1;
   AggregateMsg amsg(array_name, 1);
   send_and_receive(amsg);
-  logger_->log("Test Aggregate Done");
+  logger_->log(LOG_INFO, "Test Aggregate Done");
 
   // don't leak memory
   //delete array_schema;

@@ -1,8 +1,9 @@
-#include "logger.h"
-#include "debug.h"
 #include <time.h>
 #include <iostream>
 #include <fstream>
+#include "logger.h"
+#include "debug.h"
+
 
 Logger::Logger(std::string logfile) {
   logfile_ = logfile;
@@ -16,15 +17,15 @@ std::string Logger::get_logfile() {
 }
 
 
-void Logger::log(std::string message) {
+void Logger::log(std::string log_info, std::string message) {
   std::string cur_time = current_timestring();
   std::ofstream myfile;
   myfile.open (logfile_, std::ios::out | std::ios::app);
 
-  myfile << "[" << cur_time << "]: " << message << "\n";
+  myfile << "[" << cur_time << "] " << log_info << ": " << message << "\n";
   myfile.close();  
   
-  DEBUG_MSG(message);
+  LOGGER_DEBUG_MSG(message, log_info);
 }
 
 std::string Logger::current_timestring() {
