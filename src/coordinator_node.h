@@ -10,6 +10,7 @@
 #include "loader.h"
 #include "messages.h"
 #include "logger.h"
+#include "mpi_handler.h"
 
 class CoordinatorNode {
   public:
@@ -56,6 +57,7 @@ class CoordinatorNode {
     Logger* logger_;
     Loader* loader_;
     StorageManager* storage_manager_;
+    MPIHandler* mpi_handler_;
 
     // TODO other stuff like what ranges of coordinate values I hold
 

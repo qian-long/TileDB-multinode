@@ -24,6 +24,7 @@ CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
 
   storage_manager_ = new StorageManager(my_workspace_);
   loader_ = new Loader(my_workspace_, *storage_manager_);
+  mpi_handler_ = new MPIHandler();
 }
 
 // TODO
@@ -78,9 +79,9 @@ void CoordinatorNode::run() {
   DEBUG_MSG("sending parallel load instructions to all workers");
   ParallelLoadMsg pmsg = ParallelLoadMsg(filename, ParallelLoadMsg::NAIVE, array_schema);
   send_and_receive(pmsg);
+
   /*
   DEBUG_MSG("sending load instruction to all workers");
-
   ArraySchema::Order order = ArraySchema::COLUMN_MAJOR;
   LoadMsg lmsg = LoadMsg(array_name, array_schema);
   send_and_receive(lmsg);
@@ -273,26 +274,10 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   std::ofstream tmpfile;
   tmpfile.open(tmp_filepath);
 
-  for (int i = 0; i < nprocs_ - 1; i++) {
-    MPI_Status status;
-    int nodeid = i + 1;
-    int length;
-    bool keep_receiving = true;
-    int content_length;
-
+  //for (int i = 0; i < nprocs_ - 1; i++) {
+  for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
     DEBUG_MSG("Waiting for content from worker " + std::to_string(nodeid));
-    do {
-      MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD, &status);
-      MPI_Get_count(&status, MPI_CHAR, &length);
-
-      content_length = length - 1;
-
-      // check last byte to see if keep receiving
-      keep_receiving = (bool) buf[content_length];
-
-      // TODO write to temp file
-      tmpfile << std::string(buf, content_length);
-    } while (keep_receiving);
+    mpi_handler_->receive_file(tmpfile, nodeid, PARALLEL_LOAD_TAG);
   }
 
   tmpfile.flush();

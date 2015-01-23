@@ -6,14 +6,15 @@
 
 #ifndef WORKERNODE_H
 #define WORKERNODE_H
+#include <string>
+#include <map>
 #include "loader.h"
 #include "storage_manager.h"
 #include "query_processor.h"
 #include "array_schema.h"
 #include "messages.h"
 #include "logger.h"
-#include <string>
-#include <map>
+#include "mpi_handler.h"
 
 class WorkerNode {
   public:
@@ -61,6 +62,7 @@ class WorkerNode {
     StorageManager* storage_manager_;
     QueryProcessor* query_processor_;
     Logger* logger_;
+    MPIHandler* mpi_handler_;
 
     // CATALOGUE of all the arrays in the system
     // map of global array name to local array name

@@ -5,9 +5,9 @@
 #include <cstring>
 #include <stdexcept>      // std::invalid_argument
 #include <sys/time.h>
+#include "mpi.h"
 #include "constants.h"
 #include "assert.h"
-#include "mpi.h"
 #include "worker_node.h"
 #include "debug.h"
 #include "csv_file.h"
@@ -23,6 +23,7 @@ WorkerNode::WorkerNode(int rank, int nprocs) {
   loader_ = new Loader(my_workspace_, *storage_manager_);
   query_processor_ = new QueryProcessor(my_workspace_, *storage_manager_);
   logger_ = new Logger(my_workspace_ + "/logfile");
+  //mpi_handler_ = new MPIHandler();
 
   // catalogue data structures
   arrayname_map_ = new std::map<std::string, std::string>();
@@ -35,6 +36,7 @@ WorkerNode::~WorkerNode() {
   delete arrayname_map_;
   delete global_schema_map_;
   delete local_schema_map_;
+
 }
 
 
@@ -213,42 +215,11 @@ int WorkerNode::handle(GetMsg* msg) {
 
   StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(schema->array_name());
 
+  logger_->log("exporting to CSV");
   query_processor_->export_to_CSV(desc, result_filename);
 
-  logger_->log("finished export to CSV");
-  CSVFile file(result_filename, CSVFile::READ, MAX_DATA);
-  CSVLine line;
-
-  std::stringstream content;
-  bool keep_receiving = true;
-  int count = 0;
-  // TODO figure out correct exceptions
-  //try {
-    while(file >> line) {
-      // encode "there is more coming" in the last byte
-      if (content.str().length() + line.str().length() + 1 >= MAX_DATA) {
-        content.write((char *) &keep_receiving, sizeof(bool));
-        MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, GET_TAG, MPI_COMM_WORLD);
-        count++;
-        content.str(std::string()); // clear buffer
-      }
-      content << line.str() << "\n";
-    }
-
-  /*
-  } catch(CSVFileException& e) {
-    std::cout << e.what() << "\n";
-    // TODO send error
-    return 0;
-  }
-  */
-
-  // final send, tell coordinator to stop receiving
-  keep_receiving = false;
-  content.write((char *) &keep_receiving, sizeof(bool));
-  MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, GET_TAG, MPI_COMM_WORLD);
-
-  count++;
+  logger_->log("sending file to master");
+  mpi_handler_->send_file(result_filename, MASTER, GET_TAG);
 
   return 0;
 }
@@ -357,61 +328,23 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   }
 
   logger_->log("sending csv file back to master injected_filename: " + injected_filename);
+
   // Send csv file back to master, chunk by chunk
-  // TODO refactor this out
-  CSVFile file(injected_filename, CSVFile::READ, MAX_DATA);
-  CSVLine line;
-  std::stringstream content;
-  bool keep_receiving = true;
-  while(file >> line) {
-    if (content.str().length() + line.str().length() + 1 >= MAX_DATA) {
-      // encode "there is more coming" in the last byte
-      content.write((char *) &keep_receiving, sizeof(bool));
+  mpi_handler_->send_file(injected_filename, MASTER, PARALLEL_LOAD_TAG);
 
-      // send content to master
-      MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
-
-      content.str(std::string()); // clear buffer
-    }
-
-    content << line.str() << "\n";
-
-  }
-
-  // final send, tell coordinator to stop receiving
-  keep_receiving = false;
-  content.write((char *) &keep_receiving, sizeof(bool));
-  MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
-
-
-  // TODO wait for sorted file from master
-  logger_->log("waiting for sorted file from master");
-  keep_receiving = true;
-  char *buf = new char[MAX_DATA];
-  MPI_Status status;
-  int length;
-  int content_length;
+  // Wait for sorted file from master
+  logger_->log("Receiving sorted file from master");
 
   std::ofstream sorted_file;
   std::string sorted_filename = injected_filename + ".sorted";
   sorted_file.open(sorted_filename);
 
-  do {
-    MPI_Recv(buf, MAX_DATA, MPI_CHAR, MASTER, PARALLEL_LOAD_TAG, MPI_COMM_WORLD, &status);
-    MPI_Get_count(&status, MPI_CHAR, &length);
-
-    content_length = length - 1;
-
-    // check last byte to see if keep receiving
-    keep_receiving = (bool) buf[content_length];
-
-    // TODO write to temp file
-    sorted_file << std::string(buf, content_length);
-
-  } while (keep_receiving);
+  mpi_handler_->receive_file(sorted_file, MASTER, PARALLEL_LOAD_TAG);
 
   sorted_file.close();
+
   // Invoke local load
+  logger_->log("Invoking local load");
   // Open array in CREATE mode
   StorageManager::ArrayDescriptor* ad = 
       storage_manager_->open_array(msg->array_schema());
