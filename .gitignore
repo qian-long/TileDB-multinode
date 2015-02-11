@@ -12,14 +12,9 @@ core/obj
 
 # documentation
 doc/
-
-# executables
-source/bin
+core/bin/*
+core/obj/*
+example/obj/*
 example/bin/*
-multinode_launcher
-
-myrank
-
-# data
-Data/*
-Result/*
+gtest/obj/*
+data/example*

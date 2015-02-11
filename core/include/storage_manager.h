@@ -115,7 +115,7 @@ class StorageManager {
   /** Mnemonic: [attribute_id] --> payload_size */
   typedef std::vector<uint64_t> PayloadSizes;
   /** Mnemonic: (rank_low, rank_high) */
-  typedef std::pair<int64_t, int64_t> RankRange;
+  typedef std::pair<uint64_t, uint64_t> RankRange;
   /** Mnemonic: [attribute_id] --> (rank_low, rank_high) */
   typedef std::vector<RankRange> RankRanges;
   /** Mnemonic: <tile_id#1, tile_id#2, ...> */
@@ -267,6 +267,17 @@ class StorageManager {
   void delete_array(const std::string& array_name);
   /** Returns true if the array is empty. */
   bool is_empty(const ArrayDescriptor* array_descriptor) const;
+  /** 
+   * Returns the begin iterator to the StorageManager::MBRList that 
+   * contains the MBRs of the intput array. 
+   */ 
+  MBRs::const_iterator MBR_begin(
+      const ArrayDescriptor* const array_descriptor) const; 
+  /** 
+   * Returns the end iterator to the StorageManager::MBRList that 
+   * contains the MBRs of the intput array. 
+   */ 
+  MBRs::const_iterator MBR_end(const ArrayDescriptor* array_descriptor) const; 
   /** Opens an array in READ mode.*/
   ArrayDescriptor* open_array(const std::string& array_name);
   /** Opens an array in CREATE mode. */
@@ -285,6 +296,14 @@ class StorageManager {
   void append_tile(const Tile* tile, 
                    const ArrayDescriptor* array_descriptor,
                    unsigned int attribute_id); 
+  /**  Returns a tile of an array with the specified attribute and tile id. */
+  const Tile* get_tile(
+      const ArrayDescriptor* array_descriptor,
+      unsigned int attribute_id, uint64_t tile_id);  
+  /**  Returns a tile of an array with the specified attribute and tile rank. */
+  const Tile* get_tile_by_rank(
+      const ArrayDescriptor* array_descriptor,
+      unsigned int attribute_id, uint64_t tile_id);  
   /** 
    * Creates an empty tile for a specific array and attribute, with reserved 
    * capacity equal to cell_num (note though that there are no constraints on
@@ -294,10 +313,6 @@ class StorageManager {
    */
   Tile* new_tile(const ArraySchema& array_schema, unsigned int attribute_id, 
                  uint64_t tile_id, uint64_t cell_num) const; 
-  /**  Returns a tile of an array with the specified attribute and tile id. */
-  const Tile* get_tile(
-      const ArrayDescriptor* array_descriptor,
-      unsigned int attribute_id, uint64_t tile_id);  
 
   // TILE ITERATORS
   /** This class implements a constant tile iterator. */
@@ -313,6 +328,8 @@ class StorageManager {
         uint64_t rank); 
     /** Assignment operator. */
     void operator=(const const_iterator& rhs);
+    /** Addition-assignment operator. */
+    void operator+=(int64_t step);
     /** Pre-increment operator. */
     const_iterator operator++();
     /** Post-increment operator. */
@@ -329,6 +346,26 @@ class StorageManager {
     bool operator!=(const const_iterator& rhs) const;
     /** Returns the tile pointed by the iterator. */
     const Tile& operator*() const; 
+    /** 
+     * We distinguish two cases: (i) If the operands correspond to the same 
+     * array, then it is true if the rank of the left-hand side is smaller 
+     * than that of the right-hand side. (ii) Otherwise, it is true if the 
+     * tile of the first operand precedes that of the right one along the 
+     * (common) global cell order. A tile precedes another in the global
+     * order if its upper bounding coordinate precedes that of the
+     * other tile along the global order.  
+     */
+    bool operator<(const const_iterator& it_R) const; 
+    /** Returns the array schema associated with this tile. */
+    const ArraySchema& array_schema() const;
+    /** Returns the bounding coordinates of the tile. */
+    BoundingCoordinatesPair bounding_coordinates() const;
+    /** Returns the MBR of the tile. */
+    MBR mbr() const;
+    /** Returns the rank. */
+    uint64_t rank() const { return rank_; };
+    /** Returns the id of the tile. */
+    uint64_t tile_id() const;
 
    private:
     /** The array descriptor corresponding to this iterator. */
@@ -346,18 +383,7 @@ class StorageManager {
   /** End tile iterator. */
   const_iterator end(const ArrayDescriptor* array_descriptor,
                      unsigned int attribute_id);
-  /** 
-   * Returns the begin iterator to the StorageManager::MBRList that 
-   * contains the MBRs of the intput array. 
-   */ 
-  MBRs::const_iterator MBR_begin(
-      const ArrayDescriptor* const array_descriptor) const; 
-  /** 
-   * Returns the end iterator to the StorageManager::MBRList that 
-   * contains the MBRs of the intput array. 
-   */ 
-  MBRs::const_iterator MBR_end(const ArrayDescriptor* array_descriptor) const; 
-
+  
   // MISC
   /** 
    * Returns the ids of the tiles whose MBR overlaps with the input range.
