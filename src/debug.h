@@ -8,7 +8,7 @@
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs); \
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank); \
   std::stringstream ss; \
-  ss << "[DEBUG PROCESSOR " << myrank << " of " << nprocs << "] " << __FILE__ <<  ":" << __LINE__ << ": " <<  msg << "\n"; \
+  ss << "[PROCESSOR " << myrank << " of " << nprocs << "] " << __FILE__ <<  ":" << __LINE__ << ": " <<  msg << "\n"; \
   std::cout << ss.str(); \
 } while (0)
 
@@ -18,7 +18,7 @@
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs); \
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank); \
   std::stringstream ss; \
-  ss << "[DEBUG PROCESSOR " << myrank << " of " << nprocs << "] " << log_info << ": " <<  msg << "\n"; \
+  ss << "[PROCESSOR " << myrank << " of " << nprocs << "] " << log_info << ": " <<  msg << "\n"; \
   std::cout << ss.str(); \
 } while(0)
 
