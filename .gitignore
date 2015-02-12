@@ -14,9 +14,9 @@ libgtest.a
 
 # documentation
 doc/
-
-# executables
-source/bin
+core/bin/*
+core/obj/*
+example/obj/*
 example/bin/*
 multinode_launcher
 gtester
@@ -24,5 +24,5 @@ gtester
 myrank
 
 # data
-Data/*
-Result/*
+gtest/obj/*
+data/example*
