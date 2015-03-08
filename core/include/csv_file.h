@@ -138,6 +138,13 @@ class CSVLine {
   template<class T> 
   void operator=(const std::vector<T>& values);
 
+  /**
+   * Easy access for retrieving individual cols in the csv line
+   */
+  std::vector<std::string> values() {
+    return values_;
+  }
+
  private:
   // PRIVATE ATTRIBUTES
   /** 

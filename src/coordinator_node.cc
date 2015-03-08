@@ -8,6 +8,7 @@
 #include <fstream>
 #include <algorithm>
 #include <cstdio>
+#include <functional>
 #include "assert.h"
 #include "coordinator_node.h"
 #include "csv_file.h"
@@ -15,7 +16,7 @@
 
 CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   myrank_ = rank;
-  nprocs_ = nprocs; 
+  nprocs_ = nprocs;
   nworkers_ = nprocs - 1;
 
   // TODO put in config file
@@ -24,7 +25,14 @@ CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
 
   storage_manager_ = new StorageManager(my_workspace_);
   loader_ = new Loader(my_workspace_, *storage_manager_);
-  mpi_handler_ = new MPIHandler();
+
+
+  std::vector<int> workers;
+  for (int i = 1; i < nprocs; ++i) {
+    workers.push_back(i);
+  }
+
+  mpi_handler_ = new MPIHandler(workers);
 }
 
 // TODO
@@ -76,8 +84,14 @@ void CoordinatorNode::run() {
       types,
       ArraySchema::HILBERT);
 
+  /*
   DEBUG_MSG("sending parallel load instructions to all workers");
   ParallelLoadMsg pmsg = ParallelLoadMsg(filename, ParallelLoadMsg::NAIVE, array_schema);
+  send_and_receive(pmsg);
+  */
+
+  DEBUG_MSG("Sending HASH_PARTITION parallel load instructions to all workers");
+  ParallelLoadMsg pmsg = ParallelLoadMsg(filename, ParallelLoadMsg::HASH_PARTITION, array_schema);
   send_and_receive(pmsg);
 
   /*
@@ -128,7 +142,7 @@ void CoordinatorNode::run() {
 }
 
 void CoordinatorNode::send_all(Msg& msg) {
-  DEBUG_MSG("send_all: " + msg.msg_tag);
+  logger_->log(LOG_INFO, "send_all");
   std::pair<char*, int> serial_pair = msg.serialize();
   this->send_all(serial_pair.first, serial_pair.second, msg.msg_tag);
 }
@@ -275,6 +289,7 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
       break;
       
     case ParallelLoadMsg::HASH_PARTITION:
+      handle_parallel_load_hash(pmsg);
       break;
     case ParallelLoadMsg::SAMPLING:
       break;
@@ -318,9 +333,8 @@ void CoordinatorNode::handle_parallel_load_naive(ParallelLoadMsg& pmsg) {
   int num_lines = std::count(std::istreambuf_iterator<char>(sorted_file), 
                              std::istreambuf_iterator<char>(), '\n');
 
-  logger_->log(LOG_INFO, "num_lines: " + std::to_string(num_lines));
+  logger_->log(LOG_INFO, "Splitting and sending sorted content to workers, num_lines: " + std::to_string(num_lines));
 
-  logger_->log(LOG_INFO, "Splitting and sending sorted content to workers");
   int lines_per_worker = num_lines / (nprocs_ - 1);
   // if not evenly split
   int remainder = num_lines % (nprocs_ - 1);
@@ -342,13 +356,8 @@ void CoordinatorNode::handle_parallel_load_naive(ParallelLoadMsg& pmsg) {
     }
 
     logger_->log(LOG_INFO, "Sending sorted file part to nodeid" + std::to_string(nodeid));
-    bool keep_receiving = true;
-    // TODO refactor out?
     for(; pos < end; ++pos) {
       if (content.str().length() + line.length() >= MPI_BUFFER_LENGTH) {
-        // encode "there is more coming" in the last byte
-        //content.write((char *) &keep_receiving, sizeof(bool));
-
         // send content to nodeid
         MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
 
@@ -363,8 +372,6 @@ void CoordinatorNode::handle_parallel_load_naive(ParallelLoadMsg& pmsg) {
     }
 
     // final send
-    //keep_receiving = false;
-    //content.write((char *) &keep_receiving, sizeof(bool));
     MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
     mpi_handler_->send_keep_receiving(false, nodeid);
     --remainder;
@@ -374,6 +381,57 @@ void CoordinatorNode::handle_parallel_load_naive(ParallelLoadMsg& pmsg) {
   sorted_file.close();
   // TODO Cleanup
   delete [] buf;
+}
+
+void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
+  logger_->log(LOG_INFO, "Start Handle Parallel Load Hash Partiion");
+  std::stringstream ss;
+  
+  // TODO check that filename exists in workspace, error if doesn't
+  
+  ArraySchema array_schema = pmsg.array_schema();
+  bool regular = array_schema.has_regular_tiles();
+  ArraySchema::Order order = array_schema.order();
+  std::string filepath = "./data/" + pmsg.filename();
+  std::string injected_filepath = filepath;
+
+  // Inject cell id
+  if (regular || order == ArraySchema::HILBERT) {
+    injected_filepath = loader_->workspace() + "/injected_" +
+                        array_schema.array_name() + ".csv";
+    try {
+      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
+      loader_->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
+    } catch(LoaderException& le) {
+      logger_->log(LOG_INFO, "Caught loader exception " + le.what());
+      remove(injected_filepath.c_str());
+      storage_manager_->delete_array(array_schema.array_name());
+      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
+    }
+  }
+
+
+  logger_->log(LOG_INFO, "Sending data to workers based on hash value");
+  // scan input file, compute hash on cell id, send to worker
+  CSVFile csv_in(injected_filepath, CSVFile::READ);
+  CSVLine csv_line;
+
+  while (csv_in >> csv_line) {
+    // TODO look into other hash fns, using default for strings right now
+    std::string cell_id = csv_line.values()[0];
+    std::hash<std::string> hash_fn;
+
+    std::size_t cell_id_hash = hash_fn(cell_id);
+
+    int receiver = (cell_id_hash % nworkers_) + 1;
+
+    std::string csv_line_str = csv_line.str() + "\n";
+
+    mpi_handler_->send_content(csv_line_str.c_str(), csv_line_str.length(), receiver, PARALLEL_LOAD_TAG);
+  }
+
+  logger_->log(LOG_INFO, "Flushing all sends");
+  mpi_handler_->flush_all_sends(PARALLEL_LOAD_TAG);
 }
 
 void CoordinatorNode::quit_all() {

@@ -20,7 +20,7 @@ class MPIHandler {
     MPIHandler();
 
     /** Constructor initializes how many buffers to maintain */
-    MPIHandler(int num_buffers, std::vector<int>& node_ids);
+    MPIHandler(std::vector<int>& node_ids);
 
     // DESTRUCTOR
     /** Empty destructor. */
@@ -32,19 +32,6 @@ class MPIHandler {
      * Blocking call
      */
     void send_file(std::string filepath, int receiver, int tag); 
-
-    // Blocking call
-    void send_keep_receiving(bool keep_receiving, int receiver);
-    
-    // TODO
-    // Maintain buffer for each worker, send data to worker only when buffer is full
-    // Blocking
-    void send_content(char* in_buf, int length, int receiver, int tag);
-
-    // TODO
-    void flush_send(int receiver);
-    void flush_sends();
-
     /**
      * Receive content in char buffer and store to file,
      * Blocking call
@@ -52,6 +39,25 @@ class MPIHandler {
     void receive_file(std::ofstream& file, int sender, int tag);
 
 
+    /**
+     * Send receiver msg saying whether or not to keep receiving data chunks
+     * Blocking call
+     */
+    void send_keep_receiving(bool keep_receiving, int receiver);
+    
+    /** TODO
+     * Maintain buffer for each worker, send data to worker only when buffer is full
+     * Used in hash partition parallel load
+     * Blocking Call
+     */
+    void send_content(const char* in_buf, int length, int receiver, int tag);
+
+
+    // TODO
+    void flush_send(int receiver, int tag);
+    void flush_all_sends(int tag);
+
+    
   private:
 
     std::vector<int> node_ids_;
@@ -65,7 +71,7 @@ class MPIHandler {
     // vector of char buf pos (first empty byte)
     std::vector<int> pos_;
 
-    std::vector<char *> send_buffers_; // for asychronous calls
+    //std::vector<char *> send_buffers_; // for asychronous calls
 
 };
 #endif

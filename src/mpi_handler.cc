@@ -8,11 +8,9 @@
 #include "constants.h"
 #include "messages.h"
 
-MPIHandler::MPIHandler() {
+MPIHandler::MPIHandler() {}
 
-}
-
-MPIHandler::MPIHandler(int num_buffers, std::vector<int>& node_ids) {
+MPIHandler::MPIHandler(std::vector<int>& node_ids) {
 
   int buf_id = 0;
   for (std::vector<int>::iterator it = node_ids.begin(); it != node_ids.end(); ++it, ++buf_id) {
@@ -24,11 +22,10 @@ MPIHandler::MPIHandler(int num_buffers, std::vector<int>& node_ids) {
     pos_.push_back(0);
   }
 
+  node_ids_ = node_ids;
 }
 
-MPIHandler::~MPIHandler() {
-
-}
+MPIHandler::~MPIHandler() {}
 
 void MPIHandler::send_file(std::string filepath, int receiver, int tag) {
   CSVFile file(filepath, CSVFile::READ, MPI_BUFFER_LENGTH); 
@@ -90,28 +87,25 @@ void MPIHandler::receive_file(std::ofstream& file, int sender, int tag) {
 
 // TODO Maintain buffer for each worker, send data to worker only when buffer is
 // full
-void MPIHandler::send_content(char* in_buf, int length, int receiver, int tag) {
+void MPIHandler::send_content(const char* in_buf, int length, int receiver, int tag) {
 
   auto search = node_to_buf_.find(receiver);
   assert(search != node_to_buf_.end());
   int buf_id = search->second;
-  // TODO handle not found case
+  // handle not found case
   int buf_length = pos_[buf_id];
   if (length + buf_length >= MPI_BUFFER_LENGTH) {
-    // send data in buffer, then send data from in_buf
-    //std::memmove(send_buffers_[buf_id], buffers_[buf_id], pos);
 
-    // TODO synchronous send
+    // synchronous send
     // sending data from buffer
     // blocking
-    //std::memmove(&(buffers_[buf_id][pos]), &keep_receiving, sizeof(bool));
     MPI_Send(buffers_[buf_id], buf_length, MPI_CHAR, receiver, tag, MPI_COMM_WORLD);
     this->send_keep_receiving(true, receiver);
 
 
     pos_[buf_id] = 0; // resets buffer
 
-    // TODO send data from in_buf
+    // send data from in_buf
     int pos = 0;
     while (pos < length) {
       int send_length = std::min(MPI_BUFFER_LENGTH, length - pos);
@@ -122,7 +116,7 @@ void MPIHandler::send_content(char* in_buf, int length, int receiver, int tag) {
     }
 
     // final msg to stop receiving
-    this->send_keep_receiving(false, receiver);
+    //this->send_keep_receiving(false, receiver);
 
 
   } else {
@@ -131,5 +125,22 @@ void MPIHandler::send_content(char* in_buf, int length, int receiver, int tag) {
     pos_[buf_id] += length;
   }
 
+}
 
+void MPIHandler::flush_send(int receiver, int tag) {
+  auto search = node_to_buf_.find(receiver);
+  assert(search != node_to_buf_.end());
+  int buf_id = search->second;
+  // TODO handle not found case
+  int buf_length = pos_[buf_id];
+  if (buf_length > 0) {
+    MPI_Send(buffers_[buf_id], buf_length, MPI_CHAR, receiver, tag, MPI_COMM_WORLD);
+    this->send_keep_receiving(false, receiver);
+  }
+}
+
+void MPIHandler::flush_all_sends(int tag) {
+  for (std::vector<int>::iterator it = node_ids_.begin(); it != node_ids_.end(); ++it) {
+    flush_send(*it, tag);
+  }
 }

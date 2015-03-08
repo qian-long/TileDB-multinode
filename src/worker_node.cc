@@ -23,7 +23,14 @@ WorkerNode::WorkerNode(int rank, int nprocs) {
   loader_ = new Loader(my_workspace_, *storage_manager_);
   query_processor_ = new QueryProcessor(my_workspace_, *storage_manager_);
   logger_ = new Logger(my_workspace_ + "/logfile");
-  //mpi_handler_ = new MPIHandler();
+
+  std::vector<int> other_nodes; // everyone except self
+  for (int i = 0; i < nprocs; ++i) {
+    if (i != myrank_) {
+      other_nodes.push_back(i);
+    }
+  }
+  mpi_handler_ = new MPIHandler(other_nodes);
 
   // catalogue data structures
   arrayname_map_ = new std::map<std::string, std::string>();
@@ -393,77 +400,52 @@ int WorkerNode::handle_parallel_load_naive(std::string filename, ArraySchema& ar
 }
 
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
-  // scan file to compute hash of unique id of coords, create new temp file
-  // keep buffer of data to send to each node
 
-  std::string filepath = "./data/" + filename;
-  // TODO check that filename exists in workspace, error if doesn't
-  // TODO save array schema?
+  std::ofstream output;
+  std::string filepath = my_workspace_ + "/" + filename;
 
-  // TODO open file and append tile-id/hilbert order
-  // inject ids if regular or hilbert order
-  bool regular = array_schema.has_regular_tiles();
-  ArraySchema::Order order = array_schema.order();
-  std::string injected_filename = filepath;
-  if (regular || order == ArraySchema::HILBERT) {
-    injected_filename = loader_->workspace() + "/injected_" +
-                        array_schema.array_name() + ".csv";
-    try {
+  output.open(filepath);
 
-      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filename);
-      loader_->inject_ids_to_csv_file(filepath, injected_filename, array_schema);
-    } catch(LoaderException& le) {
-      logger_->log(LOG_INFO, "Caught loader exception");
-      remove(injected_filename.c_str());
-      storage_manager_->delete_array(array_schema.array_name());
-      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
-    }
-  }
-
-  // TODO compute cell id for not hilbert order
-
-  /*
-  logger_->log(LOG_INFO, "sending csv file back to master injected_filename: " + injected_filename);
-
-  // Send csv file back to master, chunk by chunk
-  mpi_handler_->send_file(injected_filename, MASTER, PARALLEL_LOAD_TAG);
-
-  // Wait for sorted file from master
-  logger_->log(LOG_INFO, "Receiving sorted file from master");
-
-  std::ofstream sorted_file;
-  std::string sorted_filename = injected_filename + ".sorted";
-  sorted_file.open(sorted_filename);
-
-  mpi_handler_->receive_file(sorted_file, MASTER, PARALLEL_LOAD_TAG);
-
-  sorted_file.close();
+  logger_->log(LOG_INFO, "Receiving hash partitioned data from master, writing to filepath " + filepath);
+  // Blocking
+  mpi_handler_->receive_file(output, MASTER, PARALLEL_LOAD_TAG);
+  output.close();
 
   // Invoke local load
   logger_->log(LOG_INFO, "Invoking local load");
+  // local sort
+  std::string sorted_filepath = my_workspace_ + "/sorted_" + filename + ".tmp";
+
+  logger_->log(LOG_INFO, "Sorting csv file " + filepath);
+  loader_->sort_csv_file(filepath, sorted_filepath, array_schema);
+  logger_->log(LOG_INFO, "Finished sorting csv file");
+
   // Open array in CREATE mode
   StorageManager::ArrayDescriptor* ad = 
       storage_manager_->open_array(array_schema);
 
+
   // Make tiles
   try {
     if(array_schema.has_regular_tiles())
-      loader_->make_tiles_regular(sorted_filename, ad, array_schema);
+      loader_->make_tiles_regular(sorted_filepath, ad, array_schema);
     else
-      loader_->make_tiles_irregular(sorted_filename, ad, array_schema);
+      loader_->make_tiles_irregular(sorted_filepath, ad, array_schema);
   } catch(LoaderException& le) {
-    //remove(sorted_filename.c_str());
-    //storage_manager_.delete_array(array_schema.array_name());
+    // TODO uncomment
+    //remove(sorted_filepath.c_str());
+    storage_manager_->delete_array(array_schema.array_name());
     throw LoaderException("Error invoking local load" + filename +
                           "'.\n " + le.what());
   }
 
 
   storage_manager_->close_array(ad);
-  */
+
 
   // TODO cleanup
   return 0;
+
 
 }
 
