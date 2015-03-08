@@ -3,6 +3,6 @@
 #include <cstdlib>
 
 #define MASTER 0 // coordinator node id
-#define MAX_DATA 200 // num bytes
+#define MPI_BUFFER_LENGTH 200 // num bytes, per worker buffer
 
 #endif

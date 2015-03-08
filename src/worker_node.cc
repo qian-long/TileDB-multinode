@@ -44,7 +44,7 @@ void WorkerNode::run() {
   logger_->log(LOG_INFO, "I am a worker node");
 
   MPI_Status status;
-  char *buf = new char[MAX_DATA];
+  char *buf = new char[MPI_BUFFER_LENGTH];
   int length;
   int loop = true;
   int result;
@@ -58,7 +58,7 @@ void WorkerNode::run() {
   double tend;
   while (loop) {
     try {
-      MPI_Recv(buf, MAX_DATA, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
       switch (status.MPI_TAG) {
         case QUIT_TAG:
@@ -303,30 +303,126 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   logger_->log(LOG_INFO, "Received Parallel Load Message");
   logger_->log(LOG_INFO, "Filename: " + msg->filename());
 
-  std::string filepath = "./data/" + msg->filename();
+  //std::string filepath = "./data/" + msg->filename();
+  switch (msg->load_type()) {
+    case ParallelLoadMsg::NAIVE:
+      handle_parallel_load_naive(msg->filename(), msg->array_schema());
+      break;
+    case ParallelLoadMsg::HASH_PARTITION:
+      handle_parallel_load_hash(msg->filename(), msg->array_schema());
+      break;
+    case ParallelLoadMsg::SAMPLING:
+      break;
+    case ParallelLoadMsg::MERGE_SORT:
+      break;
+    default:
+      // TODO send error
+      break;
+  }
+
+  // TODO cleanup
+  return 0;
+}
+
+int WorkerNode::handle_parallel_load_naive(std::string filename, ArraySchema& array_schema) {
+
+  std::string filepath = "./data/" + filename;
   // TODO check that filename exists in workspace, error if doesn't
   // TODO save array schema?
-  
+
   // TODO open file and append tile-id/hilbert order
-    // inject ids if regular or hilbert order
-  bool regular = msg->array_schema().has_regular_tiles();
-  ArraySchema::Order order = msg->array_schema().order();
+  // inject ids if regular or hilbert order
+  bool regular = array_schema.has_regular_tiles();
+  ArraySchema::Order order = array_schema.order();
   std::string injected_filename = filepath;
   if (regular || order == ArraySchema::HILBERT) {
     injected_filename = loader_->workspace() + "/injected_" +
-                        msg->array_schema().array_name() + ".csv";
+                        array_schema.array_name() + ".csv";
     try {
 
       logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filename);
-      loader_->inject_ids_to_csv_file(filepath, injected_filename, msg->array_schema());
+      loader_->inject_ids_to_csv_file(filepath, injected_filename, array_schema);
     } catch(LoaderException& le) {
       logger_->log(LOG_INFO, "Caught loader exception");
       remove(injected_filename.c_str());
-      storage_manager_->delete_array(msg->array_schema().array_name());
+      storage_manager_->delete_array(array_schema.array_name());
       throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
     }
   }
 
+  logger_->log(LOG_INFO, "Sending csv file back to master injected_filename: " + injected_filename);
+
+  // Send csv file back to master, chunk by chunk
+  mpi_handler_->send_file(injected_filename, MASTER, PARALLEL_LOAD_TAG);
+
+  // Wait for sorted file from master
+
+  std::ofstream sorted_file;
+  std::string sorted_filename = injected_filename + ".sorted";
+  sorted_file.open(sorted_filename);
+
+  logger_->log(LOG_INFO, "Receiving sorted file from master");
+  mpi_handler_->receive_file(sorted_file, MASTER, PARALLEL_LOAD_TAG);
+
+  sorted_file.close();
+
+  // Invoke local load
+  logger_->log(LOG_INFO, "Invoking local load");
+  // Open array in CREATE mode
+  StorageManager::ArrayDescriptor* ad = 
+      storage_manager_->open_array(array_schema);
+
+  // Make tiles
+  try {
+    if(array_schema.has_regular_tiles())
+      loader_->make_tiles_regular(sorted_filename, ad, array_schema);
+    else
+      loader_->make_tiles_irregular(sorted_filename, ad, array_schema);
+  } catch(LoaderException& le) {
+    //remove(sorted_filename.c_str());
+    //storage_manager_.delete_array(array_schema.array_name());
+    throw LoaderException("Error invoking local load" + filename +
+                          "'.\n " + le.what());
+  }
+
+
+  storage_manager_->close_array(ad);
+
+  // TODO cleanup
+  return 0;
+}
+
+int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
+  // scan file to compute hash of unique id of coords, create new temp file
+  // keep buffer of data to send to each node
+
+  std::string filepath = "./data/" + filename;
+  // TODO check that filename exists in workspace, error if doesn't
+  // TODO save array schema?
+
+  // TODO open file and append tile-id/hilbert order
+  // inject ids if regular or hilbert order
+  bool regular = array_schema.has_regular_tiles();
+  ArraySchema::Order order = array_schema.order();
+  std::string injected_filename = filepath;
+  if (regular || order == ArraySchema::HILBERT) {
+    injected_filename = loader_->workspace() + "/injected_" +
+                        array_schema.array_name() + ".csv";
+    try {
+
+      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filename);
+      loader_->inject_ids_to_csv_file(filepath, injected_filename, array_schema);
+    } catch(LoaderException& le) {
+      logger_->log(LOG_INFO, "Caught loader exception");
+      remove(injected_filename.c_str());
+      storage_manager_->delete_array(array_schema.array_name());
+      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
+    }
+  }
+
+  // TODO compute cell id for not hilbert order
+
+  /*
   logger_->log(LOG_INFO, "sending csv file back to master injected_filename: " + injected_filename);
 
   // Send csv file back to master, chunk by chunk
@@ -347,27 +443,30 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   logger_->log(LOG_INFO, "Invoking local load");
   // Open array in CREATE mode
   StorageManager::ArrayDescriptor* ad = 
-      storage_manager_->open_array(msg->array_schema());
+      storage_manager_->open_array(array_schema);
 
   // Make tiles
   try {
-    if(msg->array_schema().has_regular_tiles())
-      loader_->make_tiles_regular(sorted_filename, ad, msg->array_schema());
+    if(array_schema.has_regular_tiles())
+      loader_->make_tiles_regular(sorted_filename, ad, array_schema);
     else
-      loader_->make_tiles_irregular(sorted_filename, ad, msg->array_schema());
+      loader_->make_tiles_irregular(sorted_filename, ad, array_schema);
   } catch(LoaderException& le) {
     //remove(sorted_filename.c_str());
     //storage_manager_.delete_array(array_schema.array_name());
-    throw LoaderException("Error invoking local load" + msg->filename() + 
+    throw LoaderException("Error invoking local load" + filename +
                           "'.\n " + le.what());
-  } 
+  }
 
 
   storage_manager_->close_array(ad);
+  */
 
   // TODO cleanup
   return 0;
+
 }
+
 /*************** HANDLE FILTER **********************/
 template<class T>
 int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type) {

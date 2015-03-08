@@ -36,8 +36,12 @@ class WorkerNode {
     int handle(SubarrayMsg* msg);
     int handle(AggregateMsg* msg);
     int handle(ParallelLoadMsg* msg);
+
+    int handle_parallel_load_naive(std::string filename, ArraySchema& array_schema);
+    int handle_parallel_load_hash(std::string filename, ArraySchema& array_schema);
+    int handle_parallel_load_sampling();
+    int handle_parallel_load_merge(); // maybe won't do
     
-    //int handle_aggregate(AggregateMsg* msg);
     template<class T>
     int handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type);
 

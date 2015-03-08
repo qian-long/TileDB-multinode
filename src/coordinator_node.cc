@@ -137,7 +137,7 @@ void CoordinatorNode::send_all(std::string serial_str, int tag) {
   this->send_all(serial_str.c_str(), serial_str.length(), tag);
 }
 void CoordinatorNode::send_all(const char* buffer, int buffer_size, int tag) {
-  assert(buffer_size < MAX_DATA);
+  assert(buffer_size < MPI_BUFFER_LENGTH);
   // TODO make asynchronous
   for (int i = 1; i < nprocs_; i++) {
     MPI_Send(buffer, buffer_size, MPI::CHAR, i, tag, MPI_COMM_WORLD);
@@ -180,10 +180,10 @@ void CoordinatorNode::handle_ack() {
   for (int i = 0; i < nworkers_; i++) {
     MPI_Status status;
     int nodeid = i + 1;
-    char *buf = new char[MAX_DATA];
+    char *buf = new char[MPI_BUFFER_LENGTH];
     int length;
 
-    MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
     assert((status.MPI_TAG == DONE_TAG) || (status.MPI_TAG == ERROR_TAG));
     MPI_Get_count(&status, MPI_CHAR, &length);
 
@@ -196,7 +196,8 @@ void CoordinatorNode::handle_ack() {
 void CoordinatorNode::handle_get() {
   std::stringstream ss;
 
-  char *buf = new char[MAX_DATA];
+  // TODO refactor to use mpi handler
+  char *buf = new char[MPI_BUFFER_LENGTH];
   for (int i = 0; i < nprocs_ - 1; i++) {
     MPI_Status status;
     int nodeid = i + 1;
@@ -205,7 +206,7 @@ void CoordinatorNode::handle_get() {
 
     int count = 0;
     do {
-      MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, GET_TAG, MPI_COMM_WORLD, &status);
+      MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, nodeid, GET_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
 
       // check last byte
@@ -228,10 +229,10 @@ void CoordinatorNode::handle_aggregate() {
   for (int i = 0; i < nworkers_; i++) {
     MPI_Status status;
     int nodeid = i + 1;
-    char *buf = new char[MAX_DATA];
+    char *buf = new char[MPI_BUFFER_LENGTH];
     int length;
 
-    MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
     assert((status.MPI_TAG == AGGREGATE_TAG) || (status.MPI_TAG == ERROR_TAG));
     MPI_Get_count(&status, MPI_CHAR, &length);
@@ -246,7 +247,7 @@ void CoordinatorNode::handle_aggregate() {
         aggregate_max = worker_max;
       }
 
-      MPI_Recv(buf, MAX_DATA, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       assert(status.MPI_TAG == DONE_TAG);
       MPI_Get_count(&status, MPI_CHAR, &length);
 
@@ -265,16 +266,35 @@ void CoordinatorNode::handle_aggregate() {
 
 // TODO make asynchronous?
 void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
-  DEBUG_MSG("In handle_parallel_load");
+  logger_->log(LOG_INFO, "In handle_parallel_load");
+
+  switch (pmsg.load_type()) {
+
+    case ParallelLoadMsg::NAIVE:
+      handle_parallel_load_naive(pmsg);
+      break;
+      
+    case ParallelLoadMsg::HASH_PARTITION:
+      break;
+    case ParallelLoadMsg::SAMPLING:
+      break;
+    case ParallelLoadMsg::MERGE_SORT:
+      break;
+    default:
+      // TODO return error?
+      break;
+  }
+}
+
+void CoordinatorNode::handle_parallel_load_naive(ParallelLoadMsg& pmsg) {
   std::stringstream ss;
 
   std::string filename = pmsg.filename();
-  char *buf = new char[MAX_DATA];
+  char *buf = new char[MPI_BUFFER_LENGTH];
   std::string tmp_filepath = my_workspace_ + "/" + filename + ".tmp";
   std::ofstream tmpfile;
   tmpfile.open(tmp_filepath);
 
-  //for (int i = 0; i < nprocs_ - 1; i++) {
   for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
     DEBUG_MSG("Waiting for content from worker " + std::to_string(nodeid));
     mpi_handler_->receive_file(tmpfile, nodeid, PARALLEL_LOAD_TAG);
@@ -321,15 +341,18 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
       end++;
     }
 
+    logger_->log(LOG_INFO, "Sending sorted file part to nodeid" + std::to_string(nodeid));
     bool keep_receiving = true;
+    // TODO refactor out?
     for(; pos < end; ++pos) {
-      if (content.str().length() + line.length() + 1 >= MAX_DATA) {
+      if (content.str().length() + line.length() >= MPI_BUFFER_LENGTH) {
         // encode "there is more coming" in the last byte
-        content.write((char *) &keep_receiving, sizeof(bool));
+        //content.write((char *) &keep_receiving, sizeof(bool));
 
         // send content to nodeid
         MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
 
+        mpi_handler_->send_keep_receiving(true, nodeid);
         content.str(std::string()); // clear buffer
 
       }
@@ -340,16 +363,17 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
     }
 
     // final send
-    keep_receiving = false;
-    content.write((char *) &keep_receiving, sizeof(bool));
+    //keep_receiving = false;
+    //content.write((char *) &keep_receiving, sizeof(bool));
     MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
+    mpi_handler_->send_keep_receiving(false, nodeid);
     --remainder;
   }
 
 
   sorted_file.close();
   // TODO Cleanup
-  delete[] buf;
+  delete [] buf;
 }
 
 void CoordinatorNode::quit_all() {
