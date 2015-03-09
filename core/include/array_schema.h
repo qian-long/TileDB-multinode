@@ -34,16 +34,17 @@
 #ifndef ARRAY_SCHEMA_H
 #define ARRAY_SCHEMA_H
 
+#include <vector>
+#include <set>
+#include <string>
+#include <inttypes.h>
+#include <typeinfo>
+#include "tile.h"
+
 /** Default value for ArraySchema::capacity_. */
 #define AS_CAPACITY 10000
 /** Name for the extra attribute representing the array coordinates. */
 #define AS_COORDINATE_TILE_NAME "__coords"
-
-#include <vector>
-#include <string>
-#include <inttypes.h>
-#include <typeinfo>
-#include <tile.h>
 
 /**
  * Objects of this class store information about the schema of an array, and
@@ -77,6 +78,8 @@ class ArraySchema {
    * a particular order, then the order is set to NONE.
    */
   enum Order {COLUMN_MAJOR, HILBERT, ROW_MAJOR, NONE};
+  /** A vector of attribute ids. */
+  typedef std::vector<unsigned int> AttributeIds;
 
   // CONSTRUCTORS
   /** Empty constructor. */
@@ -143,6 +146,9 @@ class ArraySchema {
    * to the buffer it creates, along with the size of the buffer.
    */
   std::pair<char*, uint64_t> serialize() const;
+  /** Returns the tile extents. */
+  const std::vector<double>& tile_extents() const 
+      { return tile_extents_; } 
   /** Returns the type of the i-th attribute. */
   const std::type_info* type(unsigned int i) const;
 
@@ -164,6 +170,8 @@ class ArraySchema {
   ArraySchema clone(const std::string& array_name) const;
   /** Returns an identical schema with the input array name and order. */
   ArraySchema clone(const std::string& array_name, Order order) const;
+  /** Returns an identical schema assigning the input to the capacity. */
+  ArraySchema clone(uint64_t capacity) const;
   /** 
    * Returns the schema of the result when joining the arrays with the
    * input schemas. The result array name is given in the third argument. 
@@ -183,6 +191,13 @@ class ArraySchema {
       const ArraySchema& array_schema_A, 
       const ArraySchema& array_schema_B,
       const std::string& result_array_name);
+  /** 
+   * Returns a pair of vectors of attribute ids. The first contains the 
+   * attribute ids corresponding to the input names. The second includes the 
+   * attribute ids that do NOT correspond to the input names.
+   */
+  std::pair<AttributeIds, AttributeIds> get_attribute_ids(
+      const std::set<std::string>& expr_attribute_names) const;
   /** 
    * Returns true if the array has irregular tiles (i.e., 
    * ArraySchema::tile_extents_ is empty), and false otherwise. 

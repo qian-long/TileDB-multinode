@@ -16,6 +16,8 @@ libgtest.a
 doc/
 core/bin/*
 core/obj/*
+tiledb/bin/*
+tiledb/obj/*
 example/obj/*
 example/bin/*
 multinode_launcher

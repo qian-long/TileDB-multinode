@@ -59,12 +59,10 @@ class Loader {
   ~Loader() {}
 
   // LOADING FUNCTIONS
-  /**
-   * Loads a CSV file into an array.
-   * \param filename The name of the input CSV file.
-   * \param array_schema The schema of the array the CSV file is loaded into.
-   */
-  void load(const std::string& filename, const ArraySchema& array_schema) const; 
+  /** Creates a fragment from a CSV file. */
+  void load(const std::string& filename, 
+            const std::string& array_name, 
+            const std::string& fragment_name) const;
 
   /**  Sorts the csv file depending on the type of tiles and order. */
   void sort_csv_file(const std::string& to_be_sorted_filename,
@@ -109,9 +107,17 @@ class Loader {
   bool check_on_load(const std::string& filename) const;
   /** Creates the workspace folder. */
   void create_workspace() const;
- /** 
+
+  // TODO replace above methods
+  /** Creates the (irregular) tiles and sends them to the storage manager. */
+  void make_tiles_irregular(const std::string& filename,
+                            const StorageManager::FragmentDescriptor* fd) const;
+  /** Creates the (regular) tiles and sends them to the storage manager. */
+  void make_tiles_regular(const std::string& filename,
+                          const StorageManager::FragmentDescriptor* fd) const;
+  /** 
    * Creates an array of new tile pointers with the input tile id, 
-   * and based on the input array info. 
+   * and based on the input array schema. 
    */
   void new_tiles(const ArraySchema& array_schema, 
                  uint64_t tile_id, Tile** tiles) const;
@@ -120,7 +126,7 @@ class Loader {
   /** Simply sets the workspace. */
   void set_workspace(const std::string& path);
   /** Sends the tiles to the storage manager. */
-  void store_tiles(const StorageManager::ArrayDescriptor* ad,
+  void store_tiles(const StorageManager::FragmentDescriptor* fd,
                    Tile** tiles) const;
 };
 
