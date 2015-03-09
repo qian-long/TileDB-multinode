@@ -33,7 +33,7 @@ class CoordinatorNode {
     void quit_all();
 
 
-    void handle_get();
+    void handle_get(GetMsg& gmsg);
     void handle_load();
     void handle_aggregate();
     void handle_ack();

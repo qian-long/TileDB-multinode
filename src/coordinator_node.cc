@@ -84,15 +84,25 @@ void CoordinatorNode::run() {
       types,
       ArraySchema::HILBERT);
 
-  /*
-  DEBUG_MSG("sending parallel load instructions to all workers");
-  ParallelLoadMsg pmsg = ParallelLoadMsg(filename, ParallelLoadMsg::NAIVE, array_schema);
-  send_and_receive(pmsg);
-  */
-
   DEBUG_MSG("Sending HASH_PARTITION parallel load instructions to all workers");
   ParallelLoadMsg pmsg = ParallelLoadMsg(filename, ParallelLoadMsg::HASH_PARTITION, array_schema);
   send_and_receive(pmsg);
+
+  DEBUG_MSG("Sending GET test_A to all workers");
+  GetMsg gmsg1 = GetMsg("test_A");
+  send_and_receive(gmsg1);
+
+
+  std::string aname2 = "test_A_naive";
+  ArraySchema a2 = array_schema.clone(aname2);
+  DEBUG_MSG("Sending parallel load instructions to all workers");
+  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::NAIVE, a2);
+  send_and_receive(pmsg2);
+
+  DEBUG_MSG("Sending GET test_A_naive to all workers");
+  GetMsg gmsg2 = GetMsg(aname2);
+  send_and_receive(gmsg2);
+
 
   /*
   DEBUG_MSG("sending load instruction to all workers");
@@ -162,7 +172,7 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
   send_all(msg);
   switch(msg.msg_tag) {
     case GET_TAG:
-      handle_get();
+      handle_get(dynamic_cast<GetMsg&>(msg));
       break;
     case LOAD_TAG:
     case FILTER_TAG:
@@ -173,7 +183,7 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
       handle_aggregate();
       break;
     case PARALLEL_LOAD_TAG:
-      handle_parallel_load((dynamic_cast<ParallelLoadMsg&>(msg)));
+      handle_parallel_load(dynamic_cast<ParallelLoadMsg&>(msg));
       break;
     default:
       // don't do anything
@@ -207,32 +217,14 @@ void CoordinatorNode::handle_ack() {
 
 }
 
-void CoordinatorNode::handle_get() {
-  std::stringstream ss;
-
-  // TODO refactor to use mpi handler
-  char *buf = new char[MPI_BUFFER_LENGTH];
-  for (int i = 0; i < nprocs_ - 1; i++) {
-    MPI_Status status;
-    int nodeid = i + 1;
-    int length;
-    bool keep_receiving = true;
-
-    int count = 0;
-    do {
-      MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, nodeid, GET_TAG, MPI_COMM_WORLD, &status);
-      MPI_Get_count(&status, MPI_CHAR, &length);
-
-      // check last byte
-      keep_receiving = (bool) buf[length-1];
-
-      // print all but last byte
-      std::cout << std::string(buf, length - 1);
-    } while (keep_receiving);
-
+void CoordinatorNode::handle_get(GetMsg& gmsg) {
+  std::string outpath = my_workspace_ + "/GET_" + gmsg.array_name() + ".csv";
+  std::ofstream outfile;
+  outfile.open(outpath);
+  for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
+    mpi_handler_->receive_file(outfile, nodeid, GET_TAG);
   }
-
-  delete [] buf;
+  outfile.close();
 }
 
 // TODO other types
@@ -367,7 +359,7 @@ void CoordinatorNode::handle_parallel_load_naive(ParallelLoadMsg& pmsg) {
       }
       // TODO use stavros's csvfile?
       std::getline(sorted_file, line);
-      std::cout << line;
+      //std::cout << line;
       content << line << "\n";
     }
 

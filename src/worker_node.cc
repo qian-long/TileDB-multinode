@@ -211,16 +211,7 @@ int WorkerNode::handle(GetMsg* msg) {
   std::string result_filename = arrayname_to_csv_filename(msg->array_name());
   logger_->log(LOG_INFO, "Result filename: " + result_filename);
 
-  // check if arrayname is in worker
-  auto search = (*global_schema_map_).find(msg->array_name());
-  if (search == (*global_schema_map_).end()) {
-    logger_->log(LOG_INFO, "did not find schema!");
-    return 0; // TODO need to fix b/c coordinator would hang
-  }
-
-  ArraySchema* schema = (*global_schema_map_)[msg->array_name()];
-
-  StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(schema->array_name());
+  StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_name());
 
   logger_->log(LOG_INFO, "exporting to CSV");
   query_processor_->export_to_CSV(desc, result_filename);
@@ -228,6 +219,8 @@ int WorkerNode::handle(GetMsg* msg) {
   logger_->log(LOG_INFO, "sending file to master");
   mpi_handler_->send_file(result_filename, MASTER, GET_TAG);
 
+  // Clean up
+  storage_manager_->close_array(desc); 
   return 0;
 }
 
