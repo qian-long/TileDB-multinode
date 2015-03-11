@@ -10,7 +10,7 @@
 #define DEF_TAG             1
 #define GET_TAG             2 // msg == array_name to get,
 #define INIT_TAG            3 // partition data, send array schema
-#define ARRAY_SCHEMA_TAG    4
+#define DEFINE_ARRAY_TAG    4
 #define LOAD_TAG            5
 #define FILTER_TAG          6
 #define SUBARRAY_TAG        7
@@ -119,15 +119,15 @@ class GetMsg : public Msg {
 /******************************************************
  *************** ARRAYSCHEMA MESSAGE ******************
  ******************************************************/
-class ArraySchemaMsg : public Msg {
+class DefineArrayMsg : public Msg {
 
   public:
     // CONSTRUCTOR
-    ArraySchemaMsg();
-    ArraySchemaMsg(ArraySchema& array_schema);
+    DefineArrayMsg();
+    DefineArrayMsg(ArraySchema& array_schema);
 
     // DESTRUCTOR
-    ~ArraySchemaMsg(){};
+    ~DefineArrayMsg(){};
 
     // ACCESSORS
     ArraySchema& array_schema() { return array_schema_; }
@@ -136,7 +136,7 @@ class ArraySchemaMsg : public Msg {
     std::pair<char*, int> serialize();
 
     // TODO Caller should delete internal array_schema?
-    static ArraySchemaMsg* deserialize(char* buffer, int buffer_length);
+    static DefineArrayMsg* deserialize(char* buffer, int buffer_length);
 
   private:
     ArraySchema array_schema_;

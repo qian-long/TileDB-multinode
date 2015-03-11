@@ -19,10 +19,12 @@ WorkerNode::WorkerNode(int rank, int nprocs) {
   // TODO put in config file
   workspace << "./workspaces/workspace-" << myrank_;
   my_workspace_ = workspace.str();
-  storage_manager_ = new StorageManager(my_workspace_);
-  loader_ = new Loader(my_workspace_, *storage_manager_);
-  query_processor_ = new QueryProcessor(my_workspace_, *storage_manager_);
+  //storage_manager_ = new StorageManager(my_workspace_);
+  //loader_ = new Loader(my_workspace_, *storage_manager_);
+  //query_processor_ = new QueryProcessor(my_workspace_, *storage_manager_);
+  executor_ = new Executor(my_workspace_);
   logger_ = new Logger(my_workspace_ + "/logfile");
+
 
   std::vector<int> other_nodes; // everyone except self
   for (int i = 0; i < nprocs; ++i) {
@@ -72,7 +74,7 @@ void WorkerNode::run() {
           loop = false;
           break;
         case GET_TAG:
-        case ARRAY_SCHEMA_TAG:
+        case DEFINE_ARRAY_TAG:
         case LOAD_TAG: 
         case SUBARRAY_TAG:
         case AGGREGATE_TAG:
@@ -164,8 +166,8 @@ void WorkerNode::respond_ack(int result, int tag, double time) {
     case GET_TAG:
       ss << "GET";
       break;
-    case ARRAY_SCHEMA_TAG:
-      ss << "ARRAY_SCHEMA_TAG";
+    case DEFINE_ARRAY_TAG:
+      ss << "DEFINE_ARRAY_TAG";
       break;
     case LOAD_TAG:
       ss << "LOAD";
@@ -211,21 +213,21 @@ int WorkerNode::handle(GetMsg* msg) {
   std::string result_filename = arrayname_to_csv_filename(msg->array_name());
   logger_->log(LOG_INFO, "Result filename: " + result_filename);
 
-  StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_name());
+  //StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_name());
 
   logger_->log(LOG_INFO, "exporting to CSV");
-  query_processor_->export_to_CSV(desc, result_filename);
+  executor_->export_to_csv(msg->array_name(), result_filename);
 
   logger_->log(LOG_INFO, "sending file to master");
   mpi_handler_->send_file(result_filename, MASTER, GET_TAG);
 
   // Clean up
-  storage_manager_->close_array(desc); 
+  //storage_manager_->close_array(desc); 
   return 0;
 }
 
-/*************** HANDLE ARRAY SCHEMA ***************/
-int WorkerNode::handle(ArraySchemaMsg* msg) {
+/*************** HANDLE DEFINE ARRAY ***************/
+int WorkerNode::handle(DefineArrayMsg* msg) {
 
   (*global_schema_map_)[msg->array_schema().array_name()] = &msg->array_schema();
 
@@ -234,20 +236,23 @@ int WorkerNode::handle(ArraySchemaMsg* msg) {
 }
 
 /*************** HANDLE LOAD **********************/
+// TODO move parallel load here
 int WorkerNode::handle(LoadMsg* msg) {
   logger_->log(LOG_INFO, "Received load\n");
 
-  (*global_schema_map_)[msg->array_schema().array_name()] = &msg->array_schema();
-  loader_->load(convert_filename(msg->filename()), msg->array_schema());
+  //(*global_schema_map_)[msg->array_schema().array_name()] = &msg->array_schema();
+  //executor_->loader()->load(convert_filename(msg->filename()), msg->array_schema());
 
   logger_->log(LOG_INFO, "Finished load");
   return 0;
 }
 
+// TODO fix
 /*************** HANDLE SubarrayMsg **********************/
 int WorkerNode::handle(SubarrayMsg* msg) {
   logger_->log(LOG_INFO, "Received subarray \n");
 
+  /*
   std::string global_schema_name = msg->array_schema().array_name();
   // temporary hack, create a copy of the array schema and replace the array
   // name
@@ -264,9 +269,10 @@ int WorkerNode::handle(SubarrayMsg* msg) {
 
   StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_schema().array_name());
 
-  query_processor_->subarray(desc, msg->ranges(), msg->result_array_name());
+  executor_->subarray(desc, msg->ranges(), msg->result_array_name());
 
   logger_->log(LOG_INFO, "Finished subarray ");
+  */
 
   return 0;
 }
@@ -326,6 +332,7 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
 
 int WorkerNode::handle_parallel_load_naive(std::string filename, ArraySchema& array_schema) {
 
+  /*
   std::string filepath = "./data/" + filename;
   // TODO check that filename exists in workspace, error if doesn't
   // TODO save array schema?
@@ -336,12 +343,12 @@ int WorkerNode::handle_parallel_load_naive(std::string filename, ArraySchema& ar
   ArraySchema::Order order = array_schema.order();
   std::string injected_filename = filepath;
   if (regular || order == ArraySchema::HILBERT) {
-    injected_filename = loader_->workspace() + "/injected_" +
+    injected_filename = executor_->loader()->workspace() + "/injected_" +
                         array_schema.array_name() + ".csv";
     try {
 
       logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filename);
-      loader_->inject_ids_to_csv_file(filepath, injected_filename, array_schema);
+      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filename, array_schema);
     } catch(LoaderException& le) {
       logger_->log(LOG_INFO, "Caught loader exception");
       remove(injected_filename.c_str());
@@ -375,9 +382,9 @@ int WorkerNode::handle_parallel_load_naive(std::string filename, ArraySchema& ar
   // Make tiles
   try {
     if(array_schema.has_regular_tiles())
-      loader_->make_tiles_regular(sorted_filename, ad, array_schema);
+      executor_->loader()->make_tiles_regular(sorted_filename, ad, array_schema);
     else
-      loader_->make_tiles_irregular(sorted_filename, ad, array_schema);
+      executor_->loader()->make_tiles_irregular(sorted_filename, ad, array_schema);
   } catch(LoaderException& le) {
     //remove(sorted_filename.c_str());
     //storage_manager_.delete_array(array_schema.array_name());
@@ -390,10 +397,12 @@ int WorkerNode::handle_parallel_load_naive(std::string filename, ArraySchema& ar
 
   // TODO cleanup
   return 0;
+  */
 }
 
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
 
+  /*
   std::ofstream output;
   std::string filepath = my_workspace_ + "/" + filename;
 
@@ -410,7 +419,7 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
   std::string sorted_filepath = my_workspace_ + "/sorted_" + filename + ".tmp";
 
   logger_->log(LOG_INFO, "Sorting csv file " + filepath);
-  loader_->sort_csv_file(filepath, sorted_filepath, array_schema);
+  executor_->loader()->sort_csv_file(filepath, sorted_filepath, array_schema);
   logger_->log(LOG_INFO, "Finished sorting csv file");
 
   // Open array in CREATE mode
@@ -421,9 +430,9 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
   // Make tiles
   try {
     if(array_schema.has_regular_tiles())
-      loader_->make_tiles_regular(sorted_filepath, ad, array_schema);
+      executor_->loader()->make_tiles_regular(sorted_filepath, ad, array_schema);
     else
-      loader_->make_tiles_irregular(sorted_filepath, ad, array_schema);
+      executor_->loader()->make_tiles_irregular(sorted_filepath, ad, array_schema);
   } catch(LoaderException& le) {
     // TODO uncomment
     //remove(sorted_filepath.c_str());
@@ -439,7 +448,7 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
   // TODO cleanup
   return 0;
 
-
+*/
 }
 
 /*************** HANDLE FILTER **********************/
@@ -494,8 +503,8 @@ int WorkerNode::handle_msg(int type, Msg* msg){
   switch(type){
     case GET_TAG:
       return handle((GetMsg*) msg);
-    case ARRAY_SCHEMA_TAG:
-      return handle((ArraySchemaMsg*) msg);
+    case DEFINE_ARRAY_TAG:
+      return handle((DefineArrayMsg*) msg);
     case LOAD_TAG:
       return handle((LoadMsg*) msg);
     case SUBARRAY_TAG:

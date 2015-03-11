@@ -128,6 +128,12 @@ class Executor {
   void update(const std::string& filename, 
               const std::string& array_name) const;
 
+  // expose other modules
+  Consolidator* consolidator() { return consolidator_; }
+  Loader* loader() { return loader_; }
+  QueryProcessor* query_processor() { return query_processor_; }
+  StorageManager* storage_manager() { return storage_manager_; }
+
  private:
   // PRIVATE ATTRIBUTES
   /** The Consolidator module. */

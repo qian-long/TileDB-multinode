@@ -8,6 +8,7 @@
 #define WORKERNODE_H
 #include <string>
 #include <map>
+#include "executor.h"
 #include "loader.h"
 #include "storage_manager.h"
 #include "query_processor.h"
@@ -30,7 +31,7 @@ class WorkerNode {
 
     // ACTIONS TO TAKE WHEN RECEIVING A MESSAGE
     int handle_msg(int, Msg*);
-    int handle(ArraySchemaMsg* msg);
+    int handle(DefineArrayMsg* msg);
     int handle(LoadMsg* msg);
     int handle(GetMsg* msg);
     int handle(SubarrayMsg* msg);
@@ -62,9 +63,10 @@ class WorkerNode {
     int myrank_;
     int nprocs_;
     std::string my_workspace_;
-    Loader* loader_;
-    StorageManager* storage_manager_;
-    QueryProcessor* query_processor_;
+    //Loader* loader_;
+    //StorageManager* storage_manager_;
+    //QueryProcessor* query_processor_;
+    Executor* executor_;
     Logger* logger_;
     MPIHandler* mpi_handler_;
 

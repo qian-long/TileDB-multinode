@@ -79,14 +79,21 @@ class Loader {
 
   std::string workspace() { return workspace_; }
 
-  /** Creates the (irregular) tiles and sends them to the storage manager. */
+  /*
   void make_tiles_irregular(const std::string& filename,
                             const StorageManager::ArrayDescriptor* ad,
                             const ArraySchema& array_schema) const;
-  /** Creates the (regular) tiles and sends them to the storage manager. */
   void make_tiles_regular(const std::string& filename,
                           const StorageManager::ArrayDescriptor* ad,
                           const ArraySchema& array_schema) const;
+                          */
+
+  /** Creates the (irregular) tiles and sends them to the storage manager. */
+  void make_tiles_irregular(const std::string& filename,
+                            const StorageManager::FragmentDescriptor* fd) const;
+  /** Creates the (regular) tiles and sends them to the storage manager. */
+  void make_tiles_regular(const std::string& filename,
+                          const StorageManager::FragmentDescriptor* fd) const;
  
  private:
   // PRIVATE ATTRIBUTES
@@ -108,14 +115,7 @@ class Loader {
   /** Creates the workspace folder. */
   void create_workspace() const;
 
-  // TODO replace above methods
-  /** Creates the (irregular) tiles and sends them to the storage manager. */
-  void make_tiles_irregular(const std::string& filename,
-                            const StorageManager::FragmentDescriptor* fd) const;
-  /** Creates the (regular) tiles and sends them to the storage manager. */
-  void make_tiles_regular(const std::string& filename,
-                          const StorageManager::FragmentDescriptor* fd) const;
-  /** 
+ /** 
    * Creates an array of new tile pointers with the input tile id, 
    * and based on the input array schema. 
    */

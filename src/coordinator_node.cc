@@ -23,8 +23,9 @@ CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   my_workspace_ = "./workspaces/workspace-0";
   logger_ = new Logger(my_workspace_ + "/logfile");
 
-  storage_manager_ = new StorageManager(my_workspace_);
-  loader_ = new Loader(my_workspace_, *storage_manager_);
+  //storage_manager_ = new StorageManager(my_workspace_);
+  //loader_ = new Loader(my_workspace_, *storage_manager_);
+  executor_ = new Executor(my_workspace_);
 
 
   std::vector<int> workers;
@@ -314,7 +315,7 @@ void CoordinatorNode::handle_parallel_load_naive(ParallelLoadMsg& pmsg) {
   std::string sorted_filepath = my_workspace_ + "/sorted_" + filename + ".tmp";
 
   logger_->log(LOG_INFO, "Sorting csv file tmp_filepath: " + tmp_filepath);
-  loader_->sort_csv_file(tmp_filepath, sorted_filepath, pmsg.array_schema());
+  executor_->loader()->sort_csv_file(tmp_filepath, sorted_filepath, pmsg.array_schema());
   logger_->log(LOG_INFO, "Finished sorting csv file");
 
   // TODO send partitions back to worker nodes
@@ -389,15 +390,15 @@ void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
 
   // Inject cell id
   if (regular || order == ArraySchema::HILBERT) {
-    injected_filepath = loader_->workspace() + "/injected_" +
+    injected_filepath = executor_->loader()->workspace() + "/injected_" +
                         array_schema.array_name() + ".csv";
     try {
       logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
-      loader_->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
+      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
     } catch(LoaderException& le) {
       logger_->log(LOG_INFO, "Caught loader exception " + le.what());
       remove(injected_filepath.c_str());
-      storage_manager_->delete_array(array_schema.array_name());
+      executor_->storage_manager()->delete_array(array_schema.array_name());
       throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
     }
   }

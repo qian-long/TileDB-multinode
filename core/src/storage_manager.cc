@@ -336,7 +336,10 @@ void StorageManager::modify_fragment_bkp(
     cell_it = (*tile_it).begin();
     cell_it_end = (*tile_it).end();
     for(; cell_it != cell_it_end; ++cell_it) {
-      coord = *cell_it;
+
+      // TODO temporary hacks to get it to compile in c++11
+      std::vector<double> tmp = *cell_it;
+      coord = tmp;
       if(cell_num % capacity == 0) { // New tile
         if(cell_num != 0) { 
           new_mbrs.push_back(mbr); 
@@ -348,7 +351,10 @@ void StorageManager::modify_fragment_bkp(
           }
           mbr.clear();
         }
-        bounding_coordinates.first = *cell_it; 
+
+        // TODO temporary hacks to get it to compile in c++11
+        std::vector<double> tmp1 = *cell_it; 
+        bounding_coordinates.first = tmp1;
       }
       expand_mbr(coord, mbr);
       bounding_coordinates.second = coord;

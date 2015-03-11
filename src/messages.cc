@@ -16,8 +16,8 @@ Msg* deserialize_msg(int type, char* buf, int length){
   switch(type){
     case GET_TAG:
       return GetMsg::deserialize(buf, length);
-    case ARRAY_SCHEMA_TAG:
-      return ArraySchemaMsg::deserialize(buf, length);
+    case DEFINE_ARRAY_TAG:
+      return DefineArrayMsg::deserialize(buf, length);
     case LOAD_TAG:
       return LoadMsg::deserialize(buf, length);
     case SUBARRAY_TAG:
@@ -246,20 +246,20 @@ GetMsg* GetMsg::deserialize(char* buffer, int buffer_length) {
 /******************************************************
  *************** ARRAYSCHEMA MESSAGE ******************
  ******************************************************/
-ArraySchemaMsg::ArraySchemaMsg() : Msg(ARRAY_SCHEMA_TAG) {};
+DefineArrayMsg::DefineArrayMsg() : Msg(DEFINE_ARRAY_TAG) {};
 
-ArraySchemaMsg::ArraySchemaMsg(ArraySchema& schema) : Msg(ARRAY_SCHEMA_TAG)  {
+DefineArrayMsg::DefineArrayMsg(ArraySchema& schema) : Msg(DEFINE_ARRAY_TAG)  {
   array_schema_ = schema;
 }
 
-std::pair<char*, int> ArraySchemaMsg::serialize() {
+std::pair<char*, int> DefineArrayMsg::serialize() {
   return array_schema_.serialize();
 }
 
-ArraySchemaMsg* ArraySchemaMsg::deserialize(char* buffer, int buffer_length) {
+DefineArrayMsg* DefineArrayMsg::deserialize(char* buffer, int buffer_length) {
   ArraySchema* schema = new ArraySchema();
   schema->deserialize(buffer, buffer_length);
-  return new ArraySchemaMsg(*schema);
+  return new DefineArrayMsg(*schema);
 }
 
 

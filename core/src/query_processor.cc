@@ -1235,8 +1235,11 @@ void QueryProcessor::get_next_join_fragment_indexes_irregular(
       std::vector<double> coord_A_lower, coord_A_upper;
       std::vector<double> coord_B_lower, coord_B_upper;
       if(coordinate_cell_its_initialized_A[next_fragment_index_A]) {
-        coord_A_lower = *cell_its_A[next_fragment_index_A][attribute_num_A];
-        coord_A_upper = *cell_its_A[next_fragment_index_A][attribute_num_A];
+        // TODO temporary hacks to get it to compile in c++11
+        std::vector<double> tmp = *cell_its_A[next_fragment_index_A][attribute_num_A];
+        coord_A_lower = tmp;
+        std::vector<double> tmp1 = *cell_its_A[next_fragment_index_A][attribute_num_A];
+        coord_A_upper = tmp1;
       } else {
         coord_A_lower =  
             tile_its_A[next_fragment_index_A][attribute_num_A].
@@ -1246,8 +1249,12 @@ void QueryProcessor::get_next_join_fragment_indexes_irregular(
                        bounding_coordinates().second;
       }
       if(coordinate_cell_its_initialized_B[next_fragment_index_B]) {
-        coord_B_lower = *cell_its_B[next_fragment_index_B][attribute_num_B];
-        coord_B_upper = *cell_its_B[next_fragment_index_B][attribute_num_B];
+
+        // TODO temporary hacks to get it to compile in c++11
+        std::vector<double> tmp = *cell_its_B[next_fragment_index_B][attribute_num_B];
+        coord_B_lower = tmp;
+        std::vector<double> tmp1 = *cell_its_B[next_fragment_index_B][attribute_num_B];
+        coord_B_upper = tmp1;
       } else {
         coord_B_lower =  
             tile_its_B[next_fragment_index_B][attribute_num_B].

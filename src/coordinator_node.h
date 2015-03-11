@@ -5,6 +5,7 @@
  */
 #ifndef COORDINATORNODE_H
 #define COORDINATORNODE_H
+#include "executor.h"
 #include "constants.h"
 #include "array_schema.h"
 #include "loader.h"
@@ -63,8 +64,9 @@ class CoordinatorNode {
     int nworkers_;
     std::string my_workspace_;
     Logger* logger_;
-    Loader* loader_;
-    StorageManager* storage_manager_;
+    //Loader* loader_;
+    //StorageManager* storage_manager_;
+    Executor* executor_;
     MPIHandler* mpi_handler_;
 
     // TODO other stuff like what ranges of coordinate values I hold
