@@ -441,7 +441,7 @@ void CoordinatorNode::test_load(std::string array_name) {
   logger_->log(LOG_INFO, "loading array " + array_name);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
   ArraySchema::Order order = ArraySchema::ROW_MAJOR;
-  LoadMsg lmsg = LoadMsg(array_name, *array_schema);
+  LoadMsg lmsg = LoadMsg(array_name, *array_schema, LoadMsg::SORT);
 
   send_and_receive(lmsg);
 

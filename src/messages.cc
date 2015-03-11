@@ -25,7 +25,6 @@ Msg* deserialize_msg(int type, char* buf, int length){
     case AGGREGATE_TAG:
       return AggregateMsg::deserialize(buf, length);
     case PARALLEL_LOAD_TAG:
-      DEBUG_MSG("parallel load tag detected");
       return ParallelLoadMsg::deserialize(buf, length);
   }
   throw std::invalid_argument("trying to deserailze msg of unknown type");
@@ -134,9 +133,10 @@ SubarrayMsg* SubarrayMsg::deserialize(char* buffer, int buffer_length){
  ******************************************************/
 LoadMsg::LoadMsg() : Msg(LOAD_TAG) { }
 
-LoadMsg::LoadMsg(const std::string filename, ArraySchema& array_schema) :Msg(LOAD_TAG) {
+LoadMsg::LoadMsg(const std::string filename, ArraySchema& array_schema, LoadType load_type) :Msg(LOAD_TAG) {
   filename_ = filename;
   array_schema_ = array_schema;
+  load_type_ = load_type;
 }
 
 std::pair<char*, int> LoadMsg::serialize() {
@@ -154,9 +154,10 @@ std::pair<char*, int> LoadMsg::serialize() {
   buffer_size += filename_.size(); // filename
   buffer_size += sizeof(int); // array schema length
   buffer_size += as_pair.second; // array schema
+  buffer_size += sizeof(LoadType); // load type
 
   buffer = new char[buffer_size];
-  
+
   // serialize filename
   length = filename_.size();
   memcpy(&buffer[pos], &length, sizeof(int));
@@ -169,8 +170,12 @@ std::pair<char*, int> LoadMsg::serialize() {
   memcpy(&buffer[pos], &length, sizeof(int));
   pos += sizeof(int);
   memcpy(&buffer[pos], as_pair.first, length);
+  pos += length;
 
-  assert(pos + length == buffer_size);
+  // serialize load type
+  memcpy(&buffer[pos], (char *) &load_type_, sizeof(LoadType));
+
+  assert(pos + sizeof(LoadType) == buffer_size);
   return std::pair<char*, int>(buffer, buffer_size);
 }
 
@@ -193,10 +198,15 @@ LoadMsg* LoadMsg::deserialize(char* buffer, int buffer_length) {
   // this is creating space for it on the heap.
   ArraySchema* schema = new ArraySchema();
   schema->deserialize(&buffer[counter], arrayschema_length); // second arg
+  counter += arrayschema_length;
+
+  // load type
+  LoadType load_type = static_cast<LoadType>(buffer[counter]);
+
 
   // finished parsing
-  assert(counter + arrayschema_length == buffer_length);
-  return new LoadMsg(filename, *schema);
+  assert(counter + sizeof(LoadType) == buffer_length);
+  return new LoadMsg(filename, *schema, load_type);
 }
 
 
@@ -386,7 +396,7 @@ ParallelLoadMsg::ParallelLoadMsg() : Msg(PARALLEL_LOAD_TAG) {}
 
 ParallelLoadMsg::ParallelLoadMsg(
     std::string filename,
-    LoadType load_type,
+    ParallelLoadType load_type,
     ArraySchema& array_schema) : Msg(PARALLEL_LOAD_TAG) {
 
   filename_ = filename;
@@ -404,7 +414,7 @@ std::pair<char*, int> ParallelLoadMsg::serialize() {
   // calculate buffer size
   buffer_size += sizeof(int); // filename length
   buffer_size += filename_.size(); // filename
-  buffer_size += sizeof(LoadType); // load type
+  buffer_size += sizeof(ParallelLoadType); // load type
   buffer_size += sizeof(int); // array schema length
   buffer_size += as_pair.second; // array schema
 
@@ -419,8 +429,8 @@ std::pair<char*, int> ParallelLoadMsg::serialize() {
   pos += length;
 
   // serialize load type
-  memcpy(&buffer[pos], (char *) &load_type_, sizeof(LoadType));
-  pos += sizeof(LoadType);
+  memcpy(&buffer[pos], (char *) &load_type_, sizeof(ParallelLoadType));
+  pos += sizeof(ParallelLoadType);
 
   // serialize array schema
   length = as_pair.second;
@@ -443,8 +453,8 @@ ParallelLoadMsg* ParallelLoadMsg::deserialize(char* buffer, int buffer_size) {
   pos += length;
 
   // load type
-  LoadType load_type = static_cast<LoadType>(buffer[pos]);
-  pos += sizeof(LoadType);
+  ParallelLoadType load_type = static_cast<ParallelLoadType>(buffer[pos]);
+  pos += sizeof(ParallelLoadType);
 
   // array schema
   length = (int) buffer[pos];

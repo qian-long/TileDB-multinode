@@ -312,10 +312,10 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   //std::string filepath = "./data/" + msg->filename();
   switch (msg->load_type()) {
     case ParallelLoadMsg::NAIVE:
-      handle_parallel_load_naive(msg->filename(), msg->array_schema());
+      //handle_parallel_load_naive(msg->filename(), msg->array_schema());
       break;
     case ParallelLoadMsg::HASH_PARTITION:
-      handle_parallel_load_hash(msg->filename(), msg->array_schema());
+      //handle_parallel_load_hash(msg->filename(), msg->array_schema());
       break;
     case ParallelLoadMsg::SAMPLING:
       break;
@@ -330,7 +330,7 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   return 0;
 }
 
-int WorkerNode::handle_parallel_load_naive(std::string filename, ArraySchema& array_schema) {
+int WorkerNode::handle_load_sort(std::string filename, ArraySchema& array_schema) {
 
   /*
   std::string filepath = "./data/" + filename;
@@ -400,7 +400,7 @@ int WorkerNode::handle_parallel_load_naive(std::string filename, ArraySchema& ar
   */
 }
 
-int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
+int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema) {
 
   /*
   std::ofstream output;

@@ -11,6 +11,8 @@ gtest/obj/gtest-all.o
 core/obj
 tests/*.o
 libgtest.a
+tiledb/obj
+tiledb/bin
 
 # documentation
 doc/

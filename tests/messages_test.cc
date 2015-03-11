@@ -54,7 +54,8 @@ namespace {
   TEST_F(MessagesTest, LoadMsgTest) {
 
     std::string filename = "foo.csv";
-    LoadMsg lmsg = LoadMsg(filename, array_schema_);
+    LoadMsg::LoadType load_type = LoadMsg::SORT;
+    LoadMsg lmsg = LoadMsg(filename, array_schema_, load_type);
 
     std::pair<char*, int> lserial = lmsg.serialize();
 
@@ -64,6 +65,7 @@ namespace {
     EXPECT_STREQ(filename.c_str(), new_lmsg->filename().c_str());
     EXPECT_STREQ(array_schema_.to_string().c_str(),
       new_lmsg->array_schema().to_string().c_str());
+    EXPECT_EQ(load_type, new_lmsg->load_type());
   }
 
 
@@ -142,12 +144,12 @@ namespace {
 
 
   // ARRAY SCHEMA MSG TEST
-  TEST_F(MessagesTest, ArraySchemaMsgTest) {
-    ArraySchemaMsg amsg = ArraySchemaMsg(array_schema_);
+  TEST_F(MessagesTest, DefineArrayMsgTest) {
+    DefineArrayMsg amsg = DefineArrayMsg(array_schema_);
 
     std::pair<char*, int> aserial = amsg.serialize();
 
-    ArraySchemaMsg* new_amsg = ArraySchemaMsg::deserialize(aserial.first, aserial.second);
+    DefineArrayMsg* new_amsg = DefineArrayMsg::deserialize(aserial.first, aserial.second);
 
     // comparing message contents
     EXPECT_STREQ(array_schema_.to_string().c_str(),
@@ -173,7 +175,7 @@ namespace {
   // PARALLEL LOAD MSG TEST
   TEST_F(MessagesTest, ParallelLoadMsgTest) {
     std::string filename = "test";
-    ParallelLoadMsg::LoadType load_type = ParallelLoadMsg::NAIVE;
+    ParallelLoadMsg::ParallelLoadType load_type = ParallelLoadMsg::NAIVE;
 
     ParallelLoadMsg pmsg = ParallelLoadMsg(filename, load_type, array_schema_);
 

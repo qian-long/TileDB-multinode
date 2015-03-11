@@ -70,9 +70,12 @@ class SubarrayMsg : public Msg {
 class LoadMsg : public Msg {
 
   public:
+    // type of data partition
+    enum LoadType {SORT, HASH};
+
     // CONSTRUCTORS
     LoadMsg();
-    LoadMsg(const std::string filename, ArraySchema& array_schema);
+    LoadMsg(const std::string filename, ArraySchema& array_schema, LoadType load_type);
 
     // DESTRUCTORS
     ~LoadMsg(){};
@@ -80,6 +83,8 @@ class LoadMsg : public Msg {
     // ACCESSORS
     std::string filename() { return filename_; }
     ArraySchema& array_schema() { return array_schema_; }
+    LoadType load_type() { return load_type_; }
+
 
     // METHODS
     std::pair<char*, int> serialize();
@@ -88,6 +93,7 @@ class LoadMsg : public Msg {
   private:
     std::string filename_;
     ArraySchema array_schema_;
+    LoadType load_type_;
 };
 
 
@@ -210,18 +216,18 @@ class AggregateMsg : public Msg {
 class ParallelLoadMsg : public Msg {
   public:
     // which load algo to use
-    enum LoadType {NAIVE, HASH_PARTITION, MERGE_SORT, SAMPLING};
+    enum ParallelLoadType {NAIVE, HASH_PARTITION, MERGE_SORT, SAMPLING};
 
     // CONSTRUCTORS
     ParallelLoadMsg();
-    ParallelLoadMsg(std::string filename, LoadType load_type, ArraySchema& array_schema);
+    ParallelLoadMsg(std::string filename, ParallelLoadType load_type, ArraySchema& array_schema);
 
     // DESTRUCTORS
     ~ParallelLoadMsg(){};
 
     // ACCESSORS
     std::string filename() { return filename_; }
-    LoadType load_type() { return load_type_; }
+    ParallelLoadType load_type() { return load_type_; }
     ArraySchema& array_schema() { return array_schema_;}
 
     // METHODS
@@ -230,7 +236,7 @@ class ParallelLoadMsg : public Msg {
 
   private:
     std::string filename_;
-    LoadType load_type_;
+    ParallelLoadType load_type_;
     ArraySchema array_schema_;
 };
 #endif
