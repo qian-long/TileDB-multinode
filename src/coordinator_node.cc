@@ -50,7 +50,7 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "test_A";
+  std::string array_name = "test_B";
   std::string filename = array_name + ".csv";
 
   // Set attribute names
@@ -85,15 +85,20 @@ void CoordinatorNode::run() {
       types,
       ArraySchema::HILBERT);
 
-  DEBUG_MSG("Sending HASH_PARTITION parallel load instructions to all workers");
-  ParallelLoadMsg pmsg = ParallelLoadMsg(filename, ParallelLoadMsg::HASH_PARTITION, array_schema);
-  send_and_receive(pmsg);
+  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_A");
+  DefineArrayMsg damsg = DefineArrayMsg(array_schema);
+  send_and_receive(damsg);
+
+  DEBUG_MSG("Sending HASH_PARTITION load instructions to all workers");
+  LoadMsg lmsg = LoadMsg(filename, array_schema, LoadMsg::HASH);
+  send_and_receive(lmsg);
 
   DEBUG_MSG("Sending GET test_A to all workers");
-  GetMsg gmsg1 = GetMsg("test_A");
+  GetMsg gmsg1 = GetMsg(array_name);
   send_and_receive(gmsg1);
 
 
+  /*
   std::string aname2 = "test_A_naive";
   ArraySchema a2 = array_schema.clone(aname2);
   DEBUG_MSG("Sending parallel load instructions to all workers");
@@ -103,6 +108,7 @@ void CoordinatorNode::run() {
   DEBUG_MSG("Sending GET test_A_naive to all workers");
   GetMsg gmsg2 = GetMsg(aname2);
   send_and_receive(gmsg2);
+  */
 
 
   /*
@@ -169,13 +175,19 @@ void CoordinatorNode::send_all(const char* buffer, int buffer_size, int tag) {
   }
 }
 
+// dispatch to correct handler
 void CoordinatorNode::send_and_receive(Msg& msg) {
   send_all(msg);
   switch(msg.msg_tag) {
     case GET_TAG:
       handle_get(dynamic_cast<GetMsg&>(msg));
+      handle_ack();
       break;
     case LOAD_TAG:
+      handle_load(dynamic_cast<LoadMsg&>(msg));
+      handle_ack();
+      break;
+    case DEFINE_ARRAY_TAG:
     case FILTER_TAG:
     case SUBARRAY_TAG:
       handle_ack();
@@ -193,13 +205,6 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
 
 }
 
-/*
-void CoordinatorNode::send_array_schema(ArraySchema & array_schema) {
-  //TODO fix
-  send_all(array_schema.serialize(), ARRAY_SCHEMA_TAG);
-}
-*/
-
 void CoordinatorNode::handle_ack() {
 
   for (int i = 0; i < nworkers_; i++) {
@@ -216,6 +221,21 @@ void CoordinatorNode::handle_ack() {
 
   }
 
+}
+
+void CoordinatorNode::handle_load(LoadMsg& lmsg) {
+  switch (lmsg.load_type()) {
+
+    case LoadMsg::SORT:
+      handle_load_sort(lmsg);
+      break;
+    case LoadMsg::HASH:
+      handle_load_hash(lmsg);
+      break;
+    default:
+      // TODO return error?
+      break;
+  }
 }
 
 void CoordinatorNode::handle_get(GetMsg& gmsg) {
@@ -271,18 +291,17 @@ void CoordinatorNode::handle_aggregate() {
   std::cout << ss.str() << "\n";
 }
 
-// TODO make asynchronous?
+// TODO make asynchronous
 void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   logger_->log(LOG_INFO, "In handle_parallel_load");
 
   switch (pmsg.load_type()) {
 
     case ParallelLoadMsg::NAIVE:
-      handle_parallel_load_naive(pmsg);
+      //handle_parallel_load_ordered(pmsg);
       break;
-      
     case ParallelLoadMsg::HASH_PARTITION:
-      handle_parallel_load_hash(pmsg);
+      //handle_parallel_load_hash(pmsg);
       break;
     case ParallelLoadMsg::SAMPLING:
       break;
@@ -294,7 +313,7 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   }
 }
 
-void CoordinatorNode::handle_parallel_load_naive(ParallelLoadMsg& pmsg) {
+void CoordinatorNode::handle_load_sort(LoadMsg& pmsg) {
   std::stringstream ss;
 
   std::string filename = pmsg.filename();
@@ -376,50 +395,29 @@ void CoordinatorNode::handle_parallel_load_naive(ParallelLoadMsg& pmsg) {
   delete [] buf;
 }
 
-void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
-  logger_->log(LOG_INFO, "Start Handle Parallel Load Hash Partiion");
+void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
+  logger_->log(LOG_INFO, "Start Handle Load Hash Partiion");
   std::stringstream ss;
   
   // TODO check that filename exists in workspace, error if doesn't
-  
   ArraySchema array_schema = pmsg.array_schema();
-  bool regular = array_schema.has_regular_tiles();
-  ArraySchema::Order order = array_schema.order();
+
   std::string filepath = "./data/" + pmsg.filename();
-  std::string injected_filepath = filepath;
-
-  // Inject cell id
-  if (regular || order == ArraySchema::HILBERT) {
-    injected_filepath = executor_->loader()->workspace() + "/injected_" +
-                        array_schema.array_name() + ".csv";
-    try {
-      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
-      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
-    } catch(LoaderException& le) {
-      logger_->log(LOG_INFO, "Caught loader exception " + le.what());
-      remove(injected_filepath.c_str());
-      executor_->storage_manager()->delete_array(array_schema.array_name());
-      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
-    }
-  }
-
-
   logger_->log(LOG_INFO, "Sending data to workers based on hash value");
-  // scan input file, compute hash on cell id, send to worker
-  CSVFile csv_in(injected_filepath, CSVFile::READ);
+  // scan input file, compute hash on cell coords, send to worker
+  CSVFile csv_in(filepath, CSVFile::READ);
   CSVLine csv_line;
-
+  std::hash<std::string> hash_fn;
   while (csv_in >> csv_line) {
     // TODO look into other hash fns, using default for strings right now
-    std::string cell_id = csv_line.values()[0];
-    std::hash<std::string> hash_fn;
-
-    std::size_t cell_id_hash = hash_fn(cell_id);
-
+    std::string coord_id = csv_line.values()[0];
+    for (int i = 1; i < array_schema.dim_num(); ++i) {
+      coord_id += ",";
+      coord_id += csv_line.values()[i];
+    }
+    std::size_t cell_id_hash = hash_fn(coord_id);
     int receiver = (cell_id_hash % nworkers_) + 1;
-
     std::string csv_line_str = csv_line.str() + "\n";
-
     mpi_handler_->send_content(csv_line_str.c_str(), csv_line_str.length(), receiver, PARALLEL_LOAD_TAG);
   }
 

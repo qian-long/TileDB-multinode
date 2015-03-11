@@ -35,18 +35,22 @@ class CoordinatorNode {
 
 
     void handle_get(GetMsg& gmsg);
-    void handle_load();
+    void handle_load(LoadMsg& lmsg);
     void handle_aggregate();
     void handle_ack();
     void handle_parallel_load(ParallelLoadMsg& pmsg);
 
     // different parallel loads
     // assumes workers have initial csv partitions
-    void handle_parallel_load_naive(ParallelLoadMsg& pmsg);
+    void handle_load_sort(LoadMsg& pmsg);
+
     // assumes coordinator has initial csv
+    void handle_load_hash(LoadMsg& pmsg);
+
+    // TODO
+    void handle_parallel_load_ordered(ParallelLoadMsg& pmsg);
+    // TODO
     void handle_parallel_load_hash(ParallelLoadMsg& pmsg);
-    void handle_parallel_load_merge();
-    void handle_parallel_load_sampling();
 
     /******** TESTING FUNCTIONS ********/
     // filename must be in the Data directory

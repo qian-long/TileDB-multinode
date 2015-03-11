@@ -1,16 +1,21 @@
 #!/bin/bash
 
 mkdir -p workspaces
-mkdir -p workspaces/workspace-0
-mkdir -p workspaces/workspace-1
-mkdir -p workspaces/workspace-2
-mkdir -p workspaces/workspace-3
-mkdir -p workspaces/workspace-4
-mkdir -p workspaces/workspace-5
-mkdir -p workspaces/workspace-6
-mkdir -p workspaces/workspace-7
-mkdir -p workspaces/workspace-8
-rm -rf workspaces/workspace-[0-9]/Loader workspaces/workspace-[0-9]/StorageManager workspaces/workspace-[0-9]/*.tmp
+mkdir -p workspaces/workspace-0/data
+mkdir -p workspaces/workspace-1/data
+mkdir -p workspaces/workspace-2/data
+mkdir -p workspaces/workspace-3/data
+mkdir -p workspaces/workspace-4/data
+mkdir -p workspaces/workspace-5/data
+mkdir -p workspaces/workspace-6/data
+mkdir -p workspaces/workspace-7/data
+mkdir -p workspaces/workspace-8/data
+rm -rf workspaces/workspace-[0-9]/Loader \
+  workspaces/workspace-[0-9]/StorageManager \
+  workspaces/workspace-[0-9]/*.tmp \
+  workspaces/workspace-[0-9]/Consolidator \
+  workspaces/workspace-[0-9]/Executor \
+  workspaces/workspace-[0-9]/QueryProcessor
 touch workspaces/workspace-0/logfile
 touch workspaces/workspace-1/logfile
 touch workspaces/workspace-2/logfile

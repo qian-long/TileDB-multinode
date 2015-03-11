@@ -154,6 +154,10 @@ void WorkerNode::run() {
       logger_->log(LOG_INFO, "LoaderException: ");
       logger_->log(LOG_INFO, le.what());
       respond_ack(-1, status.MPI_TAG, -1);
+    } catch (ExecutorException& ee) {
+      logger_->log(LOG_INFO, "ExecutorException: ");
+      logger_->log(LOG_INFO, ee.what());
+      respond_ack(-1, status.MPI_TAG, -1);
     }
 
   }
@@ -213,7 +217,6 @@ int WorkerNode::handle(GetMsg* msg) {
   std::string result_filename = arrayname_to_csv_filename(msg->array_name());
   logger_->log(LOG_INFO, "Result filename: " + result_filename);
 
-  //StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_name());
 
   logger_->log(LOG_INFO, "exporting to CSV");
   executor_->export_to_csv(msg->array_name(), result_filename);
@@ -228,10 +231,11 @@ int WorkerNode::handle(GetMsg* msg) {
 
 /*************** HANDLE DEFINE ARRAY ***************/
 int WorkerNode::handle(DefineArrayMsg* msg) {
+  logger_->log(LOG_INFO, "Received define array msg");
 
-  (*global_schema_map_)[msg->array_schema().array_name()] = &msg->array_schema();
+  executor_->define_array(msg->array_schema());
 
-  logger_->log(LOG_INFO, "received array schema: \n" + msg->array_schema().to_string());
+  logger_->log(LOG_INFO, "Finished defining array");
   return 0;
 }
 
@@ -240,9 +244,20 @@ int WorkerNode::handle(DefineArrayMsg* msg) {
 int WorkerNode::handle(LoadMsg* msg) {
   logger_->log(LOG_INFO, "Received load\n");
 
-  //(*global_schema_map_)[msg->array_schema().array_name()] = &msg->array_schema();
-  //executor_->loader()->load(convert_filename(msg->filename()), msg->array_schema());
+  switch (msg->load_type()) {
+    case LoadMsg::SORT:
+      handle_load_sort(msg->filename(), msg->array_schema());
+      break;
+    case LoadMsg::HASH:
+      handle_load_hash(msg->filename(), msg->array_schema());
+      break;
+    default:
+      // TODO send error
+      break;
+  }
 
+  logger_->log(LOG_INFO, "Update Fragment Info");
+  executor_->update_fragment_info(msg->array_schema().array_name());
   logger_->log(LOG_INFO, "Finished load");
   return 0;
 }
@@ -402,53 +417,78 @@ int WorkerNode::handle_load_sort(std::string filename, ArraySchema& array_schema
 
 int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema) {
 
-  /*
   std::ofstream output;
-  std::string filepath = my_workspace_ + "/" + filename;
-
-  output.open(filepath);
+  std::string filepath = my_workspace_ + "/data/" + filename;
 
   logger_->log(LOG_INFO, "Receiving hash partitioned data from master, writing to filepath " + filepath);
+
+  output.open(filepath);
   // Blocking
   mpi_handler_->receive_file(output, MASTER, PARALLEL_LOAD_TAG);
   output.close();
 
   // Invoke local load
   logger_->log(LOG_INFO, "Invoking local load");
-  // local sort
-  std::string sorted_filepath = my_workspace_ + "/sorted_" + filename + ".tmp";
+  // Inject cell id
+  bool regular = array_schema.has_regular_tiles();
+  ArraySchema::Order order = array_schema.order();
+  std::string injected_filepath = filepath;
+  std::string frag_name = "0_0";
 
-  logger_->log(LOG_INFO, "Sorting csv file " + filepath);
-  executor_->loader()->sort_csv_file(filepath, sorted_filepath, array_schema);
+  if (regular || order == ArraySchema::HILBERT) {
+    injected_filepath = executor_->loader()->workspace() + "/injected_" +
+                        array_schema.array_name() + "_" + frag_name + ".csv";
+    try {
+      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
+      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
+    } catch(LoaderException& le) {
+      logger_->log(LOG_INFO, "Caught loader exception " + le.what());
+      //remove(injected_filepath.c_str());
+      executor_->storage_manager()->delete_array(array_schema.array_name());
+      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
+    }
+  }
+
+
+
+  // local sort
+  std::string sorted_filepath = executor_->loader()->workspace() + "/sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
+
+  logger_->log(LOG_INFO, "Sorting csv file " + injected_filepath + " into " + sorted_filepath);
+
+  executor_->loader()->sort_csv_file(injected_filepath, sorted_filepath, array_schema);
   logger_->log(LOG_INFO, "Finished sorting csv file");
 
   // Open array in CREATE mode
-  StorageManager::ArrayDescriptor* ad = 
-      storage_manager_->open_array(array_schema);
+  StorageManager::FragmentDescriptor* fd =
+    executor_->storage_manager()->open_fragment(&array_schema, frag_name,
+                                                StorageManager::CREATE);
 
 
+
+  logger_->log(LOG_INFO, "Starting make tiles on " + sorted_filepath);
   // Make tiles
   try {
     if(array_schema.has_regular_tiles())
-      executor_->loader()->make_tiles_regular(sorted_filepath, ad, array_schema);
+      executor_->loader()->make_tiles_regular(sorted_filepath, fd);
     else
-      executor_->loader()->make_tiles_irregular(sorted_filepath, ad, array_schema);
+      executor_->loader()->make_tiles_irregular(sorted_filepath, fd);
   } catch(LoaderException& le) {
     // TODO uncomment
     //remove(sorted_filepath.c_str());
-    storage_manager_->delete_array(array_schema.array_name());
+    executor_->storage_manager()->delete_fragment(array_schema.array_name(), frag_name);
     throw LoaderException("Error invoking local load" + filename +
                           "'.\n " + le.what());
   }
 
 
-  storage_manager_->close_array(ad);
+  logger_->log(LOG_INFO, "Finished make tiles");
+  executor_->storage_manager()->close_fragment(fd);
 
 
   // TODO cleanup
   return 0;
 
-*/
 }
 
 /*************** HANDLE FILTER **********************/

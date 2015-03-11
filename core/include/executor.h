@@ -134,6 +134,9 @@ class Executor {
   QueryProcessor* query_processor() { return query_processor_; }
   StorageManager* storage_manager() { return storage_manager_; }
 
+  /** Updates the fragment information (adding one fragment) of an array. */
+  void update_fragment_info(const std::string& array_name) const;
+
  private:
   // PRIVATE ATTRIBUTES
   /** The Consolidator module. */
@@ -157,8 +160,6 @@ class Executor {
   bool path_exists(const std::string& path) const;
   /** Simply sets the workspace. */
   void set_workspace(const std::string& path);
-  /** Updates the fragment information (adding one fragment) of an array. */
-  void update_fragment_info(const std::string& array_name) const;
 };
 
 /** This exception is thrown by Executor. */
