@@ -12,7 +12,7 @@ mkdir -p workspaces/workspace-7/data
 mkdir -p workspaces/workspace-8/data
 rm -rf workspaces/workspace-[0-9]/Loader \
   workspaces/workspace-[0-9]/StorageManager \
-  workspaces/workspace-[0-9]/*.tmp \
+  workspaces/workspace-[0-9]/*.csv \
   workspaces/workspace-[0-9]/Consolidator \
   workspaces/workspace-[0-9]/Executor \
   workspaces/workspace-[0-9]/QueryProcessor

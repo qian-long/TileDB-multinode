@@ -39,7 +39,7 @@ class WorkerNode {
     int handle(ParallelLoadMsg* msg); // input randomly scattered in workers
 
 
-    int handle_load_sort(std::string filename, ArraySchema& array_schema);
+    int handle_load_ordered(std::string filename, ArraySchema& array_schema);
     int handle_load_hash(std::string filename, ArraySchema& array_schema);
 
     int handle_parallel_load_naive(std::string filename, ArraySchema& array_schema);

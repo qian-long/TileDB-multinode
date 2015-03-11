@@ -50,7 +50,7 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "test_B";
+  std::string array_name = "test_A";
   std::string filename = array_name + ".csv";
 
   // Set attribute names
@@ -89,9 +89,16 @@ void CoordinatorNode::run() {
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
+  /*
   DEBUG_MSG("Sending HASH_PARTITION load instructions to all workers");
   LoadMsg lmsg = LoadMsg(filename, array_schema, LoadMsg::HASH);
   send_and_receive(lmsg);
+  */
+
+  DEBUG_MSG("Sending ORDERED_PARTITION load instructions to all workers");
+  LoadMsg lmsg = LoadMsg(filename, array_schema, LoadMsg::ORDERED);
+  send_and_receive(lmsg);
+
 
   DEBUG_MSG("Sending GET test_A to all workers");
   GetMsg gmsg1 = GetMsg(array_name);
@@ -225,9 +232,8 @@ void CoordinatorNode::handle_ack() {
 
 void CoordinatorNode::handle_load(LoadMsg& lmsg) {
   switch (lmsg.load_type()) {
-
-    case LoadMsg::SORT:
-      handle_load_sort(lmsg);
+    case LoadMsg::ORDERED:
+      handle_load_ordered(lmsg);
       break;
     case LoadMsg::HASH:
       handle_load_hash(lmsg);
@@ -313,31 +319,48 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   }
 }
 
-void CoordinatorNode::handle_load_sort(LoadMsg& pmsg) {
+void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
   std::stringstream ss;
 
-  std::string filename = pmsg.filename();
-  char *buf = new char[MPI_BUFFER_LENGTH];
-  std::string tmp_filepath = my_workspace_ + "/" + filename + ".tmp";
-  std::ofstream tmpfile;
-  tmpfile.open(tmp_filepath);
+  std::string filepath = "./data/" + lmsg.filename();
 
-  for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
-    DEBUG_MSG("Waiting for content from worker " + std::to_string(nodeid));
-    mpi_handler_->receive_file(tmpfile, nodeid, PARALLEL_LOAD_TAG);
+  // TODO check that filename exists in workspace, error if doesn't
+  // TODO save array schema?
+
+  // TODO open file and append tile-id/hilbert order
+  // inject ids if regular or hilbert order
+  ArraySchema& array_schema = lmsg.array_schema();
+  bool regular = array_schema.has_regular_tiles();
+  ArraySchema::Order order = array_schema.order();
+  std::string injected_filepath = filepath;
+  std::string frag_name = "0_0";
+
+  if (regular || order == ArraySchema::HILBERT) {
+    injected_filepath = executor_->loader()->workspace() + "/injected_" +
+                        array_schema.array_name() + "_" + frag_name + ".csv";
+    try {
+      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
+      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
+    } catch(LoaderException& le) {
+      logger_->log(LOG_INFO, "Caught loader exception " + le.what());
+      //remove(injected_filepath.c_str());
+      executor_->storage_manager()->delete_array(array_schema.array_name());
+      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
+    }
   }
 
-  tmpfile.flush();
-  tmpfile.close();
 
-  // sort
-  std::string sorted_filepath = my_workspace_ + "/sorted_" + filename + ".tmp";
+  // local sort
+  std::string sorted_filepath = executor_->loader()->workspace() + "/sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
 
-  logger_->log(LOG_INFO, "Sorting csv file tmp_filepath: " + tmp_filepath);
-  executor_->loader()->sort_csv_file(tmp_filepath, sorted_filepath, pmsg.array_schema());
+  logger_->log(LOG_INFO, "Sorting csv file " + injected_filepath + " into " + sorted_filepath);
+
+  executor_->loader()->sort_csv_file(injected_filepath, sorted_filepath, array_schema);
   logger_->log(LOG_INFO, "Finished sorting csv file");
 
-  // TODO send partitions back to worker nodes
+
+
+  // send partitions back to worker nodes
   logger_->log(LOG_INFO, "Counting num_lines");
   std::ifstream sorted_file;
   sorted_file.open(sorted_filepath);
@@ -367,11 +390,11 @@ void CoordinatorNode::handle_load_sort(LoadMsg& pmsg) {
       end++;
     }
 
-    logger_->log(LOG_INFO, "Sending sorted file part to nodeid" + std::to_string(nodeid));
+    logger_->log(LOG_INFO, "Sending sorted file part to nodeid " + std::to_string(nodeid));
     for(; pos < end; ++pos) {
       if (content.str().length() + line.length() >= MPI_BUFFER_LENGTH) {
         // send content to nodeid
-        MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
+        MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, LOAD_TAG, MPI_COMM_WORLD);
 
         mpi_handler_->send_keep_receiving(true, nodeid);
         content.str(std::string()); // clear buffer
@@ -384,15 +407,13 @@ void CoordinatorNode::handle_load_sort(LoadMsg& pmsg) {
     }
 
     // final send
-    MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, PARALLEL_LOAD_TAG, MPI_COMM_WORLD);
+    MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, LOAD_TAG, MPI_COMM_WORLD);
     mpi_handler_->send_keep_receiving(false, nodeid);
     --remainder;
   }
 
 
   sorted_file.close();
-  // TODO Cleanup
-  delete [] buf;
 }
 
 void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
@@ -439,7 +460,7 @@ void CoordinatorNode::test_load(std::string array_name) {
   logger_->log(LOG_INFO, "loading array " + array_name);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
   ArraySchema::Order order = ArraySchema::ROW_MAJOR;
-  LoadMsg lmsg = LoadMsg(array_name, *array_schema, LoadMsg::SORT);
+  LoadMsg lmsg = LoadMsg(array_name, *array_schema, LoadMsg::ORDERED);
 
   send_and_receive(lmsg);
 

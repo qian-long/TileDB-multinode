@@ -54,7 +54,7 @@ namespace {
   TEST_F(MessagesTest, LoadMsgTest) {
 
     std::string filename = "foo.csv";
-    LoadMsg::LoadType load_type = LoadMsg::SORT;
+    LoadMsg::LoadType load_type = LoadMsg::ORDERED;
     LoadMsg lmsg = LoadMsg(filename, array_schema_, load_type);
 
     std::pair<char*, int> lserial = lmsg.serialize();

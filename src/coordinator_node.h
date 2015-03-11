@@ -42,7 +42,7 @@ class CoordinatorNode {
 
     // different parallel loads
     // assumes workers have initial csv partitions
-    void handle_load_sort(LoadMsg& pmsg);
+    void handle_load_ordered(LoadMsg& pmsg);
 
     // assumes coordinator has initial csv
     void handle_load_hash(LoadMsg& pmsg);

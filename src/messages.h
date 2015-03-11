@@ -71,7 +71,7 @@ class LoadMsg : public Msg {
 
   public:
     // type of data partition
-    enum LoadType {SORT, HASH};
+    enum LoadType {ORDERED, HASH};
 
     // CONSTRUCTORS
     LoadMsg();

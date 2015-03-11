@@ -245,8 +245,8 @@ int WorkerNode::handle(LoadMsg* msg) {
   logger_->log(LOG_INFO, "Received load\n");
 
   switch (msg->load_type()) {
-    case LoadMsg::SORT:
-      handle_load_sort(msg->filename(), msg->array_schema());
+    case LoadMsg::ORDERED:
+      handle_load_ordered(msg->filename(), msg->array_schema());
       break;
     case LoadMsg::HASH:
       handle_load_hash(msg->filename(), msg->array_schema());
@@ -345,74 +345,46 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   return 0;
 }
 
-int WorkerNode::handle_load_sort(std::string filename, ArraySchema& array_schema) {
+int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_schema) {
 
-  /*
-  std::string filepath = "./data/" + filename;
-  // TODO check that filename exists in workspace, error if doesn't
-  // TODO save array schema?
-
-  // TODO open file and append tile-id/hilbert order
-  // inject ids if regular or hilbert order
-  bool regular = array_schema.has_regular_tiles();
-  ArraySchema::Order order = array_schema.order();
-  std::string injected_filename = filepath;
-  if (regular || order == ArraySchema::HILBERT) {
-    injected_filename = executor_->loader()->workspace() + "/injected_" +
-                        array_schema.array_name() + ".csv";
-    try {
-
-      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filename);
-      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filename, array_schema);
-    } catch(LoaderException& le) {
-      logger_->log(LOG_INFO, "Caught loader exception");
-      remove(injected_filename.c_str());
-      storage_manager_->delete_array(array_schema.array_name());
-      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
-    }
-  }
-
-  logger_->log(LOG_INFO, "Sending csv file back to master injected_filename: " + injected_filename);
-
-  // Send csv file back to master, chunk by chunk
-  mpi_handler_->send_file(injected_filename, MASTER, PARALLEL_LOAD_TAG);
-
+  logger_->log(LOG_INFO, "In Handle Load Sort");
   // Wait for sorted file from master
-
+  std::string frag_name = "0_0";
   std::ofstream sorted_file;
-  std::string sorted_filename = injected_filename + ".sorted";
-  sorted_file.open(sorted_filename);
+
+  std::string sorted_filepath = executor_->loader()->workspace() + "/sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
+
+  sorted_file.open(sorted_filepath);
 
   logger_->log(LOG_INFO, "Receiving sorted file from master");
-  mpi_handler_->receive_file(sorted_file, MASTER, PARALLEL_LOAD_TAG);
+  mpi_handler_->receive_file(sorted_file, MASTER, LOAD_TAG);
 
   sorted_file.close();
 
-  // Invoke local load
-  logger_->log(LOG_INFO, "Invoking local load");
-  // Open array in CREATE mode
-  StorageManager::ArrayDescriptor* ad = 
-      storage_manager_->open_array(array_schema);
+  logger_->log(LOG_INFO, "Starting make tiles on " + sorted_filepath);
+  StorageManager::FragmentDescriptor* fd =
+    executor_->storage_manager()->open_fragment(&array_schema, frag_name,
+                                                StorageManager::CREATE);
 
   // Make tiles
   try {
     if(array_schema.has_regular_tiles())
-      executor_->loader()->make_tiles_regular(sorted_filename, ad, array_schema);
+      executor_->loader()->make_tiles_regular(sorted_filepath, fd);
     else
-      executor_->loader()->make_tiles_irregular(sorted_filename, ad, array_schema);
+      executor_->loader()->make_tiles_irregular(sorted_filepath, fd);
   } catch(LoaderException& le) {
-    //remove(sorted_filename.c_str());
-    //storage_manager_.delete_array(array_schema.array_name());
+    // TODO uncomment
+    //remove(sorted_filepath.c_str());
+    executor_->storage_manager()->delete_fragment(array_schema.array_name(), frag_name);
     throw LoaderException("Error invoking local load" + filename +
                           "'.\n " + le.what());
   }
 
-
-  storage_manager_->close_array(ad);
+  logger_->log(LOG_INFO, "Finished make tiles");
+  executor_->storage_manager()->close_fragment(fd);
 
   // TODO cleanup
   return 0;
-  */
 }
 
 int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema) {
