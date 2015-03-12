@@ -22,11 +22,7 @@ CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   // TODO put in config file
   my_workspace_ = "./workspaces/workspace-0";
   logger_ = new Logger(my_workspace_ + "/logfile");
-
-  //storage_manager_ = new StorageManager(my_workspace_);
-  //loader_ = new Loader(my_workspace_, *storage_manager_);
   executor_ = new Executor(my_workspace_);
-
 
   std::vector<int> workers;
   for (int i = 1; i < nprocs; ++i) {

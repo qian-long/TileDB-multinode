@@ -143,7 +143,7 @@ namespace {
   }
 
 
-  // ARRAY SCHEMA MSG TEST
+  // DEFINTE ARRAY MSG TEST
   TEST_F(MessagesTest, DefineArrayMsgTest) {
     DefineArrayMsg amsg = DefineArrayMsg(array_schema_);
 
@@ -190,4 +190,25 @@ namespace {
       new_pmsg->array_schema().to_string().c_str());
 
   }
+
+  // JOIN MSG TEST
+  TEST_F(MessagesTest, JoinMsgTest) {
+    std::string array_name_A = "blob";
+    std::string array_name_B = "foo";
+    std::string result_array_name = "foobar";
+
+    JoinMsg jmsg = JoinMsg(array_name_A, array_name_B, result_array_name);
+
+    std::pair<char*, int> jserial = jmsg.serialize();
+
+    JoinMsg* new_jmsg = JoinMsg::deserialize(jserial.first, jserial.second);
+
+    // comparing message contents
+    EXPECT_STREQ(array_name_A.c_str(), new_jmsg->array_name_A().c_str());
+    EXPECT_STREQ(array_name_B.c_str(), new_jmsg->array_name_B().c_str());
+    EXPECT_STREQ(result_array_name.c_str(), new_jmsg->result_array_name().c_str());
+
+  }
+
+
 }

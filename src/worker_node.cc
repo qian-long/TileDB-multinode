@@ -19,9 +19,6 @@ WorkerNode::WorkerNode(int rank, int nprocs) {
   // TODO put in config file
   workspace << "./workspaces/workspace-" << myrank_;
   my_workspace_ = workspace.str();
-  //storage_manager_ = new StorageManager(my_workspace_);
-  //loader_ = new Loader(my_workspace_, *storage_manager_);
-  //query_processor_ = new QueryProcessor(my_workspace_, *storage_manager_);
   executor_ = new Executor(my_workspace_);
   logger_ = new Logger(my_workspace_ + "/logfile");
 
@@ -224,8 +221,6 @@ int WorkerNode::handle(GetMsg* msg) {
   logger_->log(LOG_INFO, "sending file to master");
   mpi_handler_->send_file(result_filename, MASTER, GET_TAG);
 
-  // Clean up
-  //storage_manager_->close_array(desc); 
   return 0;
 }
 

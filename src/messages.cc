@@ -18,14 +18,15 @@ Msg* deserialize_msg(int type, char* buf, int length){
       return GetMsg::deserialize(buf, length);
     case DEFINE_ARRAY_TAG:
       return DefineArrayMsg::deserialize(buf, length);
-    case LOAD_TAG:
-      return LoadMsg::deserialize(buf, length);
+    case LOAD_TAG: return LoadMsg::deserialize(buf, length);
     case SUBARRAY_TAG:
       return SubarrayMsg::deserialize(buf, length);
     case AGGREGATE_TAG:
       return AggregateMsg::deserialize(buf, length);
     case PARALLEL_LOAD_TAG:
       return ParallelLoadMsg::deserialize(buf, length);
+    case JOIN_TAG:
+      return JoinMsg::deserialize(buf, length);
   }
   throw std::invalid_argument("trying to deserailze msg of unknown type");
 }
@@ -521,6 +522,93 @@ AggregateMsg* AggregateMsg::deserialize(char* buf, int len) {
   assert(pos + sizeof(int) == len);
   return new AggregateMsg(array_name, attr_index);
 }
+
+/******************************************************
+ ********************* JOIN MESSAGE *******************
+ ******************************************************/
+JoinMsg::JoinMsg() : Msg(JOIN_TAG) {};
+
+JoinMsg::JoinMsg(std::string array_name_A,
+                 std::string array_name_B,
+                 std::string result_array_name) : Msg(JOIN_TAG)  {
+  array_name_A_ = array_name_A;
+  array_name_B_ = array_name_B;
+  result_array_name_ = result_array_name;
+}
+
+std::pair<char*, int> JoinMsg::serialize() {
+  int buffer_size = 0, pos = 0;
+  char* buffer;
+
+  // Compute lengths
+  int A_length = array_name_A_.size();
+  int B_length = array_name_B_.size();
+  int result_length = result_array_name_.size();
+  buffer_size += sizeof(int);
+  buffer_size += A_length;
+  buffer_size += sizeof(int);
+  buffer_size += B_length;
+  buffer_size += sizeof(int);
+  buffer_size += result_length;
+
+  // creating buffer
+  buffer = new char[buffer_size];
+
+  // Serializing array_name_A_
+  memcpy(&buffer[pos], &A_length, sizeof(int));
+  pos += sizeof(int);
+  memcpy(&buffer[pos], array_name_A_.c_str(), A_length);
+  pos += A_length;
+
+  // Serializing array_name_B_
+  memcpy(&buffer[pos], &B_length, sizeof(int));
+  pos += sizeof(int);
+  memcpy(&buffer[pos], array_name_B_.c_str(), B_length);
+  pos += B_length;
+
+  // Serializing result_array_name_
+  memcpy(&buffer[pos], &result_length, sizeof(int));
+  pos += sizeof(int);
+  memcpy(&buffer[pos], result_array_name_.c_str(), result_length);
+
+  assert(pos + result_length == buffer_size);
+  return std::pair<char*, int>(buffer, buffer_size);
+}
+
+JoinMsg* JoinMsg::deserialize(char* buffer, int buffer_length) {
+
+  std::string array_name_A;
+  std::string array_name_B;
+  std::string result_array_name;
+  int pos = 0;
+  std::stringstream ss;
+
+  // deserializing array_name_A_
+  int length = (int) buffer[pos];
+  pos += sizeof(int);
+  ss.write(&buffer[pos], length);
+  pos += length;
+  array_name_A = ss.str();
+  ss.str(std::string());
+
+  // deserializing array_name_B_
+  length = (int) buffer[pos];
+  pos += sizeof(int);
+  ss.write(&buffer[pos], length);
+  pos += length;
+  array_name_B = ss.str();
+  ss.str(std::string());
+
+  // deserializing result_array_name_
+  length = (int) buffer[pos];
+  pos += sizeof(int);
+  ss.write(&buffer[pos], length);
+  result_array_name = ss.str();
+
+  assert(pos + length == buffer_length);
+  return new JoinMsg(array_name_A, array_name_B, result_array_name);
+}
+
 
 // HELPER METHODS
 ArraySchema::CellType parse_attr_type(const char* buffer, int buf_length) {

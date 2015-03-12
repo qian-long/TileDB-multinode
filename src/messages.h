@@ -18,7 +18,8 @@
 #define ERROR_TAG           9
 #define DONE_TAG            10
 #define PARALLEL_LOAD_TAG   11
-#define KEEP_RECEIVING_TAG  12
+#define JOIN_TAG            12
+#define KEEP_RECEIVING_TAG  13
 
 class Msg {
 
@@ -123,7 +124,7 @@ class GetMsg : public Msg {
 };
 
 /******************************************************
- *************** ARRAYSCHEMA MESSAGE ******************
+ *************** DEFINE ARRAY MESSAGE *****************
  ******************************************************/
 class DefineArrayMsg : public Msg {
 
@@ -239,4 +240,36 @@ class ParallelLoadMsg : public Msg {
     ParallelLoadType load_type_;
     ArraySchema array_schema_;
 };
+
+/******************************************************
+ ********************* JOIN MESSAGE *******************
+ ******************************************************/
+class JoinMsg : public Msg {
+
+  public:
+    // CONSTRUCTOR
+    JoinMsg();
+    JoinMsg(const std::string array_name_A, 
+            const std::string array_name_B, 
+            const std::string result_array_name);
+
+    // DESTRUCTOR
+    ~JoinMsg(){};
+
+    // ACCESSORS
+    std::string array_name_A() { return array_name_A_; }
+    std::string array_name_B() { return array_name_B_; }
+    std::string result_array_name() { return result_array_name_; }
+
+    // METHODS
+    std::pair<char*, int> serialize();
+    static JoinMsg* deserialize(char* buffer, int buffer_length);
+
+  private:
+    std::string array_name_A_;
+    std::string array_name_B_;
+    std::string result_array_name_;
+
+};
+
 #endif
