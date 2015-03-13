@@ -144,3 +144,9 @@ void MPIHandler::flush_all_sends(int tag) {
     flush_send(*it, tag);
   }
 }
+
+// NON BLOCKING CALLS
+void MPIHandler::send_content_async(const char* in_buf, int length, int receiver, int tag) {
+
+}
+

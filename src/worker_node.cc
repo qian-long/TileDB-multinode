@@ -325,7 +325,7 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
       //handle_parallel_load_naive(msg->filename(), msg->array_schema());
       break;
     case ParallelLoadMsg::HASH_PARTITION:
-      //handle_parallel_load_hash(msg->filename(), msg->array_schema());
+      handle_parallel_load_hash(msg->filename(), msg->array_schema());
       break;
     case ParallelLoadMsg::SAMPLING:
       break;
@@ -456,6 +456,112 @@ int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema
   // TODO cleanup
   return 0;
 
+}
+
+int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
+
+  std::string filepath = my_workspace_ + "/data/" + filename;
+  std::string outpath = my_workspace_ + "/data/HASH_" + filename;
+
+  std::ofstream outfile;
+  outfile.open(outpath);
+
+  std::vector<MPI_Request> my_requests;
+  std::vector<MPI_Request> others_requests;
+  // scan csv file, compute hash, asynchronous send to receivers
+  CSVFile csv_in(filepath, CSVFile::READ);
+  CSVLine csv_line;
+  std::hash<std::string> hash_fn;
+
+
+  int nworkers = nprocs_ - 1;
+  int limit = 2; // after processing 6 lines, do n to n shuffle
+  int count = 0;
+  std::map<int, std::string> chunk_map;
+  // scan data to compute meta data (how many chunks to send to each node)
+  //
+  std::stringstream ss;
+  while (csv_in >> csv_line) {
+    // TODO look into other hash fns, using default for strings right now
+    std::string coord_id = csv_line.values()[0];
+    for (int i = 1; i < array_schema.dim_num(); ++i) {
+      coord_id += ",";
+      coord_id += csv_line.values()[i];
+    }
+    std::size_t cell_id_hash = hash_fn(coord_id);
+    int receiver = (cell_id_hash % nworkers) + 1;
+    std::string csv_line_str = csv_line.str() + "\n";
+
+    auto search = chunk_map.find(receiver);
+
+    if (search == chunk_map.end()) {
+      chunk_map.insert(std::pair<int, std::string>(receiver, csv_line_str));
+    } else {
+      search->second += csv_line_str;
+    }
+    count++;
+
+    if (count == limit) {
+      //MPI_Alltoallv(sendbuf, sendcounts[], sdispls, sendtype, recvbuf, recvcounts, rdispls, rectype, comm)
+      int scounts[nprocs_];
+      int rcounts[nprocs_];
+      int sdispls[nprocs_];
+      int rdispls[nprocs_];
+
+
+      scounts[0] = 0;
+      sdispls[0] = 0;
+
+      int send_total = 0;
+      for (int i = 1; i < nprocs_; ++i) {
+        auto search = chunk_map.find(i);
+        if (search == chunk_map.end()) {
+          // send empty placeholder
+          scounts[i] = 0;
+          sdispls[i] = sdispls[i-1];
+        } else {
+          scounts[i] = search->second.size();
+          sdispls[i] = sdispls[i-1] + scounts[i-1];
+          ss << search->second;
+        }
+        send_total += scounts[i];
+      }
+
+      /* tell the other processors how much data is coming */
+      logger_->log(LOG_INFO, "sending counts to other processes");
+      MPI_Alltoall(&scounts, 1, MPI_INT, &rcounts, 1, MPI_INT, MPI_COMM_WORLD);
+
+      int rec_total = 0;
+      rdispls[0] = 0;
+      for (int i = 0; i < nprocs_; ++i) {
+        logger_->log(LOG_INFO, "Expecting " + std::to_string(rcounts[i]) + " bytes from node " + std::to_string(i));
+        rec_total += rcounts[i];
+        if (i > 0) {
+          rdispls[i] = rcounts[i-1] + rdispls[i-1];
+        }
+      }
+
+
+      //char *sendbuf = new char[send_total];
+      char *recbuf = new char[rec_total];
+      logger_->log(LOG_INFO, "rec_total: " + std::to_string(rec_total));
+      MPI_Alltoallv(ss.str().c_str(), scounts, sdispls, MPI_CHAR, recbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
+      logger_->log(LOG_INFO, std::string(recbuf, rec_total));
+      // reset
+      count = 0;
+      ss.str(std::string());
+    }
+
+  }
+
+
+  outfile.close();
+
+
+  // invoke local load on received data
+
+
+  // send ack back
 }
 
 /*************** HANDLE FILTER **********************/

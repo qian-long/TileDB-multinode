@@ -20,6 +20,7 @@
 #define PARALLEL_LOAD_TAG   11
 #define JOIN_TAG            12
 #define KEEP_RECEIVING_TAG  13
+#define ASYNC_NUM_RECEIVE_TAG   14 // number of asynch requests receiver is expecting
 
 class Msg {
 

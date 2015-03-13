@@ -27,6 +27,7 @@ class MPIHandler {
     ~MPIHandler();
 
     // METHODS
+    // BLOCKING CALLS
     /** 
      * Sends entire file via mpi to receiving node
      * Blocking call
@@ -44,8 +45,8 @@ class MPIHandler {
      * Blocking call
      */
     void send_keep_receiving(bool keep_receiving, int receiver);
-    
-    /** TODO
+
+    /** TODO test
      * Maintain buffer for each worker, send data to worker only when buffer is full
      * Used in hash partition parallel load
      * Blocking Call
@@ -57,7 +58,9 @@ class MPIHandler {
     void flush_send(int receiver, int tag);
     void flush_all_sends(int tag);
 
-    
+    // NON BLOCKING CALLS
+    void send_content_async(const char* in_buf, int length, int receiver, int tag);
+
   private:
 
     std::vector<int> node_ids_;
