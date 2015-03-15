@@ -20,7 +20,7 @@ class MPIHandler {
     MPIHandler();
 
     /** Constructor initializes how many buffers to maintain */
-    MPIHandler(std::vector<int>& node_ids);
+    MPIHandler(int rank, std::vector<int>& node_ids);
 
     // DESTRUCTOR
     /** Empty destructor. */
@@ -53,10 +53,18 @@ class MPIHandler {
      */
     void send_content(const char* in_buf, int length, int receiver, int tag);
 
-
-    // TODO
     void flush_send(int receiver, int tag);
     void flush_all_sends(int tag);
+
+    // ALL to ALL Communication
+    // blocking
+    void send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ofstream& file);
+    // blocking
+    void flush_send_and_recv_a2a(std::ofstream& file);
+    // blocking
+    void flush_send_and_recv_a2a(const char* in_buf, int length, int receiver, std::ofstream& file);
+    // blocking
+    void finish_recv_a2a(std::ofstream& file);
 
     // NON BLOCKING CALLS
     void send_content_async(const char* in_buf, int length, int receiver, int tag);
@@ -74,7 +82,7 @@ class MPIHandler {
     // vector of char buf pos (first empty byte)
     std::vector<int> pos_;
 
-    //std::vector<char *> send_buffers_; // for asychronous calls
-
+    int a2a_len_total_;
+    int myrank_;
 };
 #endif

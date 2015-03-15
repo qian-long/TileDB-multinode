@@ -29,7 +29,7 @@ CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
     workers.push_back(i);
   }
 
-  mpi_handler_ = new MPIHandler(workers);
+  mpi_handler_ = new MPIHandler(0, workers);
 }
 
 // TODO
@@ -442,6 +442,7 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
 
 // participates in all to all mpi exchange
 void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
+  /*
   int scounts[nprocs_];
   int rcounts[nprocs_];
   int sdispls[nprocs_];
@@ -458,7 +459,6 @@ void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
   char *sendbuf = new char[10];
   char *recbuf = new char[10];
 
-  /* tell the other processors how much data is coming */
   for (int j = 0; j < 2; ++j) {
     MPI_Alltoall(&scounts, 1, MPI_INT, &rcounts, 1, MPI_INT, MPI_COMM_WORLD);
 
@@ -468,8 +468,13 @@ void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
 
     MPI_Alltoallv(sendbuf, scounts, sdispls, MPI_CHAR, recbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
   }
+  */
 
-
+  logger_->log(LOG_INFO, "Participating in all to all communication");
+  std::ofstream tmp;
+  tmp.open("tmp");
+  mpi_handler_->finish_recv_a2a(tmp);
+  tmp.close();
 
 }
 

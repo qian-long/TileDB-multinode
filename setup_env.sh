@@ -15,7 +15,8 @@ rm -rf workspaces/workspace-[0-9]/Loader \
   workspaces/workspace-[0-9]/*.csv \
   workspaces/workspace-[0-9]/Consolidator \
   workspaces/workspace-[0-9]/Executor \
-  workspaces/workspace-[0-9]/QueryProcessor
+  workspaces/workspace-[0-9]/QueryProcessor \
+  workspaces/workspace-[0-9]/data/HASH_*.csv
 touch workspaces/workspace-0/logfile
 touch workspaces/workspace-1/logfile
 touch workspaces/workspace-2/logfile

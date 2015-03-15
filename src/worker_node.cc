@@ -29,7 +29,7 @@ WorkerNode::WorkerNode(int rank, int nprocs) {
       other_nodes.push_back(i);
     }
   }
-  mpi_handler_ = new MPIHandler(other_nodes);
+  mpi_handler_ = new MPIHandler(myrank_, other_nodes);
 
   // catalogue data structures
   arrayname_map_ = new std::map<std::string, std::string>();
@@ -492,76 +492,28 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
     int receiver = (cell_id_hash % nworkers) + 1;
     std::string csv_line_str = csv_line.str() + "\n";
 
-    auto search = chunk_map.find(receiver);
-
-    if (search == chunk_map.end()) {
-      chunk_map.insert(std::pair<int, std::string>(receiver, csv_line_str));
+    if (receiver == myrank_) {
+      outfile << csv_line_str;
     } else {
-      search->second += csv_line_str;
-    }
-    count++;
-
-    if (count == limit) {
-      //MPI_Alltoallv(sendbuf, sendcounts[], sdispls, sendtype, recvbuf, recvcounts, rdispls, rectype, comm)
-      int scounts[nprocs_];
-      int rcounts[nprocs_];
-      int sdispls[nprocs_];
-      int rdispls[nprocs_];
-
-
-      scounts[0] = 0;
-      sdispls[0] = 0;
-
-      int send_total = 0;
-      for (int i = 1; i < nprocs_; ++i) {
-        auto search = chunk_map.find(i);
-        if (search == chunk_map.end()) {
-          // send empty placeholder
-          scounts[i] = 0;
-          sdispls[i] = sdispls[i-1];
-        } else {
-          scounts[i] = search->second.size();
-          sdispls[i] = sdispls[i-1] + scounts[i-1];
-          ss << search->second;
-        }
-        send_total += scounts[i];
-      }
-
-      /* tell the other processors how much data is coming */
-      logger_->log(LOG_INFO, "sending counts to other processes");
-      MPI_Alltoall(&scounts, 1, MPI_INT, &rcounts, 1, MPI_INT, MPI_COMM_WORLD);
-
-      int rec_total = 0;
-      rdispls[0] = 0;
-      for (int i = 0; i < nprocs_; ++i) {
-        logger_->log(LOG_INFO, "Expecting " + std::to_string(rcounts[i]) + " bytes from node " + std::to_string(i));
-        rec_total += rcounts[i];
-        if (i > 0) {
-          rdispls[i] = rcounts[i-1] + rdispls[i-1];
-        }
-      }
-
-
-      //char *sendbuf = new char[send_total];
-      char *recbuf = new char[rec_total];
-      logger_->log(LOG_INFO, "rec_total: " + std::to_string(rec_total));
-      MPI_Alltoallv(ss.str().c_str(), scounts, sdispls, MPI_CHAR, recbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
-      logger_->log(LOG_INFO, std::string(recbuf, rec_total));
-      // reset
-      count = 0;
-      ss.str(std::string());
+      mpi_handler_->send_and_receive_a2a(csv_line_str.c_str(), csv_line_str.size(), receiver, outfile);
     }
 
   }
 
 
+  logger_->log(LOG_INFO, "Flushing All to All send and receive");
+  mpi_handler_->flush_send_and_recv_a2a(outfile);
+
+  // keep receiving until everyone finishes sending
+  logger_->log(LOG_INFO, "Finish receiving from everyone");
+  mpi_handler_->finish_recv_a2a(outfile);
   outfile.close();
 
 
-  // invoke local load on received data
+  // TODO: invoke local load on received data
 
 
-  // send ack back
+  // TODO: send ack back
 }
 
 /*************** HANDLE FILTER **********************/
