@@ -242,6 +242,10 @@ int WorkerNode::handle(LoadMsg* msg) {
   switch (msg->load_type()) {
     case LoadMsg::ORDERED:
       handle_load_ordered(msg->filename(), msg->array_schema());
+      logger_->log(LOG_INFO, "Update Fragment Info");
+      executor_->update_fragment_info(msg->array_schema().array_name());
+      logger_->log(LOG_INFO, "Finished load");
+
       break;
     case LoadMsg::HASH:
       handle_load_hash(msg->filename(), msg->array_schema());
@@ -251,9 +255,6 @@ int WorkerNode::handle(LoadMsg* msg) {
       break;
   }
 
-  logger_->log(LOG_INFO, "Update Fragment Info");
-  executor_->update_fragment_info(msg->array_schema().array_name());
-  logger_->log(LOG_INFO, "Finished load");
   return 0;
 }
 
@@ -385,72 +386,17 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
 int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema) {
 
   std::ofstream output;
-  std::string filepath = my_workspace_ + "/data/" + filename;
+  std::string filepath = my_workspace_ + "/data/HASH_" + filename;
 
   logger_->log(LOG_INFO, "Receiving hash partitioned data from master, writing to filepath " + filepath);
 
   output.open(filepath);
   // Blocking
-  mpi_handler_->receive_file(output, MASTER, PARALLEL_LOAD_TAG);
+  mpi_handler_->receive_file(output, MASTER, LOAD_TAG);
   output.close();
 
-  // Invoke local load
-  logger_->log(LOG_INFO, "Invoking local load");
-  // Inject cell id
-  bool regular = array_schema.has_regular_tiles();
-  ArraySchema::Order order = array_schema.order();
-  std::string injected_filepath = filepath;
-  std::string frag_name = "0_0";
-
-  if (regular || order == ArraySchema::HILBERT) {
-    injected_filepath = executor_->loader()->workspace() + "/injected_" +
-                        array_schema.array_name() + "_" + frag_name + ".csv";
-    try {
-      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
-      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
-    } catch(LoaderException& le) {
-      logger_->log(LOG_INFO, "Caught loader exception " + le.what());
-      //remove(injected_filepath.c_str());
-      executor_->storage_manager()->delete_array(array_schema.array_name());
-      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
-    }
-  }
-
-
-
-  // local sort
-  std::string sorted_filepath = executor_->loader()->workspace() + "/sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
-
-  logger_->log(LOG_INFO, "Sorting csv file " + injected_filepath + " into " + sorted_filepath);
-
-  executor_->loader()->sort_csv_file(injected_filepath, sorted_filepath, array_schema);
-  logger_->log(LOG_INFO, "Finished sorting csv file");
-
-  // Open array in CREATE mode
-  StorageManager::FragmentDescriptor* fd =
-    executor_->storage_manager()->open_fragment(&array_schema, frag_name,
-                                                StorageManager::CREATE);
-
-
-
-  logger_->log(LOG_INFO, "Starting make tiles on " + sorted_filepath);
-  // Make tiles
-  try {
-    if(array_schema.has_regular_tiles())
-      executor_->loader()->make_tiles_regular(sorted_filepath, fd);
-    else
-      executor_->loader()->make_tiles_irregular(sorted_filepath, fd);
-  } catch(LoaderException& le) {
-    // TODO uncomment
-    //remove(sorted_filepath.c_str());
-    executor_->storage_manager()->delete_fragment(array_schema.array_name(), frag_name);
-    throw LoaderException("Error invoking local load" + filename +
-                          "'.\n " + le.what());
-  }
-
-
-  logger_->log(LOG_INFO, "Finished make tiles");
-  executor_->storage_manager()->close_fragment(fd);
+  logger_->log(LOG_INFO, "Invoking local executor load");
+  executor_->load(filepath, array_schema.array_name());
 
 
   // TODO cleanup
@@ -461,7 +407,7 @@ int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
 
   std::string filepath = my_workspace_ + "/data/" + filename;
-  std::string outpath = my_workspace_ + "/data/HASH_" + filename;
+  std::string outpath = my_workspace_ + "/data/PHASH_" + filename;
 
   std::ofstream outfile;
   outfile.open(outpath);
@@ -475,11 +421,8 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
 
 
   int nworkers = nprocs_ - 1;
-  int limit = 2; // after processing 6 lines, do n to n shuffle
-  int count = 0;
   std::map<int, std::string> chunk_map;
   // scan data to compute meta data (how many chunks to send to each node)
-  //
   std::stringstream ss;
   while (csv_in >> csv_line) {
     // TODO look into other hash fns, using default for strings right now
@@ -510,10 +453,10 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
   outfile.close();
 
 
-  // TODO: invoke local load on received data
+  // invoke local load on received data
+  logger_->log(LOG_INFO, "Invoking local executor load");
+  executor_->load(outpath, array_schema.array_name());
 
-
-  // TODO: send ack back
 }
 
 /*************** HANDLE FILTER **********************/

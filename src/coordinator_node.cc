@@ -46,7 +46,7 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "test_a2a";
+  std::string array_name = "test_A";
   std::string filename = array_name + ".csv";
 
   // Set attribute names
@@ -81,15 +81,39 @@ void CoordinatorNode::run() {
       types,
       ArraySchema::HILBERT);
 
+  /*
   DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_A");
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
-  /*
+  DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
+  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::HASH_PARTITION, array_schema);
+  send_and_receive(pmsg2);
+
+  DEBUG_MSG("Sending GET " + array_name + " to all workers");
+  GetMsg gmsg1 = GetMsg(array_name);
+  send_and_receive(gmsg1);
+  */
+
+
+  std::string array_name2 = "test_A";
+  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_load_hash");
+  ArraySchema array_schema2 = array_schema.clone(array_name2);
+  DefineArrayMsg damsg2 = DefineArrayMsg(array_schema2);
+  send_and_receive(damsg2);
+
+
+
   DEBUG_MSG("Sending HASH_PARTITION load instructions to all workers");
-  LoadMsg lmsg = LoadMsg(filename, array_schema, LoadMsg::HASH);
+  LoadMsg lmsg = LoadMsg(filename, array_schema2, LoadMsg::HASH);
   send_and_receive(lmsg);
 
+  DEBUG_MSG("Sending GET " + array_name2 + " to all workers");
+  GetMsg gmsg2 = GetMsg(array_name2);
+  send_and_receive(gmsg2);
+
+
+  /*
   DEBUG_MSG("Sending ORDERED_PARTITION load instructions to all workers");
   LoadMsg lmsg = LoadMsg(filename, array_schema, LoadMsg::ORDERED);
   send_and_receive(lmsg);
@@ -100,16 +124,6 @@ void CoordinatorNode::run() {
   send_and_receive(gmsg1);
   */
 
-
-  DEBUG_MSG("Sending parallel load instructions to all workers");
-  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::HASH_PARTITION, array_schema);
-  send_and_receive(pmsg2);
-
-  /*
-  DEBUG_MSG("Sending GET test_A_naive to all workers");
-  GetMsg gmsg2 = GetMsg(aname2);
-  send_and_receive(gmsg2);
-  */
 
 
   /*
@@ -418,7 +432,7 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
   ArraySchema array_schema = pmsg.array_schema();
 
   std::string filepath = "./data/" + pmsg.filename();
-  logger_->log(LOG_INFO, "Sending data to workers based on hash value");
+  logger_->log(LOG_INFO, "Sending data to workers based on hash value from " + filepath);
   // scan input file, compute hash on cell coords, send to worker
   CSVFile csv_in(filepath, CSVFile::READ);
   CSVLine csv_line;
@@ -433,42 +447,15 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
     std::size_t cell_id_hash = hash_fn(coord_id);
     int receiver = (cell_id_hash % nworkers_) + 1;
     std::string csv_line_str = csv_line.str() + "\n";
-    mpi_handler_->send_content(csv_line_str.c_str(), csv_line_str.length(), receiver, PARALLEL_LOAD_TAG);
+    mpi_handler_->send_content(csv_line_str.c_str(), csv_line_str.length(), receiver, LOAD_TAG);
   }
 
   logger_->log(LOG_INFO, "Flushing all sends");
-  mpi_handler_->flush_all_sends(PARALLEL_LOAD_TAG);
+  mpi_handler_->flush_all_sends(LOAD_TAG);
 }
 
 // participates in all to all mpi exchange
 void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
-  /*
-  int scounts[nprocs_];
-  int rcounts[nprocs_];
-  int sdispls[nprocs_];
-  int rdispls[nprocs_];
-
-
- 
-  for (int i = 0; i < nprocs_; ++i) {
-    scounts[i] = 0;
-    sdispls[i] = 0;
-    rdispls[i] = 0;
-  }
-
-  char *sendbuf = new char[10];
-  char *recbuf = new char[10];
-
-  for (int j = 0; j < 2; ++j) {
-    MPI_Alltoall(&scounts, 1, MPI_INT, &rcounts, 1, MPI_INT, MPI_COMM_WORLD);
-
-    for (int i = 0; i < nprocs_; ++i) {
-      std::cout << "Node " << myrank_ << " expecting " << rcounts[i] << " bytes from node " << i << "\n";
-    }
-
-    MPI_Alltoallv(sendbuf, scounts, sdispls, MPI_CHAR, recbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
-  }
-  */
 
   logger_->log(LOG_INFO, "Participating in all to all communication");
   std::ofstream tmp;
