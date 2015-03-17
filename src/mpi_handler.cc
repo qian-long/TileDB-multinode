@@ -59,7 +59,7 @@ void MPIHandler::send_keep_receiving(bool keep_receiving, int receiver) {
   MPI_Send(ss.str().c_str(), ss.str().length(), MPI_CHAR, receiver, KEEP_RECEIVING_TAG, MPI_COMM_WORLD);
 }
 
-void MPIHandler::receive_file(std::ofstream& file, int sender, int tag) {
+void MPIHandler::receive_content(std::ostream& stream, int sender, int tag) {
   bool keep_receiving = true;
   char *buf = new char[MPI_BUFFER_LENGTH];
   MPI_Status status;
@@ -71,7 +71,7 @@ void MPIHandler::receive_file(std::ofstream& file, int sender, int tag) {
     MPI_Get_count(&status, MPI_CHAR, &length);
 
     // write to file
-    file << std::string(buf, length);
+    stream << std::string(buf, length);
 
     // see if we should coninue receiving
     MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, sender, KEEP_RECEIVING_TAG, MPI_COMM_WORLD, &status);
@@ -82,13 +82,11 @@ void MPIHandler::receive_file(std::ofstream& file, int sender, int tag) {
   } while (keep_receiving);
 
 
-  // TODO add flushing?
   // Cleanup
   delete [] buf;
 }
 
-// TODO Maintain buffer for each worker, send data to worker only when buffer is
-// full
+// Maintain buffer for each worker, send data to worker only when buffer is full
 void MPIHandler::send_content(const char* in_buf, int length, int receiver, int tag) {
 
   auto search = node_to_buf_.find(receiver);
@@ -151,7 +149,7 @@ void MPIHandler::flush_all_sends(int tag) {
   }
 }
 
-void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ofstream& file) {
+void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ostream& file) {
   auto search = node_to_buf_.find(receiver);
   assert(search != node_to_buf_.end());
   int buf_ind = search->second;
@@ -167,7 +165,7 @@ void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiv
   }
 }
 
-void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int receiver, std::ofstream& file) {
+void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int receiver, std::ostream& file) {
   
   // blocking
   int nprocs = node_ids_.size() + 1;
@@ -238,12 +236,12 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
 
 }
 
-void MPIHandler::flush_send_and_recv_a2a(std::ofstream& file) {
+void MPIHandler::flush_send_and_recv_a2a(std::ostream& file) {
   flush_send_and_recv_a2a(NULL, 0, 0, file);
 }
 
 // keep receiving from other nodes
-void MPIHandler::finish_recv_a2a(std::ofstream& file) {
+void MPIHandler::finish_recv_a2a(std::ostream& file) {
   int recv_total;
   int nprocs = node_ids_.size() + 1;
   int scounts[nprocs];
@@ -259,7 +257,6 @@ void MPIHandler::finish_recv_a2a(std::ofstream& file) {
   }
 
   do {
-
     /* tell the other processors how much data is coming */
     MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
     recv_total = 0;
@@ -279,7 +276,6 @@ void MPIHandler::finish_recv_a2a(std::ofstream& file) {
       }
 
   } while (recv_total > 0);
-
 
 }
 

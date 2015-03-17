@@ -47,10 +47,14 @@ class CoordinatorNode {
     // assumes coordinator has initial csv
     void handle_load_hash(LoadMsg& pmsg);
 
-    // TODO
+    // matches same function in worker_node.h
     void handle_parallel_load_ordered(ParallelLoadMsg& pmsg);
-    // TODO
+
+    // matches same function in worker_node.h
     void handle_parallel_load_hash(ParallelLoadMsg& pmsg);
+
+    /********* HELPER FUNCTIONS ********/
+    std::vector<int64_t> sample(std::vector<int64_t>, int k);
 
     /******** TESTING FUNCTIONS ********/
     // filename must be in the Data directory
@@ -61,6 +65,7 @@ class CoordinatorNode {
     void test_aggregate(std::string);
 
     ArraySchema* get_test_arrayschema(std::string array_name);
+
   private:
     // PRIVATE ATTRIBUTES
     int myrank_; // should be 0
@@ -68,8 +73,6 @@ class CoordinatorNode {
     int nworkers_;
     std::string my_workspace_;
     Logger* logger_;
-    //Loader* loader_;
-    //StorageManager* storage_manager_;
     Executor* executor_;
     MPIHandler* mpi_handler_;
 

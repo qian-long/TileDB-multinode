@@ -257,7 +257,7 @@ void CoordinatorNode::handle_get(GetMsg& gmsg) {
   std::ofstream outfile;
   outfile.open(outpath);
   for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
-    mpi_handler_->receive_file(outfile, nodeid, GET_TAG);
+    mpi_handler_->receive_content(outfile, nodeid, GET_TAG);
   }
   outfile.close();
 }
@@ -456,19 +456,41 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
 
 // participates in all to all mpi exchange
 void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
-
   logger_->log(LOG_INFO, "Participating in all to all communication");
   std::ofstream tmp;
+  // TODO clean this up
   tmp.open("tmp");
   mpi_handler_->finish_recv_a2a(tmp);
   tmp.close();
 
 }
 
+// TODO
+void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
+
+  // receive samples from all works
+  // pick nworkers + 1 samples for the n + 1 "fences"
+  // send partition infor back to all workers
+}
+
 void CoordinatorNode::quit_all() {
   send_all("quit", QUIT_TAG);
 }
 
+/******************************************************
+ **************** HELPER FUNCTIONS ********************
+ ******************************************************/
+std::vector<int64_t> get_partitions(std::vector<int64_t> samples, int k) {
+  std::default_random_engine generator;
+  std::uniform_int_distribution<int> distribution(0, samples.size()-1);
+  auto dice = std::bind(distribution, generator);
+  std::vector<int64_t> partitions;
+  for (int i = 0; i < k; ++i) {
+    partitions.push_back(dice());
+  }
+  std::sort(partitions.begin(), partitions.end());
+  return partitions;
+}
 
 /******************************************************
  *************** TESTING FUNCTIONS ********************

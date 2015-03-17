@@ -1,3 +1,4 @@
+#include <random>
 #include <ostream>
 #include <iostream>
 #include <istream>
@@ -136,17 +137,7 @@ void WorkerNode::run() {
           logger_->log(LOG_INFO, content);
       }
 
-   /*
-      // TODO delete stuff to avoid memory leak
-    } catch (StorageManagerException& sme) {
-      logger_->log("StorageManagerException: ");
-      logger_->log(sme.what());
-      respond_ack(-1, status.MPI_TAG, -1);
-    } catch(QueryProcessorException& qpe) {
-      logger_->log("QueryProcessorException: ");
-      logger_->log(qpe.what());
-      respond_ack(-1, status.MPI_TAG, -1);
-   */
+    // TODO delete stuff to avoid memory leak
     } catch(LoaderException& le) {
       logger_->log(LOG_INFO, "LoaderException: ");
       logger_->log(LOG_INFO, le.what());
@@ -235,9 +226,8 @@ int WorkerNode::handle(DefineArrayMsg* msg) {
 }
 
 /*************** HANDLE LOAD **********************/
-// TODO move parallel load here
 int WorkerNode::handle(LoadMsg* msg) {
-  logger_->log(LOG_INFO, "Received load\n");
+  logger_->log(LOG_INFO, "Received load");
 
   switch (msg->load_type()) {
     case LoadMsg::ORDERED:
@@ -245,7 +235,6 @@ int WorkerNode::handle(LoadMsg* msg) {
       logger_->log(LOG_INFO, "Update Fragment Info");
       executor_->update_fragment_info(msg->array_schema().array_name());
       logger_->log(LOG_INFO, "Finished load");
-
       break;
     case LoadMsg::HASH:
       handle_load_hash(msg->filename(), msg->array_schema());
@@ -323,7 +312,7 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   //std::string filepath = "./data/" + msg->filename();
   switch (msg->load_type()) {
     case ParallelLoadMsg::NAIVE:
-      //handle_parallel_load_naive(msg->filename(), msg->array_schema());
+      handle_parallel_load_ordered(msg->filename(), msg->array_schema());
       break;
     case ParallelLoadMsg::HASH_PARTITION:
       handle_parallel_load_hash(msg->filename(), msg->array_schema());
@@ -353,7 +342,7 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
   sorted_file.open(sorted_filepath);
 
   logger_->log(LOG_INFO, "Receiving sorted file from master");
-  mpi_handler_->receive_file(sorted_file, MASTER, LOAD_TAG);
+  mpi_handler_->receive_content(sorted_file, MASTER, LOAD_TAG);
 
   sorted_file.close();
 
@@ -392,7 +381,7 @@ int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema
 
   output.open(filepath);
   // Blocking
-  mpi_handler_->receive_file(output, MASTER, LOAD_TAG);
+  mpi_handler_->receive_content(output, MASTER, LOAD_TAG);
   output.close();
 
   logger_->log(LOG_INFO, "Invoking local executor load");
@@ -404,6 +393,60 @@ int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema
 
 }
 
+int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema) {
+  logger_->log(LOG_INFO, "Handle parallel load ordered");
+
+  logger_->log(LOG_INFO, "Injecting cell ids");
+  // inject cell_ids
+  bool regular = array_schema.has_regular_tiles();
+  ArraySchema::Order order = array_schema.order();
+  std::string filepath = "./data/" + filename;
+  std::string injected_filepath = filepath;
+  std::string frag_name = "0_0";
+
+  if (regular || order == ArraySchema::HILBERT) {
+    injected_filepath = executor_->loader()->workspace() + "/injected_" +
+                        array_schema.array_name() + "_" + frag_name + ".csv";
+    try {
+      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
+      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
+    } catch(LoaderException& le) {
+      logger_->log(LOG_INFO, "Caught loader exception " + le.what());
+      //remove(injected_filepath.c_str());
+      executor_->storage_manager()->delete_array(array_schema.array_name());
+      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
+    }
+  }
+
+
+  int k = 10 * nprocs_; // TODO parameterize
+  // read filename to pick X samples
+  std::vector<int64_t> samples = sample(injected_filepath, k);
+
+  // send samples to coordinator
+  // serialize samples
+  std::stringstream ss;
+  for (int i = 0; i < samples.size(); ++i) {
+    ss << samples[i];
+  }
+
+  mpi_handler_->send_content(ss.str().c_str(), ss.str().length(), MASTER, PARALLEL_LOAD_TAG);
+
+  // receive partitions from coordinator
+  ss.str(std::string());
+  mpi_handler_->receive_content(ss, MASTER, PARALLEL_LOAD_TAG);
+
+  // TODO deserialize partition into maps?
+
+  // TODO do same all to all shuffle from hash partition loading
+  CSVFile csv_in(injected_filepath, CSVFile::READ);
+  CSVLine csv_line;
+  while (csv_in >> csv_line) {
+    int64_t cell_id = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
+  }
+  // TODO invoke local load
+}
+
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
 
   std::string filepath = my_workspace_ + "/data/" + filename;
@@ -412,13 +455,10 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
   std::ofstream outfile;
   outfile.open(outpath);
 
-  std::vector<MPI_Request> my_requests;
-  std::vector<MPI_Request> others_requests;
   // scan csv file, compute hash, asynchronous send to receivers
   CSVFile csv_in(filepath, CSVFile::READ);
   CSVLine csv_line;
   std::hash<std::string> hash_fn;
-
 
   int nworkers = nprocs_ - 1;
   std::map<int, std::string> chunk_map;
@@ -442,7 +482,6 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
     }
 
   }
-
 
   logger_->log(LOG_INFO, "Flushing All to All send and receive");
   mpi_handler_->flush_send_and_recv_a2a(outfile);
@@ -501,6 +540,34 @@ std::string WorkerNode::convert_filename(std::string filename) {
   // TODO move to config file
   ss << "./data/" << filename.c_str() << ".csv";
   return ss.str();
+}
+
+// http://en.wikipedia.org/wiki/Reservoir_sampling
+std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
+  std::vector<int64_t> results;
+  CSVFile csv_in(csvpath, CSVFile::READ);
+  CSVLine csv_line;
+  int counter = 0;
+
+  while (csv_in >> csv_line) {
+
+    // fill the resevoir
+    if (counter < k) {
+      results.push_back(std::strtoll(csv_line.values()[0].c_str(), NULL, 10));
+    } else {
+
+      // replace elements with gradually decreasing probability
+      std::default_random_engine generator;
+      std::uniform_int_distribution<int> distribution(0, counter); // TODO check this
+      int rand = distribution(generator);
+      if (rand < k) {
+        results[rand] = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
+      }
+
+    }
+    counter++;
+  }
+  return results;
 }
 
 //My c++ isn't great, i thought that c++ was smart enough to do this on its own

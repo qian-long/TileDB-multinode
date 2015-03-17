@@ -36,16 +36,14 @@ class WorkerNode {
     int handle(GetMsg* msg);
     int handle(SubarrayMsg* msg);
     int handle(AggregateMsg* msg);
-    int handle(ParallelLoadMsg* msg); // input randomly scattered in workers
+    int handle(ParallelLoadMsg* msg); // distributed load (input randomly scattered in workers)
 
 
     int handle_load_ordered(std::string filename, ArraySchema& array_schema);
     int handle_load_hash(std::string filename, ArraySchema& array_schema);
 
-    int handle_parallel_load_naive(std::string filename, ArraySchema& array_schema);
+    int handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema);
     int handle_parallel_load_hash(std::string filename, ArraySchema& array_schema);
-    int handle_parallel_load_sampling();
-    int handle_parallel_load_merge(); // maybe won't do
     
     template<class T>
     int handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type);
@@ -62,14 +60,15 @@ class WorkerNode {
     std::string convert_arrayname(std::string garray_name);
 
     std::string arrayname_to_csv_filename(std::string arrayname);
+
+    /** Picks k samples at random from csvpath. Uses resevoir sampling **/
+    std::vector<int64_t> sample(std::string csvpath, int k);
+
   private:
     // PRIVATE ATTRIBUTES
     int myrank_;
     int nprocs_;
     std::string my_workspace_;
-    //Loader* loader_;
-    //StorageManager* storage_manager_;
-    //QueryProcessor* query_processor_;
     Executor* executor_;
     Logger* logger_;
     MPIHandler* mpi_handler_;

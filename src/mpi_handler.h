@@ -34,10 +34,10 @@ class MPIHandler {
      */
     void send_file(std::string filepath, int receiver, int tag); 
     /**
-     * Receive content in char buffer and store to file,
+     * Receive content in char buffer and write to stream (file or ss, etc)
      * Blocking call
      */
-    void receive_file(std::ofstream& file, int sender, int tag);
+    void receive_content(std::ostream& stream, int sender, int tag);
 
 
     /**
@@ -48,7 +48,6 @@ class MPIHandler {
 
     /** TODO test
      * Maintain buffer for each worker, send data to worker only when buffer is full
-     * Used in hash partition parallel load
      * Blocking Call
      */
     void send_content(const char* in_buf, int length, int receiver, int tag);
@@ -58,16 +57,16 @@ class MPIHandler {
 
     // ALL to ALL Communication
     // blocking
-    void send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ofstream& file);
+    void send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ostream& file);
     // blocking
-    void flush_send_and_recv_a2a(std::ofstream& file);
+    void flush_send_and_recv_a2a(std::ostream& file);
     // blocking
-    void flush_send_and_recv_a2a(const char* in_buf, int length, int receiver, std::ofstream& file);
+    void flush_send_and_recv_a2a(const char* in_buf, 
+        int length, 
+        int receiver, 
+        std::ostream& file);
     // blocking
-    void finish_recv_a2a(std::ofstream& file);
-
-    // NON BLOCKING CALLS
-    void send_content_async(const char* in_buf, int length, int receiver, int tag);
+    void finish_recv_a2a(std::ostream& file);
 
   private:
 
@@ -82,7 +81,6 @@ class MPIHandler {
     // vector of char buf pos (first empty byte)
     std::vector<int> pos_;
 
-    int a2a_len_total_;
     int myrank_;
 };
 #endif
