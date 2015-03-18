@@ -477,9 +477,7 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
 
     SamplesMsg* smsg = mpi_handler_->receive_samples_msg(worker);
     
-    std::cout << "smsg->samples().size(): " << smsg->samples().size() << "\n";
     for (int i = 0; i < smsg->samples().size(); ++i) {
-      std::cout << "sample " << smsg->samples()[i] << "\n";
       samples.push_back(smsg->samples()[i]);
     }
     // TODO cleanup
@@ -494,11 +492,6 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
   std::vector<int64_t> partitions = get_partitions(samples, nworkers_ - 1);
  
   logger_->log(LOG_INFO, "sending partitions back to all workers");
-  std::cout << "partitions: ";
-  for (int i = 0; i < partitions.size(); ++i) {
-    std::cout << partitions[i] << ",";
-  }
-  std::cout << "\n";
   // send partition infor back to all workers
   SamplesMsg msg(partitions);
   for (int worker = 1; worker <= nworkers_ ; worker++) {
@@ -524,11 +517,11 @@ void CoordinatorNode::quit_all() {
  ******************************************************/
 std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> samples, int k) {
   std::default_random_engine generator;
-  std::uniform_int_distribution<int> distribution(0, samples.size()-1);
+  std::uniform_int_distribution<int64_t> distribution(0, samples.size()-1);
   auto dice = std::bind(distribution, generator);
   std::vector<int64_t> partitions;
   for (int i = 0; i < k; ++i) {
-    partitions.push_back(dice());
+    partitions.push_back(samples[dice()]);
   }
   std::sort(partitions.begin(), partitions.end());
   return partitions;

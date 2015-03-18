@@ -410,10 +410,11 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   // inject cell_ids
   bool regular = array_schema.has_regular_tiles();
   ArraySchema::Order order = array_schema.order();
-  std::string filepath = "./data/" + filename;
+  std::string filepath = my_workspace_ + "/data/" + filename;
   std::string injected_filepath = filepath;
   std::string frag_name = "0_0";
 
+  
   if (regular || order == ArraySchema::HILBERT) {
     injected_filepath = executor_->loader()->workspace() + "/injected_" +
                         array_schema.array_name() + "_" + frag_name + ".csv";
@@ -469,7 +470,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
 
   // TODO invoke local load
   // sort and make tiles
-  std::string sorted_filepath = executor_->loader()->workspace() + "/PHASH_sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
+  std::string sorted_filepath = executor_->loader()->workspace() + "/PORDERED_sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
 
   logger_->log(LOG_INFO, "Sorting csv file " + outpath + " into " + sorted_filepath);
 
