@@ -81,7 +81,6 @@ void MPIHandler::receive_content(std::ostream& stream, int sender, int tag) {
 
   } while (keep_receiving);
 
-
   // Cleanup
   delete [] buf;
 }
@@ -149,6 +148,20 @@ void MPIHandler::flush_all_sends(int tag) {
   }
 }
 
+// Sending and Receiving samples
+void MPIHandler::send_samples_msg(SamplesMsg* smsg, int receiver) {
+  std::pair<char *, int> buf_pair = smsg->serialize();
+  send_content(buf_pair.first, buf_pair.second, receiver, SAMPLES_TAG);
+  flush_send(receiver, SAMPLES_TAG);
+}
+
+SamplesMsg* MPIHandler::receive_samples_msg(int sender) {
+  std::stringstream ss;
+  receive_content(ss, sender, SAMPLES_TAG);
+  return SamplesMsg::deserialize((char *)ss.str().c_str(), ss.str().length());
+}
+
+// ALL to ALL Communication
 void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ostream& file) {
   auto search = node_to_buf_.find(receiver);
   assert(search != node_to_buf_.end());

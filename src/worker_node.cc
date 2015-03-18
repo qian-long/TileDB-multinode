@@ -428,41 +428,23 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
     }
   }
 
-  int k = 10 * nprocs_; // TODO parameterize
+  int k = nprocs_; // TODO parameterize
   // read filename to pick X samples
   std::vector<int64_t> samples = sample(injected_filepath, k);
 
   // send samples to coordinator
-  // serialize samples
-  std::stringstream ss;
-  for (int i = 0; i < samples.size(); ++i) {
-    ss << samples[i];
-  }
-
-  logger_->log(LOG_INFO, "Sending samples to coordinator");
-  mpi_handler_->send_content(ss.str().c_str(), ss.str().length(), MASTER, PARALLEL_LOAD_TAG);
-  mpi_handler_->flush_all_sends(PARALLEL_LOAD_TAG);
+  SamplesMsg msg(samples);
+  mpi_handler_->send_samples_msg(&msg, MASTER);
 
   // receive partitions from coordinator
   logger_->log(LOG_INFO, "Receiving partitions from coordinator");
-  ss.str(std::string());
-  mpi_handler_->receive_content(ss, MASTER, PARALLEL_LOAD_TAG);
-
-  // deserializing partition
-  assert(ss.str().size() % 8 == 0); // 8 bytes per number
-  int num_partitions = ss.str().size() / 8;
-  assert(num_partitions == nprocs_ - 2);
-  std::vector<int64_t> partitions; // should be sorted
-  for (int i = 0; i < num_partitions; ++i) {
-    int64_t partition;
-    std::memcpy(&partition, &(ss.str().c_str()[i*8]), sizeof(int64_t));
-    partitions.push_back(partition);
-  }
-
+  SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
+  std::vector<int64_t> partitions = smsg->samples();
+ 
+  logger_->log(LOG_INFO, "Starting n to n data shuffle based on partition");
   std::string outpath = my_workspace_ + "/data/PORDERED_" + filename;
   std::ofstream outfile;
   outfile.open(outpath);
-  // TODO do same all to all shuffle from hash partition loading
   CSVFile csv_in(injected_filepath, CSVFile::READ);
   CSVLine csv_line;
   while (csv_in >> csv_line) {
@@ -517,6 +499,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   executor_->storage_manager()->close_fragment(fd);
 
   // TODO cleanup
+  delete smsg;
   return 0;
 }
 
@@ -633,6 +616,7 @@ std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
 
       // replace elements with gradually decreasing probability
       std::default_random_engine generator;
+      generator.seed(myrank_);
       std::uniform_int_distribution<int> distribution(0, counter); // TODO check this
       int rand = distribution(generator);
       if (rand < k) {

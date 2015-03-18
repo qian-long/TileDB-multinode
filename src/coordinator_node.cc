@@ -95,9 +95,11 @@ void CoordinatorNode::run() {
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
 
+  /*
   DEBUG_MSG("Sending GET " + array_name + " to all workers");
   GetMsg gmsg1 = GetMsg(array_name);
   send_and_receive(gmsg1);
+  */
 
 
   /*
@@ -472,35 +474,45 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
   for (int worker = 1; worker <= nworkers_; ++worker) {
 
     logger_->log(LOG_INFO, "Waiting for samples from worker " + std::to_string(worker));
-    mpi_handler_->receive_content(ss, worker, PARALLEL_LOAD_TAG);
 
-    // deserializing partition
-    std::cout << "samples: " << ss.str() << "\n";
-    assert(ss.str().size() % 8 == 0); // 8 bytes per number
-    int nsamples = ss.str().size() / 8;
-    std::vector<int64_t> partitions; // should be sorted
-    for (int i = 0; i < nsamples; ++i) {
-      int64_t partition;
-      std::memcpy(&partition, &(ss.str().c_str()[i*8]), sizeof(int64_t));
-      samples.push_back(partition);
+    SamplesMsg* smsg = mpi_handler_->receive_samples_msg(worker);
+    
+    std::cout << "smsg->samples().size(): " << smsg->samples().size() << "\n";
+    for (int i = 0; i < smsg->samples().size(); ++i) {
+      std::cout << "sample " << smsg->samples()[i] << "\n";
+      samples.push_back(smsg->samples()[i]);
     }
+    // TODO cleanup
   }
+
 
 
 
   // pick nworkers - 1 samples for the n - 1 "stumps"
+  //
+  logger_->log(LOG_INFO, "Getting partitions");
   std::vector<int64_t> partitions = get_partitions(samples, nworkers_ - 1);
  
+  logger_->log(LOG_INFO, "sending partitions back to all workers");
+  std::cout << "partitions: ";
+  for (int i = 0; i < partitions.size(); ++i) {
+    std::cout << partitions[i] << ",";
+  }
+  std::cout << "\n";
   // send partition infor back to all workers
-  // serialize samples
-  ss.str(std::string());
-  for (int i = 0; i < samples.size(); ++i) {
-    ss << samples[i];
+  SamplesMsg msg(partitions);
+  for (int worker = 1; worker <= nworkers_ ; worker++) {
+    mpi_handler_->send_samples_msg(&msg, worker);
   }
 
-  for (int worker = 1; worker <= nworkers_ ; worker++) {
-    mpi_handler_->send_content(ss.str().c_str(), ss.str().length(), worker, PARALLEL_LOAD_TAG);
-  }
+  logger_->log(LOG_INFO, "Participating in all to all communication");
+  std::ofstream tmp;
+  // TODO clean this up
+  tmp.open("tmp");
+  mpi_handler_->finish_recv_a2a(tmp);
+  tmp.close();
+
+  // cleanup
 }
 
 void CoordinatorNode::quit_all() {

@@ -11,6 +11,7 @@
 #include <vector>
 #include <map>
 #include <mpi.h>
+#include "messages.h"
 
 class MPIHandler {
 
@@ -54,6 +55,11 @@ class MPIHandler {
 
     void flush_send(int receiver, int tag);
     void flush_all_sends(int tag);
+
+    // Blocking
+    void send_samples_msg(SamplesMsg* smsg, int receiver);
+    // Blocking
+    SamplesMsg* receive_samples_msg(int sender);
 
     // ALL to ALL Communication
     // blocking
