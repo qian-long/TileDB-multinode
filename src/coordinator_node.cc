@@ -95,11 +95,9 @@ void CoordinatorNode::run() {
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
 
-  /*
   DEBUG_MSG("Sending GET " + array_name + " to all workers");
   GetMsg gmsg1 = GetMsg(array_name);
   send_and_receive(gmsg1);
-  */
 
 
   /*
@@ -204,6 +202,7 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
   switch(msg.msg_tag) {
     case GET_TAG:
       handle_get(dynamic_cast<GetMsg&>(msg));
+      break;
     case LOAD_TAG:
       handle_load(dynamic_cast<LoadMsg&>(msg));
     case PARALLEL_LOAD_TAG:

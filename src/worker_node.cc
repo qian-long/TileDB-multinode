@@ -312,13 +312,12 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   switch (msg->load_type()) {
     case ParallelLoadMsg::ORDERED_PARTITION:
       handle_parallel_load_ordered(msg->filename(), msg->array_schema());
+      logger_->log(LOG_INFO, "Update Fragment Info");
+      executor_->update_fragment_info(msg->array_schema().array_name());
+      logger_->log(LOG_INFO, "Finished load");
       break;
     case ParallelLoadMsg::HASH_PARTITION:
       handle_parallel_load_hash(msg->filename(), msg->array_schema());
-      break;
-    case ParallelLoadMsg::SAMPLING:
-      break;
-    case ParallelLoadMsg::MERGE_SORT:
       break;
     default:
       // TODO send error
