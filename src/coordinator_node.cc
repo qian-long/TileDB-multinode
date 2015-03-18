@@ -81,21 +81,26 @@ void CoordinatorNode::run() {
       types,
       ArraySchema::HILBERT);
 
-  /*
   DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_A");
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
+  /*
   DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::HASH_PARTITION, array_schema);
+  send_and_receive(pmsg2);
+  */
+
+  DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
+  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
 
   DEBUG_MSG("Sending GET " + array_name + " to all workers");
   GetMsg gmsg1 = GetMsg(array_name);
   send_and_receive(gmsg1);
-  */
 
 
+  /*
   std::string array_name2 = "test_A";
   DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_load_hash");
   ArraySchema array_schema2 = array_schema.clone(array_name2);
@@ -111,6 +116,7 @@ void CoordinatorNode::run() {
   DEBUG_MSG("Sending GET " + array_name2 + " to all workers");
   GetMsg gmsg2 = GetMsg(array_name2);
   send_and_receive(gmsg2);
+  */
 
 
   /*
@@ -196,12 +202,10 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
   switch(msg.msg_tag) {
     case GET_TAG:
       handle_get(dynamic_cast<GetMsg&>(msg));
-      handle_ack();
-      break;
     case LOAD_TAG:
       handle_load(dynamic_cast<LoadMsg&>(msg));
-      handle_ack();
-      break;
+    case PARALLEL_LOAD_TAG:
+      handle_parallel_load(dynamic_cast<ParallelLoadMsg&>(msg));
     case DEFINE_ARRAY_TAG:
     case FILTER_TAG:
     case SUBARRAY_TAG:
@@ -209,9 +213,6 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
       break;
     case AGGREGATE_TAG:
       handle_aggregate();
-      break;
-    case PARALLEL_LOAD_TAG:
-      handle_parallel_load(dynamic_cast<ParallelLoadMsg&>(msg));
       break;
     default:
       // don't do anything
@@ -310,16 +311,11 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   logger_->log(LOG_INFO, "In handle_parallel_load");
 
   switch (pmsg.load_type()) {
-
-    case ParallelLoadMsg::NAIVE:
-      //handle_parallel_load_ordered(pmsg);
+    case ParallelLoadMsg::ORDERED_PARTITION:
+      handle_parallel_load_ordered(pmsg);
       break;
     case ParallelLoadMsg::HASH_PARTITION:
       handle_parallel_load_hash(pmsg);
-      break;
-    case ParallelLoadMsg::SAMPLING:
-      break;
-    case ParallelLoadMsg::MERGE_SORT:
       break;
     default:
       // TODO return error?
@@ -467,10 +463,44 @@ void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
 
 // TODO
 void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
+  logger_->log(LOG_INFO, "In handle parallel load ordered");
 
-  // receive samples from all works
-  // pick nworkers + 1 samples for the n + 1 "fences"
+  // receive samples from all workers
+  logger_->log(LOG_INFO, "Receiving samples from workers");
+  std::vector<int64_t> samples;
+  std::stringstream ss;
+  for (int worker = 1; worker <= nworkers_; ++worker) {
+
+    logger_->log(LOG_INFO, "Waiting for samples from worker " + std::to_string(worker));
+    mpi_handler_->receive_content(ss, worker, PARALLEL_LOAD_TAG);
+
+    // deserializing partition
+    std::cout << "samples: " << ss.str() << "\n";
+    assert(ss.str().size() % 8 == 0); // 8 bytes per number
+    int nsamples = ss.str().size() / 8;
+    std::vector<int64_t> partitions; // should be sorted
+    for (int i = 0; i < nsamples; ++i) {
+      int64_t partition;
+      std::memcpy(&partition, &(ss.str().c_str()[i*8]), sizeof(int64_t));
+      samples.push_back(partition);
+    }
+  }
+
+
+
+  // pick nworkers - 1 samples for the n - 1 "stumps"
+  std::vector<int64_t> partitions = get_partitions(samples, nworkers_ - 1);
+ 
   // send partition infor back to all workers
+  // serialize samples
+  ss.str(std::string());
+  for (int i = 0; i < samples.size(); ++i) {
+    ss << samples[i];
+  }
+
+  for (int worker = 1; worker <= nworkers_ ; worker++) {
+    mpi_handler_->send_content(ss.str().c_str(), ss.str().length(), worker, PARALLEL_LOAD_TAG);
+  }
 }
 
 void CoordinatorNode::quit_all() {
@@ -480,7 +510,7 @@ void CoordinatorNode::quit_all() {
 /******************************************************
  **************** HELPER FUNCTIONS ********************
  ******************************************************/
-std::vector<int64_t> get_partitions(std::vector<int64_t> samples, int k) {
+std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> samples, int k) {
   std::default_random_engine generator;
   std::uniform_int_distribution<int> distribution(0, samples.size()-1);
   auto dice = std::bind(distribution, generator);

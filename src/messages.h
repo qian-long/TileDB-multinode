@@ -21,6 +21,7 @@
 #define JOIN_TAG            12
 #define KEEP_RECEIVING_TAG  13
 #define ASYNC_NUM_RECEIVE_TAG   14 // number of asynch requests receiver is expecting
+#define SAMPLES_TAG         15
 
 class Msg {
 
@@ -218,7 +219,7 @@ class AggregateMsg : public Msg {
 class ParallelLoadMsg : public Msg {
   public:
     // which load algo to use
-    enum ParallelLoadType {NAIVE, HASH_PARTITION, MERGE_SORT, SAMPLING};
+    enum ParallelLoadType {ORDERED_PARTITION, HASH_PARTITION, MERGE_SORT, SAMPLING};
 
     // CONSTRUCTORS
     ParallelLoadMsg();
@@ -273,4 +274,28 @@ class JoinMsg : public Msg {
 
 };
 
+// CONTENT MESSAGES
+/******************************************************
+ ******************* Samples MESSAGE ******************
+ ******************************************************/
+
+class SamplesMsg : public Msg {
+  public:
+    // CONSTRUCTOR
+    SamplesMsg();
+    SamplesMsg(std::vector<int64_t> samples);
+
+    // DESTRUCTOR
+    ~SamplesMsg(){};
+
+    // ACCESSORS
+    std::vector<int64_t> samples() { return samples_; }
+
+    // METHODS
+    std::pair<char*, int> serialize();
+    static SamplesMsg* deserialize(char* buffer, int buffer_length);
+
+  private:
+    std::vector<int64_t> samples_;
+};
 #endif

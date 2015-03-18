@@ -309,9 +309,8 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   logger_->log(LOG_INFO, "Received Parallel Load Message");
   logger_->log(LOG_INFO, "Filename: " + msg->filename());
 
-  //std::string filepath = "./data/" + msg->filename();
   switch (msg->load_type()) {
-    case ParallelLoadMsg::NAIVE:
+    case ParallelLoadMsg::ORDERED_PARTITION:
       handle_parallel_load_ordered(msg->filename(), msg->array_schema());
       break;
     case ParallelLoadMsg::HASH_PARTITION:
@@ -393,6 +392,17 @@ int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema
 
 }
 
+inline int get_receiver(std::vector<int64_t> partitions, int64_t cell_id) {
+  int recv = 1;
+  for (std::vector<int64_t>::iterator it = partitions.begin(); it != partitions.end(); ++it) {
+    if (cell_id <= *it) {
+      return recv;
+    }
+    recv++;
+  }
+  return recv;
+}
+
 int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema) {
   logger_->log(LOG_INFO, "Handle parallel load ordered");
 
@@ -418,7 +428,6 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
     }
   }
 
-
   int k = 10 * nprocs_; // TODO parameterize
   // read filename to pick X samples
   std::vector<int64_t> samples = sample(injected_filepath, k);
@@ -430,22 +439,88 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
     ss << samples[i];
   }
 
+  logger_->log(LOG_INFO, "Sending samples to coordinator");
   mpi_handler_->send_content(ss.str().c_str(), ss.str().length(), MASTER, PARALLEL_LOAD_TAG);
+  mpi_handler_->flush_all_sends(PARALLEL_LOAD_TAG);
 
   // receive partitions from coordinator
+  logger_->log(LOG_INFO, "Receiving partitions from coordinator");
   ss.str(std::string());
   mpi_handler_->receive_content(ss, MASTER, PARALLEL_LOAD_TAG);
 
-  // TODO deserialize partition into maps?
+  // deserializing partition
+  assert(ss.str().size() % 8 == 0); // 8 bytes per number
+  int num_partitions = ss.str().size() / 8;
+  assert(num_partitions == nprocs_ - 2);
+  std::vector<int64_t> partitions; // should be sorted
+  for (int i = 0; i < num_partitions; ++i) {
+    int64_t partition;
+    std::memcpy(&partition, &(ss.str().c_str()[i*8]), sizeof(int64_t));
+    partitions.push_back(partition);
+  }
 
+  std::string outpath = my_workspace_ + "/data/PORDERED_" + filename;
+  std::ofstream outfile;
+  outfile.open(outpath);
   // TODO do same all to all shuffle from hash partition loading
   CSVFile csv_in(injected_filepath, CSVFile::READ);
   CSVLine csv_line;
   while (csv_in >> csv_line) {
     int64_t cell_id = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
+    int receiver = get_receiver(partitions, cell_id);
+    std::string csv_line_str = csv_line.str() + "\n";
+    if (receiver == myrank_) {
+      outfile << csv_line_str;
+    } else {
+      mpi_handler_->send_and_receive_a2a(csv_line_str.c_str(), csv_line_str.size(), receiver, outfile);
+    }
   }
+
+  logger_->log(LOG_INFO, "Flushing All to All send and receive");
+  mpi_handler_->flush_send_and_recv_a2a(outfile);
+
+  // keep receiving until everyone finishes sending
+  logger_->log(LOG_INFO, "Finish receiving from everyone");
+  mpi_handler_->finish_recv_a2a(outfile);
+  outfile.close();
+
+
   // TODO invoke local load
+  // sort and make tiles
+  std::string sorted_filepath = executor_->loader()->workspace() + "/PHASH_sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
+
+  logger_->log(LOG_INFO, "Sorting csv file " + outpath + " into " + sorted_filepath);
+
+  executor_->loader()->sort_csv_file(outpath, sorted_filepath, array_schema);
+
+  logger_->log(LOG_INFO, "Finished sorting csv file");
+  logger_->log(LOG_INFO, "Starting make tiles on " + sorted_filepath);
+  StorageManager::FragmentDescriptor* fd =
+    executor_->storage_manager()->open_fragment(&array_schema, frag_name,
+                                                StorageManager::CREATE);
+
+  // Make tiles
+  try {
+    if(array_schema.has_regular_tiles())
+      executor_->loader()->make_tiles_regular(sorted_filepath, fd);
+    else
+      executor_->loader()->make_tiles_irregular(sorted_filepath, fd);
+  } catch(LoaderException& le) {
+    // TODO uncomment
+    //remove(sorted_filepath.c_str());
+    executor_->storage_manager()->delete_fragment(array_schema.array_name(), frag_name);
+    throw LoaderException("Error invoking local load" + filename +
+                          "'.\n " + le.what());
+  }
+
+  logger_->log(LOG_INFO, "Finished make tiles");
+  executor_->storage_manager()->close_fragment(fd);
+
+  // TODO cleanup
+  return 0;
 }
+
+
 
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
 

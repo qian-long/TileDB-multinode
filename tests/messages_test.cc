@@ -175,7 +175,7 @@ namespace {
   // PARALLEL LOAD MSG TEST
   TEST_F(MessagesTest, ParallelLoadMsgTest) {
     std::string filename = "test";
-    ParallelLoadMsg::ParallelLoadType load_type = ParallelLoadMsg::NAIVE;
+    ParallelLoadMsg::ParallelLoadType load_type = ParallelLoadMsg::ORDERED_PARTITION;
 
     ParallelLoadMsg pmsg = ParallelLoadMsg(filename, load_type, array_schema_);
 
@@ -208,6 +208,26 @@ namespace {
     EXPECT_STREQ(array_name_B.c_str(), new_jmsg->array_name_B().c_str());
     EXPECT_STREQ(result_array_name.c_str(), new_jmsg->result_array_name().c_str());
 
+  }
+
+  // SAMPLES MSG TEST
+  TEST_F(MessagesTest, SamplesMsgTest) {
+
+    std::vector<int64_t> samples;
+    for (int i = 0; i < 10; ++i) {
+      samples.push_back(i * 1232);
+    }
+    SamplesMsg smsg = SamplesMsg(samples);
+
+    std::pair<char*, int> serial = smsg.serialize();
+
+    SamplesMsg* new_smsg = SamplesMsg::deserialize(serial.first, serial.second);
+
+    // comparing message contents
+    EXPECT_EQ(samples.size(), new_smsg->samples().size());
+    for (int i = 0; i < new_smsg->samples().size(); ++i) {
+      EXPECT_EQ(samples[i], new_smsg->samples()[i]);
+    }
   }
 
 

@@ -53,9 +53,6 @@ class CoordinatorNode {
     // matches same function in worker_node.h
     void handle_parallel_load_hash(ParallelLoadMsg& pmsg);
 
-    /********* HELPER FUNCTIONS ********/
-    std::vector<int64_t> sample(std::vector<int64_t>, int k);
-
     /******** TESTING FUNCTIONS ********/
     // filename must be in the Data directory
     // filename is the part before .csv
@@ -76,7 +73,9 @@ class CoordinatorNode {
     Executor* executor_;
     MPIHandler* mpi_handler_;
 
-    // TODO other stuff like what ranges of coordinate values I hold
+    /********* HELPER FUNCTIONS ********/
+    std::vector<int64_t> get_partitions(std::vector<int64_t>, int k);
+
 
 };
 
