@@ -252,27 +252,9 @@ int WorkerNode::handle(LoadMsg* msg) {
 int WorkerNode::handle(SubarrayMsg* msg) {
   logger_->log(LOG_INFO, "Received subarray \n");
 
-  /*
-  std::string global_schema_name = msg->array_schema().array_name();
-  // temporary hack, create a copy of the array schema and replace the array
-  // name
-  // check if arrayname is in worker
-  auto search = (*global_schema_map_).find(global_schema_name);
-  if (search == (*global_schema_map_).end()) {
-    logger_->log(LOG_INFO, "did not find schema!");
-    return -1;
-  }
-
-  ArraySchema new_schema = ((*global_schema_map_)[global_schema_name])->clone(msg->result_array_name());
-
-  (*global_schema_map_)[msg->result_array_name()] = &new_schema;
-
-  StorageManager::ArrayDescriptor* desc = storage_manager_->open_array(msg->array_schema().array_name());
-
-  executor_->subarray(desc, msg->ranges(), msg->result_array_name());
+  executor_->subarray(msg->array_schema().array_name(), msg->ranges(), msg->result_array_name());
 
   logger_->log(LOG_INFO, "Finished subarray ");
-  */
 
   return 0;
 }

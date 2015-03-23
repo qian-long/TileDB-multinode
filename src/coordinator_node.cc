@@ -46,7 +46,7 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "test_A";
+  std::string array_name = "test_C";
   std::string filename = array_name + ".csv";
 
   // Set attribute names
@@ -70,8 +70,8 @@ void CoordinatorNode::run() {
 
   // Set dimension domains
   std::vector<std::pair<double,double> > dim_domains;
-  dim_domains.push_back(std::pair<double,double>(0, 999));
-  dim_domains.push_back(std::pair<double,double>(0, 999));
+  dim_domains.push_back(std::pair<double,double>(0, 1000000));
+  dim_domains.push_back(std::pair<double,double>(0, 1000000));
 
   // Create an array with irregular tiles
   ArraySchema array_schema = ArraySchema(array_name,
@@ -95,8 +95,19 @@ void CoordinatorNode::run() {
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
 
+  DEBUG_MSG("sending subarray");
+  std::vector<double> vec;
+  vec.push_back(0); vec.push_back(500000);
+  vec.push_back(0); vec.push_back(500000);
+
+  SubarrayMsg sbmsg("subarray", array_schema, vec);
+  send_and_receive(sbmsg);
+  DEBUG_MSG("done sending subarray messages");
+
+
+  array_name = "subarray";
   DEBUG_MSG("Sending GET " + array_name + " to all workers");
-  GetMsg gmsg1 = GetMsg(array_name);
+  GetMsg gmsg1(array_name);
   send_and_receive(gmsg1);
 
 

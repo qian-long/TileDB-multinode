@@ -41,7 +41,7 @@ class Msg {
 Msg* deserialize_msg(int MsgType, char* buffer, int buffer_length);
 
 /******************************************************
- ******************* SubArray MESSAGE *****************
+ ******************* SUBARRAY MESSAGE *****************
  ******************************************************/
 class SubarrayMsg : public Msg {
   public:
