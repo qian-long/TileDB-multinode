@@ -138,6 +138,26 @@ bool Executor::file_exists(const std::string& filename) const {
   }
 }
 
+// TODO: remove later
+// temporary function to hard code in expression tree
+ExpressionTree* get_expression(std::string attribute_name) {
+
+  ExpressionNode* n_attr_0 = new ExpressionNode(attribute_name);
+  ExpressionNode* n_250 = new ExpressionNode(250000);
+  ExpressionNode* n_gteq =
+    new ExpressionNode(ExpressionNode::GTEQ, n_attr_0, n_250);
+
+  ExpressionNode* n_750 = new ExpressionNode(300000);
+  ExpressionNode* n_lteq =
+    new ExpressionNode(ExpressionNode::STEQ, n_attr_0, n_750);
+
+  ExpressionNode* n_and =
+    new ExpressionNode(ExpressionNode::AND, n_gteq, n_lteq);
+
+  ExpressionTree* tree = new ExpressionTree(n_and);
+  return tree;
+}
+
 void Executor::filter(const std::string& array_name,
                       const std::string& expression,
                       const std::string& result_array_name) const {
@@ -168,6 +188,7 @@ void Executor::filter(const std::string& array_name,
   // Hardcode some expression - TODO: parse input expression and check soundness
   ExpressionTree* hardcoded_expression;
   // TODO: hardcode_expression(expression);
+  hardcoded_expression = get_expression(expression);
 
   // Define the result array
   ArraySchema result_array_schema = array_schema.clone(result_array_name);

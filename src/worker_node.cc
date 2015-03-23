@@ -73,65 +73,23 @@ void WorkerNode::run() {
           break;
         case GET_TAG:
         case DEFINE_ARRAY_TAG:
-        case LOAD_TAG: 
+        case LOAD_TAG:
         case SUBARRAY_TAG:
+        case FILTER_TAG:
         case AGGREGATE_TAG:
-        case PARALLEL_LOAD_TAG: // TODO
-          gettimeofday(&tim, NULL);  
-          tstart = tim.tv_sec+(tim.tv_usec/1000000.0);  
+        case PARALLEL_LOAD_TAG:
+          gettimeofday(&tim, NULL);
+          tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
 
           msg = deserialize_msg(status.MPI_TAG, buf, length);
           result = handle_msg(msg->msg_tag, msg);
 
-          gettimeofday(&tim, NULL);  
-          tend = tim.tv_sec+(tim.tv_usec/1000000.0);  
+          gettimeofday(&tim, NULL);
+          tend = tim.tv_sec+(tim.tv_usec/1000000.0);
 
           respond_ack(result, status.MPI_TAG, tend - tstart);
           break;
 
-        case FILTER_TAG: 
-          {
-            gettimeofday(&tim, NULL);  
-            tstart = tim.tv_sec+(tim.tv_usec/1000000.0);  
-
-
-            // this is really awkward with templating because the type of the
-            // attribute must be known before we create the filtermsg obj...
-            // // TODO look for a better way later
-            ArraySchema::CellType attr_type = static_cast<ArraySchema::CellType>(buf[0]);
-            switch(attr_type) {
-              case ArraySchema::INT:
-                {
-                  FilterMsg<int> *fmsg = FilterMsg<int>::deserialize(buf, length);
-                  result = handle_filter(fmsg, attr_type);
-                  break; 
-                }
-              case ArraySchema::FLOAT:
-                {
-                  FilterMsg<float> *fmsg = FilterMsg<float>::deserialize(buf, length);
-                  result = handle_filter(fmsg, attr_type);
-                  break; 
-                }
-               break; 
-              case ArraySchema::DOUBLE:
-                {
-                  FilterMsg<double> *fmsg = FilterMsg<double>::deserialize(buf, length);
-                  result = handle_filter(fmsg, attr_type);
-                  break; 
-                }
-               break; 
-              default:
-                // Data got corrupted
-                // TODO throw exception, fix int64_t
-                throw std::invalid_argument("trying to deserailze filter msg of unknown type");
-                break;
-            } 
-
-            gettimeofday(&tim, NULL);  
-            tend = tim.tv_sec+(tim.tv_usec/1000000.0);  
-            respond_ack(result, status.MPI_TAG, tend - tstart);
-          }
-          break;
         default:
           std::string content(buf, length);
           logger_->log(LOG_INFO, content);
@@ -247,7 +205,6 @@ int WorkerNode::handle(LoadMsg* msg) {
   return 0;
 }
 
-// TODO fix
 /*************** HANDLE SubarrayMsg **********************/
 int WorkerNode::handle(SubarrayMsg* msg) {
   logger_->log(LOG_INFO, "Received subarray \n");
@@ -258,6 +215,18 @@ int WorkerNode::handle(SubarrayMsg* msg) {
 
   return 0;
 }
+
+/***************** HANDLE FilterMsg **********************/
+int WorkerNode::handle(FilterMsg* msg) {
+  logger_->log(LOG_INFO, "Received filter\n");
+
+  executor_->filter(msg->array_name(), msg->expression(), msg->result_array_name());
+
+  logger_->log(LOG_INFO, "Finished filter");
+
+  return 0;
+}
+
 
 /*************** HANDLE AggregateMsg **********************/
 int WorkerNode::handle(AggregateMsg* msg) {
@@ -538,31 +507,6 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
 
 }
 
-/*************** HANDLE FILTER **********************/
-template<class T>
-int WorkerNode::handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type) {
-  logger_->log(LOG_INFO, "Received filter");
-
-  std::string global_schema_name = msg->array_schema().array_name();
-
-  // temporary hack, create a copy of the array schema and replace the array
-  // name
-  // TODO check if arrayname is in worker
-  auto search = (*global_schema_map_).find(global_schema_name);
-  if (search == (*global_schema_map_).end()) {
-    logger_->log(LOG_INFO, "did not find schema!");
-    return -1; // TODO need to fix b/c coordinator would hang
-  }
-
-  ArraySchema new_schema = ((*global_schema_map_)[global_schema_name])->clone(msg->result_array_name());
-
-  (*global_schema_map_)[msg->result_array_name()] = &new_schema;
-
-  // TODO add back
-  //query_processor_->filter_irregular<T>(&msg->array_schema(), msg->predicate(), msg->result_array_name()); 
-  logger_->log(LOG_INFO, "Finished filter");
-  return 0;
-}
 
 // TODO send_error function
 
@@ -625,6 +569,8 @@ int WorkerNode::handle_msg(int type, Msg* msg){
       return handle((LoadMsg*) msg);
     case SUBARRAY_TAG:
       return handle((SubarrayMsg*) msg);
+    case FILTER_TAG:
+      return handle((FilterMsg*) msg);
     case AGGREGATE_TAG:
       return handle((AggregateMsg*) msg);
     case PARALLEL_LOAD_TAG:

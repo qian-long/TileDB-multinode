@@ -18,9 +18,12 @@ Msg* deserialize_msg(int type, char* buf, int length){
       return GetMsg::deserialize(buf, length);
     case DEFINE_ARRAY_TAG:
       return DefineArrayMsg::deserialize(buf, length);
-    case LOAD_TAG: return LoadMsg::deserialize(buf, length);
+    case LOAD_TAG:
+      return LoadMsg::deserialize(buf, length);
     case SUBARRAY_TAG:
       return SubarrayMsg::deserialize(buf, length);
+    case FILTER_TAG:
+      return FilterMsg::deserialize(buf, length);
     case AGGREGATE_TAG:
       return AggregateMsg::deserialize(buf, length);
     case PARALLEL_LOAD_TAG:
@@ -277,57 +280,35 @@ DefineArrayMsg* DefineArrayMsg::deserialize(char* buffer, int buffer_length) {
 /******************************************************
  ****************** FILTER MESSAGE ********************
  ******************************************************/
+FilterMsg::FilterMsg() : Msg(FILTER_TAG) {}
 
-template<class T>
-FilterMsg<T>::FilterMsg() : Msg(FILTER_TAG) {}
-
-template<class T>
-FilterMsg<T>::FilterMsg(
-    const ArraySchema::CellType& attr_type, 
-    ArraySchema& array_schema, 
-    Predicate<T>& predicate, 
-    const std::string& result_array_name) : Msg(FILTER_TAG) {
-  attr_type_ = attr_type;
-  array_schema_ = array_schema;
-  predicate_ = predicate;
+FilterMsg::FilterMsg(
+    std::string& array_name,
+    std::string& expression, 
+    std::string& result_array_name) : Msg(FILTER_TAG) {
+  array_name_ = array_name;
+  expr_ = expression;
   result_array_name_ = result_array_name;
 }
 
-// TODO fix
-template<class T>
-FilterMsg<T>::~FilterMsg() {
-  //delete &array_schema_;
-  //delete &predicate_;
-}
-
-template<class T>
-std::pair<char*, int> FilterMsg<T>::serialize() {
+std::pair<char*, int> FilterMsg::serialize() {
 
   int buffer_size = 0;
   int pos = 0;
   char* buffer;
   int length;
 
-  // serialize relevent components
-  std::pair<char*, int> pred_pair = predicate_.serialize();
-  std::pair<char*, int> as_pair = array_schema_.serialize();
 
   // calculate buffer size
-  buffer_size += sizeof(ArraySchema::CellType); // type of filter col
   buffer_size += sizeof(int); // result array name length
   buffer_size += result_array_name_.size(); // result array name
-  buffer_size += sizeof(int); // predicate length
-  buffer_size += pred_pair.second; // predicate
-  buffer_size += sizeof(int); // array schema length
-  buffer_size += as_pair.second; // array schema
+  buffer_size += sizeof(int); // expr str length
+  buffer_size += expr_.size(); // expr str
+  buffer_size += sizeof(int); // array name length
+  buffer_size += array_name_.size(); // array name
 
   // creating buffer
   buffer = new char[buffer_size];
-
-  // serialize attr_type_
-  length = sizeof(ArraySchema::CellType);
-  memcpy(&buffer[pos], &attr_type_, length);
-  pos += length;
 
   // serialize resulting array name
   length = result_array_name_.size();
@@ -336,32 +317,27 @@ std::pair<char*, int> FilterMsg<T>::serialize() {
   memcpy(&buffer[pos], result_array_name_.c_str(), length);
   pos += length;
 
-  // serialize predicate
-  length = pred_pair.second;
+  // serialize expr str
+  length = expr_.size();
   memcpy(&buffer[pos], &length, sizeof(int));
   pos += sizeof(int);
-  memcpy(&buffer[pos], pred_pair.first, length);
+  memcpy(&buffer[pos], expr_.c_str(), length);
   pos += length;
 
-  // serialize array schema
-  length = as_pair.second;
+  // serialize array name
+  length = array_name_.size();
   memcpy(&buffer[pos], &length, sizeof(int));
   pos += sizeof(int);
-  memcpy(&buffer[pos], as_pair.first, length);
+  memcpy(&buffer[pos], array_name_.c_str(), length);
 
   assert(pos + length == buffer_size);
 
   return std::pair<char*, int>(buffer, buffer_size);
 }
 
-template<class T>
-FilterMsg<T>* FilterMsg<T>::deserialize(char* buffer, int buf_length) {
+FilterMsg* FilterMsg::deserialize(char* buffer, int buf_length) {
   std::stringstream ss;
   int pos = 0;
-
-  // parse attribute type
-  ArraySchema::CellType datatype = static_cast<ArraySchema::CellType>(buffer[pos]);
-  pos += sizeof(ArraySchema::CellType);
 
   // parse result array name
   int length = (int) buffer[pos];
@@ -369,24 +345,28 @@ FilterMsg<T>* FilterMsg<T>::deserialize(char* buffer, int buf_length) {
   ss.write(&buffer[pos], length);
   std::string result_array_name = ss.str(); // first arg
   pos += length;
+  ss.str(std::string());
 
-  // parse predicate
+  // parse expr str
   length = (int) buffer[pos];
-
   pos += sizeof(int);
-  Predicate<T>* pred = (Predicate<T>::deserialize(&buffer[pos], length));
+  ss.write(&buffer[pos], length);
+  std::string expr = ss.str();
   pos += length;
+  ss.str(std::string());
 
-  // parse array schema
+  // parse array name
   length = (int) buffer[pos];
   pos += sizeof(int);
-  ArraySchema *schema = new ArraySchema();
-  schema->deserialize(&buffer[pos], length);
+  ss.write(&buffer[pos], length);
+  std::string array_name = ss.str();
+  //ArraySchema *schema = new ArraySchema();
+  //schema->deserialize(&buffer[pos], length);
 
   // finished parsing
   assert(length + pos == buf_length);
 
-  return new FilterMsg(datatype, *schema, *pred, result_array_name);
+  return new FilterMsg(array_name, expr, result_array_name);
 }
 
 
@@ -653,15 +633,4 @@ SamplesMsg* SamplesMsg::deserialize(char* buffer, int buffer_length) {
   return new SamplesMsg(samples);
 }
 
-
-// HELPER METHODS
-ArraySchema::CellType parse_attr_type(const char* buffer, int buf_length) {
-  // type is the first thing in the serial string, see serialize method
-  return static_cast<ArraySchema::CellType>(buffer[0]);
-}
-
-// template instantiations
-template class FilterMsg<int>;
-template class FilterMsg<float>;
-template class FilterMsg<double>;
 

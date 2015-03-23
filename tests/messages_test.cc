@@ -69,39 +69,6 @@ namespace {
   }
 
 
-  // FILTER MSG TEST
-  TEST_F(MessagesTest, FilterMsgTest) {
-    int attr_index = 1;
-    Op op = GT;
-    int operand = 4;
-    Predicate<int> pred(attr_index, op, operand);
-    std::string result_array_name = "filter_test";
-    FilterMsg<int> fmsg = FilterMsg<int>(
-      array_schema_.celltype(attr_index), 
-      array_schema_, 
-      pred, 
-      result_array_name);
-
-    std::pair<char*, int> fserial = fmsg.serialize();
-
-    FilterMsg<int>* new_fmsg = FilterMsg<int>::deserialize(fserial.first, fserial.second); 
-
-    // comparing message contents
-    EXPECT_STREQ(array_schema_.to_string().c_str(),
-        new_fmsg->array_schema().to_string().c_str());
-
-    EXPECT_STREQ(result_array_name.c_str(),
-        new_fmsg->result_array_name().c_str());
-
-    EXPECT_STREQ(pred.to_string().c_str(),
-        new_fmsg->predicate().to_string().c_str());
-
-    EXPECT_EQ(array_schema_.celltype(attr_index), new_fmsg->attr_type());
-
-    // cleanup
-    delete new_fmsg;
-   }
-
   // SUBARRAY MSG TEST
   TEST_F(MessagesTest, SubarrayMsgTest) {
     std::string result_name = "subarray_test";
@@ -228,6 +195,23 @@ namespace {
     for (int i = 0; i < new_smsg->samples().size(); ++i) {
       EXPECT_EQ(samples[i], new_smsg->samples()[i]);
     }
+  }
+
+  // FILTER MSG TEST
+  TEST_F(MessagesTest, FilterMsgTest) {
+    std::string array_name = "filter_test";
+    std::string expr = "expr asdfasdfsf";
+    std::string result_array_name = "result_filter_array";
+    FilterMsg msg = FilterMsg(array_name, expr, result_array_name);
+
+    std::pair<char*, int> serial = msg.serialize();
+
+    FilterMsg* new_msg = FilterMsg::deserialize(serial.first, serial.second);
+
+    // comparing message contents
+    EXPECT_STREQ(array_name.c_str(), new_msg->array_name().c_str());
+    EXPECT_STREQ(expr.c_str(), new_msg->expression().c_str());
+    EXPECT_STREQ(result_array_name.c_str(), new_msg->result_array_name().c_str());
   }
 
 

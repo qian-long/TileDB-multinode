@@ -143,8 +143,6 @@ class DefineArrayMsg : public Msg {
 
     // METHODS
     std::pair<char*, int> serialize();
-
-    // TODO Caller should delete internal array_schema?
     static DefineArrayMsg* deserialize(char* buffer, int buffer_length);
 
   private:
@@ -154,36 +152,32 @@ class DefineArrayMsg : public Msg {
 /*******************************************************
  ******************* FILTER MESSAGE ********************
  *******************************************************/
-template<class T>
 class FilterMsg : public Msg {
 
   public:
     // CONSTRUCTORS
     FilterMsg();
-    FilterMsg(const ArraySchema::CellType& attr_type, ArraySchema& schema, Predicate<T>& predicate, const std::string& result_array_name);
+    FilterMsg(std::string& array_name, std::string& expression, std::string& result_array_name);
 
     // DESTRUCTOR
-    ~FilterMsg();
+    ~FilterMsg(){};
 
     // ACCESSORS
-    ArraySchema& array_schema() { return array_schema_; }
+    //ArraySchema& array_schema() { return array_schema_; }
+    std::string array_name() { return array_name_; }
     std::string result_array_name() { return result_array_name_; }
-    Predicate<T>& predicate() { return predicate_; }
-    ArraySchema::CellType attr_type() { return attr_type_; }
+    std::string expression() { return expr_; }
 
     // METHODS
     std::pair<char*, int> serialize();
-    static FilterMsg<T>* deserialize(char* buffer, int buf_length);
-
-    // HELPER METHODS
-    static ArraySchema::CellType parse_attr_type(char* buffer, int buf_length);
+    static FilterMsg* deserialize(char* buffer, int buf_length);
 
   private:
     // MEMBERS
-    ArraySchema array_schema_;
+    //ArraySchema array_schema_;
+    std::string array_name_;
     std::string result_array_name_;
-    Predicate<T> predicate_;
-    ArraySchema::CellType attr_type_;
+    std::string expr_;
 };
 
 /*******************************************************

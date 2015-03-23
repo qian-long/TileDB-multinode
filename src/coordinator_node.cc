@@ -85,15 +85,15 @@ void CoordinatorNode::run() {
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
-  /*
   DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::HASH_PARTITION, array_schema);
   send_and_receive(pmsg2);
-  */
 
+  /*
   DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
+  */
 
   DEBUG_MSG("sending subarray");
   std::vector<double> vec;
@@ -105,10 +105,22 @@ void CoordinatorNode::run() {
   DEBUG_MSG("done sending subarray messages");
 
 
-  array_name = "subarray";
-  DEBUG_MSG("Sending GET " + array_name + " to all workers");
-  GetMsg gmsg1(array_name);
+  std::string sarray_name = "subarray";
+  DEBUG_MSG("Sending GET " + sarray_name + " to all workers");
+  GetMsg gmsg1(sarray_name);
   send_and_receive(gmsg1);
+
+
+  DEBUG_MSG("sending filter instruction to all workers");
+  std::string expr = "attr1"; // expression hard coded in executor.cc
+  std::string result = "filter";
+  FilterMsg fmsg(array_name, expr, result);
+  send_and_receive(fmsg);
+
+  std::string farray_name = "filter";
+  DEBUG_MSG("Sending GET " + farray_name + " to all workers");
+  GetMsg gmsg2(farray_name);
+  send_and_receive(gmsg2);
 
 
   /*
@@ -566,9 +578,11 @@ void CoordinatorNode::test_filter(std::string array_name) {
   int operand = 500000;
   Predicate<int> pred(attr_index, op, operand);
   logger_->log(LOG_INFO, pred.to_string());
+  /*
   FilterMsg<int> fmsg = FilterMsg<int>(array_schema->celltype(attr_index), *array_schema, pred, array_name+"_filtered");
 
   send_and_receive(fmsg);
+  */
   logger_->log(LOG_INFO, "Test Filter Done");
 
   // don't leak memory

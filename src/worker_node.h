@@ -35,6 +35,7 @@ class WorkerNode {
     int handle(LoadMsg* msg); // centralized load (input comes from coordinator)
     int handle(GetMsg* msg);
     int handle(SubarrayMsg* msg);
+    int handle(FilterMsg* msg);
     int handle(AggregateMsg* msg);
     int handle(ParallelLoadMsg* msg); // distributed load (input randomly scattered in workers)
 
@@ -45,9 +46,6 @@ class WorkerNode {
     int handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema);
     int handle_parallel_load_hash(std::string filename, ArraySchema& array_schema);
     
-    template<class T>
-    int handle_filter(FilterMsg<T>* msg, ArraySchema::CellType attr_type);
-
     void respond_ack(int result, int tag, double time);
 
     // HELPER FUNCTIONS
