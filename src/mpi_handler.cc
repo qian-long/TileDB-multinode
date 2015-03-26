@@ -59,6 +59,21 @@ void MPIHandler::send_keep_receiving(bool keep_receiving, int receiver) {
   MPI_Send(ss.str().c_str(), ss.str().length(), MPI_CHAR, receiver, KEEP_RECEIVING_TAG, MPI_COMM_WORLD);
 }
 
+bool MPIHandler::receive_keep_receiving(int sender) {
+  bool keep_receiving;
+  char *buf = new char[MPI_BUFFER_LENGTH];
+  MPI_Status status;
+  int length;
+
+  // see if we should coninue receiving
+  MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, sender, KEEP_RECEIVING_TAG, MPI_COMM_WORLD, &status);
+  MPI_Get_count(&status, MPI_CHAR, &length);
+
+  keep_receiving = (bool) buf[0];
+
+  return keep_receiving;
+}
+
 void MPIHandler::receive_content(std::ostream& stream, int sender, int tag) {
   bool keep_receiving = true;
   char *buf = new char[MPI_BUFFER_LENGTH];
@@ -113,9 +128,6 @@ void MPIHandler::send_content(const char* in_buf, int length, int receiver, int 
       this->send_keep_receiving(true, receiver);
       pos += send_length;
     }
-
-    // final msg to stop receiving
-    //this->send_keep_receiving(false, receiver);
 
 
   } else {

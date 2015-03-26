@@ -6,6 +6,7 @@
 #include <cstring>
 #include <stdexcept>      // std::invalid_argument
 #include <sys/time.h>
+#include <fcntl.h> // O_RDONLY
 #include <mpi.h>
 #include "constants.h"
 #include "assert.h"
@@ -167,8 +168,15 @@ int WorkerNode::handle(GetMsg* msg) {
   logger_->log(LOG_INFO, "exporting to CSV");
   executor_->export_to_csv(msg->array_name(), result_filename);
 
-  logger_->log(LOG_INFO, "sending file to master");
-  mpi_handler_->send_file(result_filename, MASTER, GET_TAG);
+  int fd = open(result_filename.c_str(), O_RDONLY); 
+  if (fd == -1) {
+    logger_->log(LOG_INFO, "csv " + result_filename + " not found, telling master to stop receiving from me");
+    mpi_handler_->send_keep_receiving(false, MASTER);
+  } else {
+    logger_->log(LOG_INFO, "sending file to master");
+    mpi_handler_->send_keep_receiving(true, MASTER);
+    mpi_handler_->send_file(result_filename, MASTER, GET_TAG);
+  }
 
   return 0;
 }

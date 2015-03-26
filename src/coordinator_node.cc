@@ -85,15 +85,16 @@ void CoordinatorNode::run() {
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
+  /*
   DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::HASH_PARTITION, array_schema);
   send_and_receive(pmsg2);
+  */
 
-  /*
   DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
-  */
+
 
   DEBUG_MSG("sending subarray");
   std::vector<double> vec;
@@ -281,8 +282,15 @@ void CoordinatorNode::handle_get(GetMsg& gmsg) {
   std::string outpath = my_workspace_ + "/GET_" + gmsg.array_name() + ".csv";
   std::ofstream outfile;
   outfile.open(outpath);
+  bool keep_receiving = true;
   for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
-    mpi_handler_->receive_content(outfile, nodeid, GET_TAG);
+    // error handling if file is not found on sender
+    keep_receiving = mpi_handler_->receive_keep_receiving(nodeid);
+    logger_->log(LOG_INFO, "Sender: " + std::to_string(nodeid) + " Keep receiving: " + std::to_string(keep_receiving));
+    if (keep_receiving == true) {
+      logger_->log(LOG_INFO, "Waiting for sender " + std::to_string(nodeid));
+      mpi_handler_->receive_content(outfile, nodeid, GET_TAG);
+    }
   }
   outfile.close();
 }

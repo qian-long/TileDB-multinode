@@ -163,7 +163,6 @@ class FilterMsg : public Msg {
     ~FilterMsg(){};
 
     // ACCESSORS
-    //ArraySchema& array_schema() { return array_schema_; }
     std::string array_name() { return array_name_; }
     std::string result_array_name() { return result_array_name_; }
     std::string expression() { return expr_; }
@@ -174,7 +173,6 @@ class FilterMsg : public Msg {
 
   private:
     // MEMBERS
-    //ArraySchema array_schema_;
     std::string array_name_;
     std::string result_array_name_;
     std::string expr_;

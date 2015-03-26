@@ -360,8 +360,6 @@ FilterMsg* FilterMsg::deserialize(char* buffer, int buf_length) {
   pos += sizeof(int);
   ss.write(&buffer[pos], length);
   std::string array_name = ss.str();
-  //ArraySchema *schema = new ArraySchema();
-  //schema->deserialize(&buffer[pos], length);
 
   // finished parsing
   assert(length + pos == buf_length);

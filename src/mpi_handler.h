@@ -31,6 +31,7 @@ class MPIHandler {
     // BLOCKING CALLS
     /** 
      * Sends entire file via mpi to receiving node
+     * File is expected to exist
      * Blocking call
      */
     void send_file(std::string filepath, int receiver, int tag); 
@@ -42,10 +43,19 @@ class MPIHandler {
 
 
     /**
-     * Send receiver msg saying whether or not to keep receiving data chunks
-     * Blocking call
+     * Send receiver msg saying whether or not to keep receiving data chunks.
+     * Should match with receive_keep_receiving on the other end.
+     * Blocking call.
      */
     void send_keep_receiving(bool keep_receiving, int receiver);
+
+    /**
+     * Receives msg saying whether or not to keep receiving data chunks.
+     * Should match with send_keep_receiving on the other end.
+     * Blocking call.
+     */
+    bool receive_keep_receiving(int sender);
+
 
     /** TODO test
      * Maintain buffer for each worker, send data to worker only when buffer is full
