@@ -52,18 +52,17 @@ class WorkerNode {
     void respond_ack(int result, int tag, double time);
 
     // HELPER FUNCTIONS
-    std::string get_arrayname(std::string);
-
-    /** Returns filepath of matching csv file **/
-    std::string convert_filename(std::string filename);
-    
-    /** Converts global array name to local array name **/
-    std::string convert_arrayname(std::string garray_name);
-
     std::string arrayname_to_csv_filename(std::string arrayname);
 
     /** Picks k samples at random from csvpath. Uses resevoir sampling **/
     std::vector<int64_t> sample(std::string csvpath, int k);
+
+    /** 
+     * Given partition buckets and cell_id, determine which worker the cell
+     * should go to.
+     * For ordered parallel load
+     */
+    int get_receiver(std::vector<int64_t> partitions, int64_t cell_id);
 
   private:
     // PRIVATE ATTRIBUTES

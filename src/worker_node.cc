@@ -353,17 +353,6 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   return 0;
 }
 
-inline int get_receiver(std::vector<int64_t> partitions, int64_t cell_id) {
-  int recv = 1;
-  for (std::vector<int64_t>::iterator it = partitions.begin(); it != partitions.end(); ++it) {
-    if (cell_id <= *it) {
-      return recv;
-    }
-    recv++;
-  }
-  return recv;
-}
-
 int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema, int num_samples) {
   logger_->log(LOG_INFO, "Handle parallel load ordered");
 
@@ -390,8 +379,6 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
     }
   }
 
-  //int k = nprocs_; // TODO parameterize, put into message
-  
   // read filename to pick X samples
   std::vector<int64_t> samples = sample(injected_filepath, num_samples);
 
@@ -403,7 +390,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   logger_->log(LOG_INFO, "Receiving partitions from coordinator");
   SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
   std::vector<int64_t> partitions = smsg->samples();
- 
+
   logger_->log(LOG_INFO, "Starting n to n data shuffle based on partition");
   std::string outpath = my_workspace_ + "/data/PORDERED_" + filename;
   std::ofstream outfile;
@@ -465,8 +452,6 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   return 0;
 }
 
-
-
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
 
   std::string filepath = my_workspace_ + "/data/" + filename;
@@ -524,21 +509,14 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
 /******************************************************
  ****************** HELPER FUNCTIONS ******************
  ******************************************************/
-std::string WorkerNode::arrayname_to_csv_filename(std::string arrayname) {
+inline std::string WorkerNode::arrayname_to_csv_filename(std::string arrayname) {
   std::stringstream ss;
   ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
   return ss.str();
 }
 
-std::string WorkerNode::convert_filename(std::string filename) {
-  std::stringstream ss;
-  // TODO move to config file
-  ss << "./data/" << filename.c_str() << ".csv";
-  return ss.str();
-}
-
 // http://en.wikipedia.org/wiki/Reservoir_sampling
-std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
+inline std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
   std::vector<int64_t> results;
   CSVFile csv_in(csvpath, CSVFile::READ);
   CSVLine csv_line;
@@ -565,6 +543,18 @@ std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
   }
   return results;
 }
+
+inline int WorkerNode::get_receiver(std::vector<int64_t> partitions, int64_t cell_id) {
+  int recv = 1;
+  for (std::vector<int64_t>::iterator it = partitions.begin(); it != partitions.end(); ++it) {
+    if (cell_id <= *it) {
+      return recv;
+    }
+    recv++;
+  }
+  return recv;
+}
+
 
 //My c++ isn't great, i thought that c++ was smart enough to do this on its own
 //with overloaded msg and message types

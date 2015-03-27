@@ -212,9 +212,9 @@ void CoordinatorNode::send_all(Msg& msg) {
 void CoordinatorNode::send_all(std::string serial_str, int tag) {
   this->send_all(serial_str.c_str(), serial_str.length(), tag);
 }
+
 void CoordinatorNode::send_all(const char* buffer, int buffer_size, int tag) {
   assert(buffer_size < MPI_BUFFER_LENGTH);
-  // TODO make asynchronous
   for (int i = 1; i < nprocs_; i++) {
     MPI_Send(buffer, buffer_size, MPI::CHAR, i, tag, MPI_COMM_WORLD);
   }
@@ -338,7 +338,6 @@ void CoordinatorNode::handle_aggregate() {
   std::cout << ss.str() << "\n";
 }
 
-// TODO make asynchronous
 void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   logger_->log(LOG_INFO, "In handle_parallel_load");
 
@@ -360,10 +359,6 @@ void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
 
   std::string filepath = "./data/" + lmsg.filename();
 
-  // TODO check that filename exists in workspace, error if doesn't
-  // TODO save array schema?
-
-  // TODO open file and append tile-id/hilbert order
   // inject ids if regular or hilbert order
   ArraySchema& array_schema = lmsg.array_schema();
   bool regular = array_schema.has_regular_tiles();
@@ -485,15 +480,9 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
 // participates in all to all mpi exchange
 void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
   logger_->log(LOG_INFO, "Participating in all to all communication");
-  std::ofstream tmp;
-  // TODO clean this up
-  tmp.open("tmp");
-  mpi_handler_->finish_recv_a2a(tmp);
-  tmp.close();
-
+  mpi_handler_->finish_recv_a2a();
 }
 
-// TODO
 void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
   logger_->log(LOG_INFO, "In handle parallel load ordered");
 
@@ -513,11 +502,7 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
     // TODO cleanup
   }
 
-
-
-
   // pick nworkers - 1 samples for the n - 1 "stumps"
-  //
   logger_->log(LOG_INFO, "Getting partitions");
   std::vector<int64_t> partitions = get_partitions(samples, nworkers_ - 1);
  
@@ -529,11 +514,7 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
   }
 
   logger_->log(LOG_INFO, "Participating in all to all communication");
-  std::ofstream tmp;
-  // TODO clean this up
-  tmp.open("tmp");
-  mpi_handler_->finish_recv_a2a(tmp);
-  tmp.close();
+  mpi_handler_->finish_recv_a2a();
 
   // cleanup
 }

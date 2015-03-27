@@ -173,7 +173,10 @@ SamplesMsg* MPIHandler::receive_samples_msg(int sender) {
   return SamplesMsg::deserialize((char *)ss.str().c_str(), ss.str().length());
 }
 
-// ALL to ALL Communication
+
+/******************************************************
+ ************* ALL TO ALL COMM FUNCTIONS **************
+ ******************************************************/
 void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ostream& file) {
   auto search = node_to_buf_.find(receiver);
   assert(search != node_to_buf_.end());
@@ -304,3 +307,6 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
 
 }
 
+void MPIHandler::finish_recv_a2a() {
+  finish_recv_a2a(std::cout);
+}
