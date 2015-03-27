@@ -191,28 +191,6 @@ int WorkerNode::handle(DefineArrayMsg* msg) {
   return 0;
 }
 
-/*************** HANDLE LOAD **********************/
-int WorkerNode::handle(LoadMsg* msg) {
-  logger_->log(LOG_INFO, "Received load");
-
-  switch (msg->load_type()) {
-    case LoadMsg::ORDERED:
-      handle_load_ordered(msg->filename(), msg->array_schema());
-      logger_->log(LOG_INFO, "Update Fragment Info");
-      executor_->update_fragment_info(msg->array_schema().array_name());
-      logger_->log(LOG_INFO, "Finished load");
-      break;
-    case LoadMsg::HASH:
-      handle_load_hash(msg->filename(), msg->array_schema());
-      break;
-    default:
-      // TODO send error
-      break;
-  }
-
-  return 0;
-}
-
 /*************** HANDLE SubarrayMsg **********************/
 int WorkerNode::handle(SubarrayMsg* msg) {
   logger_->log(LOG_INFO, "Received subarray \n");
@@ -263,29 +241,30 @@ int WorkerNode::handle(AggregateMsg* msg) {
   return 0;
 }
 
-/*************** HANDLE PARALLEL LOAD ***************/
-int WorkerNode::handle(ParallelLoadMsg* msg) {
-  logger_->log(LOG_INFO, "Received Parallel Load Message");
-  logger_->log(LOG_INFO, "Filename: " + msg->filename());
+
+
+/*************** HANDLE LOAD **********************/
+int WorkerNode::handle(LoadMsg* msg) {
+  logger_->log(LOG_INFO, "Received load");
 
   switch (msg->load_type()) {
-    case ParallelLoadMsg::ORDERED_PARTITION:
-      handle_parallel_load_ordered(msg->filename(), msg->array_schema());
+    case LoadMsg::ORDERED:
+      handle_load_ordered(msg->filename(), msg->array_schema());
       logger_->log(LOG_INFO, "Update Fragment Info");
       executor_->update_fragment_info(msg->array_schema().array_name());
       logger_->log(LOG_INFO, "Finished load");
       break;
-    case ParallelLoadMsg::HASH_PARTITION:
-      handle_parallel_load_hash(msg->filename(), msg->array_schema());
+    case LoadMsg::HASH:
+      handle_load_hash(msg->filename(), msg->array_schema());
       break;
     default:
       // TODO send error
       break;
   }
 
-  // TODO cleanup
   return 0;
 }
+
 
 int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_schema) {
 
@@ -350,6 +329,30 @@ int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema
 
 }
 
+/*************** HANDLE PARALLEL LOAD ***************/
+int WorkerNode::handle(ParallelLoadMsg* msg) {
+  logger_->log(LOG_INFO, "Received Parallel Load Message");
+  logger_->log(LOG_INFO, "Filename: " + msg->filename());
+
+  switch (msg->load_type()) {
+    case ParallelLoadMsg::ORDERED_PARTITION:
+      handle_parallel_load_ordered(msg->filename(), msg->array_schema(), msg->num_samples());
+      logger_->log(LOG_INFO, "Update Fragment Info");
+      executor_->update_fragment_info(msg->array_schema().array_name());
+      logger_->log(LOG_INFO, "Finished load");
+      break;
+    case ParallelLoadMsg::HASH_PARTITION:
+      handle_parallel_load_hash(msg->filename(), msg->array_schema());
+      break;
+    default:
+      // TODO send error
+      break;
+  }
+
+  // TODO cleanup
+  return 0;
+}
+
 inline int get_receiver(std::vector<int64_t> partitions, int64_t cell_id) {
   int recv = 1;
   for (std::vector<int64_t>::iterator it = partitions.begin(); it != partitions.end(); ++it) {
@@ -361,7 +364,7 @@ inline int get_receiver(std::vector<int64_t> partitions, int64_t cell_id) {
   return recv;
 }
 
-int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema) {
+int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema, int num_samples) {
   logger_->log(LOG_INFO, "Handle parallel load ordered");
 
   logger_->log(LOG_INFO, "Injecting cell ids");
@@ -387,9 +390,10 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
     }
   }
 
-  int k = nprocs_; // TODO parameterize
+  //int k = nprocs_; // TODO parameterize, put into message
+  
   // read filename to pick X samples
-  std::vector<int64_t> samples = sample(injected_filepath, k);
+  std::vector<int64_t> samples = sample(injected_filepath, num_samples);
 
   // send samples to coordinator
   SamplesMsg msg(samples);
@@ -426,7 +430,6 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   outfile.close();
 
 
-  // TODO invoke local load
   // sort and make tiles
   std::string sorted_filepath = executor_->loader()->workspace() + "/PORDERED_sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
 

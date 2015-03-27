@@ -376,11 +376,13 @@ ParallelLoadMsg::ParallelLoadMsg() : Msg(PARALLEL_LOAD_TAG) {}
 ParallelLoadMsg::ParallelLoadMsg(
     std::string filename,
     ParallelLoadType load_type,
-    ArraySchema& array_schema) : Msg(PARALLEL_LOAD_TAG) {
+    ArraySchema& array_schema,
+    int num_samples) : Msg(PARALLEL_LOAD_TAG) {
 
   filename_ = filename;
   load_type_ = load_type;
   array_schema_ = array_schema;
+  num_samples_ = num_samples;
 }
 
 std::pair<char*, int> ParallelLoadMsg::serialize() {
@@ -396,6 +398,7 @@ std::pair<char*, int> ParallelLoadMsg::serialize() {
   buffer_size += sizeof(ParallelLoadType); // load type
   buffer_size += sizeof(int); // array schema length
   buffer_size += as_pair.second; // array schema
+  buffer_size += sizeof(int); // num samples
 
   // creating buffer
   buffer = new char[buffer_size];
@@ -416,8 +419,12 @@ std::pair<char*, int> ParallelLoadMsg::serialize() {
   memcpy(&buffer[pos], &length, sizeof(int));
   pos += sizeof(int);
   memcpy(&buffer[pos], as_pair.first, length);
+  pos += length;
 
-  assert(pos + length == buffer_size);
+  // serialize num samples
+  memcpy(&buffer[pos], &num_samples_, sizeof(int)); 
+
+  assert(pos + sizeof(int) == buffer_size);
   return std::pair<char*, int>(buffer, buffer_size);
 }
 
@@ -440,9 +447,12 @@ ParallelLoadMsg* ParallelLoadMsg::deserialize(char* buffer, int buffer_size) {
   pos += sizeof(int);
   ArraySchema* schema = new ArraySchema();
   schema->deserialize(&buffer[pos], length);
+  pos += length;
 
-  assert(pos + length == buffer_size);
-  return new ParallelLoadMsg(filename, load_type, *schema);
+  // num samples
+  int num_samples = (int) buffer[pos];
+  assert(pos + sizeof(int) == buffer_size);
+  return new ParallelLoadMsg(filename, load_type, *schema, num_samples);
 }
 
 

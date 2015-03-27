@@ -63,7 +63,14 @@ class MPIHandler {
      */
     void send_content(const char* in_buf, int length, int receiver, int tag);
 
+    /**
+     * Flush buffer for receiver
+     */
     void flush_send(int receiver, int tag);
+
+    /**
+     * Flush all buffers
+     */
     void flush_all_sends(int tag);
 
     // Blocking

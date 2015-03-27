@@ -143,8 +143,9 @@ namespace {
   TEST_F(MessagesTest, ParallelLoadMsgTest) {
     std::string filename = "test";
     ParallelLoadMsg::ParallelLoadType load_type = ParallelLoadMsg::ORDERED_PARTITION;
+    int num_samples = 3;
 
-    ParallelLoadMsg pmsg = ParallelLoadMsg(filename, load_type, array_schema_);
+    ParallelLoadMsg pmsg = ParallelLoadMsg(filename, load_type, array_schema_, num_samples);
 
     std::pair<char*, int> pserial = pmsg.serialize();
 
@@ -155,6 +156,7 @@ namespace {
     EXPECT_EQ(load_type, new_pmsg->load_type());
     EXPECT_STREQ(array_schema_.to_string().c_str(),
       new_pmsg->array_schema().to_string().c_str());
+    EXPECT_EQ(num_samples, new_pmsg->num_samples());
 
   }
 

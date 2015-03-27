@@ -20,8 +20,7 @@
 #define PARALLEL_LOAD_TAG   11
 #define JOIN_TAG            12
 #define KEEP_RECEIVING_TAG  13
-#define ASYNC_NUM_RECEIVE_TAG   14 // number of asynch requests receiver is expecting
-#define SAMPLES_TAG         15
+#define SAMPLES_TAG         14
 
 class Msg {
 
@@ -215,7 +214,7 @@ class ParallelLoadMsg : public Msg {
 
     // CONSTRUCTORS
     ParallelLoadMsg();
-    ParallelLoadMsg(std::string filename, ParallelLoadType load_type, ArraySchema& array_schema);
+    ParallelLoadMsg(std::string filename, ParallelLoadType load_type, ArraySchema& array_schema, int num_samples = 10);
 
     // DESTRUCTORS
     ~ParallelLoadMsg(){};
@@ -223,7 +222,8 @@ class ParallelLoadMsg : public Msg {
     // ACCESSORS
     std::string filename() { return filename_; }
     ParallelLoadType load_type() { return load_type_; }
-    ArraySchema& array_schema() { return array_schema_;}
+    ArraySchema& array_schema() { return array_schema_; }
+    int num_samples() { return num_samples_; }
 
     // METHODS
     std::pair<char*, int> serialize();
@@ -233,6 +233,7 @@ class ParallelLoadMsg : public Msg {
     std::string filename_;
     ParallelLoadType load_type_;
     ArraySchema array_schema_;
+    int num_samples_; // for ordered parallel load, number of samples to pick from each worker
 };
 
 /******************************************************

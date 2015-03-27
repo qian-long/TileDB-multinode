@@ -43,7 +43,10 @@ class WorkerNode {
     int handle_load_ordered(std::string filename, ArraySchema& array_schema);
     int handle_load_hash(std::string filename, ArraySchema& array_schema);
 
-    int handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema);
+    int handle_parallel_load_ordered(
+        std::string filename, 
+        ArraySchema& array_schema,
+        int num_samples);
     int handle_parallel_load_hash(std::string filename, ArraySchema& array_schema);
     
     void respond_ack(int result, int tag, double time);
