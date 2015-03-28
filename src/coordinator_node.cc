@@ -255,6 +255,7 @@ void CoordinatorNode::handle_ack() {
     int length;
 
     MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    logger_->log(LOG_INFO, "received tag: " + std::to_string(status.MPI_TAG));
     assert((status.MPI_TAG == DONE_TAG) || (status.MPI_TAG == ERROR_TAG));
     MPI_Get_count(&status, MPI_CHAR, &length);
 
@@ -401,9 +402,9 @@ void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
 
   logger_->log(LOG_INFO, "Splitting and sending sorted content to workers, num_lines: " + std::to_string(num_lines));
 
-  int lines_per_worker = num_lines / (nprocs_ - 1);
+  int lines_per_worker = num_lines / nworkers_;
   // if not evenly split
-  int remainder = num_lines % (nprocs_ - 1);
+  int remainder = num_lines % nworkers_;
 
   int pos = 0;
   int total = lines_per_worker;
@@ -423,23 +424,16 @@ void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
 
     logger_->log(LOG_INFO, "Sending sorted file part to nodeid " + std::to_string(nodeid));
     for(; pos < end; ++pos) {
-      if (content.str().length() + line.length() >= MPI_BUFFER_LENGTH) {
-        // send content to nodeid
-        MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, LOAD_TAG, MPI_COMM_WORLD);
 
-        mpi_handler_->send_keep_receiving(true, nodeid);
-        content.str(std::string()); // clear buffer
-
-      }
       // TODO use stavros's csvfile?
       std::getline(sorted_file, line);
-      //std::cout << line;
-      content << line << "\n";
+      line += "\n";
+      mpi_handler_->send_content(line.c_str(), line.size(), nodeid, LOAD_TAG);
     }
 
     // final send
-    MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, nodeid, LOAD_TAG, MPI_COMM_WORLD);
-    mpi_handler_->send_keep_receiving(false, nodeid);
+    mpi_handler_->flush_send(nodeid, LOAD_TAG);
+
     --remainder;
   }
 

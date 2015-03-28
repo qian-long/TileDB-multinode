@@ -61,7 +61,7 @@ class MPIHandler {
     /**
      * Flush buffer for receiver
      */
-    void flush_send(int receiver, int tag);
+    void flush_send(int receiver, int tag, bool keep_receiving = false);
     /**
      * Flush all buffers
      */
