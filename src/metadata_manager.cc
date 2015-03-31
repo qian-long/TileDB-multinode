@@ -1,7 +1,11 @@
 #include <assert.h>
 #include <cstring>
 #include <iostream>
-#include "array_manager.h"
+#include <dirent.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include "metadata_manager.h"
 
 /******************************************************
 ******** METADATA CONSTRUCTORS & DESTRUCTORS **********
@@ -127,21 +131,69 @@ void MetaData::deserialize(char* buffer, int buffer_size) {
 }
 
 /******************************************************
-******* ARRAYMANAGER CONSTRUCTORS & DESTRUCTORS *******
+***** METADATAMANAGER CONSTRUCTORS & DESTRUCTORS ******
 ******************************************************/
-ArrayManager::ArrayManager() {}
+MetaDataManager::MetaDataManager(std::string& workspace) {
+  workspace_ = workspace;
+}
 
-ArrayManager::~ArrayManager() {}
+MetaDataManager::~MetaDataManager() {}
 
 
 /******************************************************
-**************** ARRAYMANAGER METHODS *****************
+************** METADATAMANAGER METHODS ****************
 ******************************************************/
-void ArrayManager::store_metadata(std::string array_name, MetaData& metadata) {
+void MetaDataManager::store_metadata(std::string array_name, MetaData& metadata) {
+  std::string dir_name = workspace_ + "/" + array_name + "/";  
+  int dir_flag = mkdir(dir_name.c_str(), S_IRWXU);
+  assert(dir_flag == 0);
 
+  // Open file
+  std::string filename = dir_name + METADATA_FILENAME;
+  int fd = open(filename.c_str(), O_WRONLY | O_CREAT | O_SYNC, S_IRWXU);
+  assert(fd != -1);
+
+  // Serialize array schema
+  std::pair<char*, int> ret = metadata.serialize();
+  char* buffer = ret.first;
+  int buffer_size = ret.second; 
+
+  // Store the array schema
+  ssize_t r = write(fd, buffer, buffer_size); 
+
+  if (r == -1) {
+    throw MetaDataManagerException("Error writing metadata to disk");
+  }
+
+  delete [] buffer;
+  close(fd);
 }
 
-MetaData* ArrayManager::retrieve_metadata(std::string array_name) {
+// TODO
+MetaData* MetaDataManager::retrieve_metadata(std::string array_name) {
+  // The schema to be returned
+  MetaData* metadata = new MetaData();
+
+  // Open file
+  std::string filename = workspace_ + "/" + array_name + "/" + METADATA_FILENAME;
+  int fd = open(filename.c_str(), O_RDONLY);
+  assert(fd != -1);
+
+  // Initialize buffer
+  struct stat st;
+  fstat(fd, &st);
+  uint64_t buffer_size = st.st_size;
+  char* buffer = new char[buffer_size];
+ 
+  // Load array schema
+  read(fd, buffer, buffer_size);
+  array_schema->deserialize(buffer, buffer_size);
+
+  // Clean up
+  close(fd);
+  delete [] buffer;
+
+  return array_schema;
 
 }
 

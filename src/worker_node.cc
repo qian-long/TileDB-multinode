@@ -104,6 +104,7 @@ void WorkerNode::run() {
     } catch (ExecutorException& ee) {
       logger_->log(LOG_INFO, "ExecutorException: ");
       logger_->log(LOG_INFO, ee.what());
+
       respond_ack(-1, status.MPI_TAG, -1);
     }
 
@@ -349,6 +350,7 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
       break;
   }
 
+  
   // TODO cleanup
   return 0;
 }

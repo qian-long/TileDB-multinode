@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "array_manager.h"
+#include "metadata_manager.h"
 
 namespace {
   class ArrayManagerTest: public ::testing::Test {

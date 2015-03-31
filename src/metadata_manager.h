@@ -42,21 +42,44 @@ class MetaData {
 
 };
 
-class ArrayManager {
+class MetaDataManager {
 
   public:
 
     // CONSTRUCTORS
-    ArrayManager();
+    MetaDataManager(std::string& workspace);
 
     // DESTRUCTOR
-    ~ArrayManager();
+    ~MetaDataManager();
 
     // GETTERS
     // METHODS
     void store_metadata(std::string array_name, MetaData& metadata);
     MetaData* retrieve_metadata(std::string array_name);
 
+  private:
+    std::string workspace_;
 };
+
+/** This exception is thrown by ArrayManager. */
+class MetaDataManagerException {
+ public:
+  // CONSTRUCTORS & DESTRUCTORS
+  /** Takes as input the exception message. */
+  MetaDataManagerException(const std::string& msg) 
+      : msg_(msg) {}
+
+  /** Empty destructor. */
+  ~MetaDataManagerException() {}
+
+  // ACCESSORS
+  /** Returns the exception message. */
+  const std::string& what() const { return msg_; }
+
+ private:
+  /** The exception message. */
+  std::string msg_;
+};
+
 
 #endif
