@@ -30,3 +30,6 @@ myrank
 # data
 gtest/obj/*
 data/example*
+
+# generated
+workspaces/*
