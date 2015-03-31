@@ -148,7 +148,7 @@ void WorkerNode::respond_ack(int result, int tag, double time) {
   ss << " Time[" << time << " secs]";
 
   logger_->log(LOG_INFO, "Sending ack: " + ss.str());
-  MPI_Send(ss.str().c_str(), ss.str().length(), MPI::CHAR, MASTER, tag, MPI_COMM_WORLD);
+  MPI_Send((char *)ss.str().c_str(), ss.str().length(), MPI::CHAR, MASTER, tag, MPI_COMM_WORLD);
 
 }
 

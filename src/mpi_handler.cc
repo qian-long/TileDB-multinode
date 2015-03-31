@@ -47,7 +47,7 @@ void MPIHandler::send_keep_receiving(bool keep_receiving, int receiver) {
   std::stringstream ss;
   bool kr = keep_receiving;
   ss.write((char *) &kr, sizeof(bool));
-  MPI_Send(ss.str().c_str(), ss.str().length(), MPI_CHAR, receiver, KEEP_RECEIVING_TAG, MPI_COMM_WORLD);
+  MPI_Send((char *)ss.str().c_str(), ss.str().length(), MPI_CHAR, receiver, KEEP_RECEIVING_TAG, MPI_COMM_WORLD);
 }
 
 bool MPIHandler::receive_keep_receiving(int sender) {
@@ -57,7 +57,7 @@ bool MPIHandler::receive_keep_receiving(int sender) {
   int length;
 
   // see if we should coninue receiving
-  MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, sender, KEEP_RECEIVING_TAG, MPI_COMM_WORLD, &status);
+  MPI_Recv((char *)buf, MPI_BUFFER_LENGTH, MPI_CHAR, sender, KEEP_RECEIVING_TAG, MPI_COMM_WORLD, &status);
   MPI_Get_count(&status, MPI_CHAR, &length);
 
   keep_receiving = (bool) buf[0];
@@ -105,7 +105,7 @@ void MPIHandler::send_content(const char* in_buf, int length, int receiver, int 
     int pos = 0;
     while (pos < length) {
       int send_length = std::min(MPI_BUFFER_LENGTH, length - pos);
-      MPI_Send(&in_buf[pos], send_length, MPI_CHAR, receiver, tag, MPI_COMM_WORLD);
+      MPI_Send((char *)&in_buf[pos], send_length, MPI_CHAR, receiver, tag, MPI_COMM_WORLD);
 
       this->send_keep_receiving(true, receiver);
       pos += send_length;
@@ -128,7 +128,7 @@ void MPIHandler::flush_send(int receiver, int tag, bool keep_receiving) {
   // TODO handle not found case
   int buf_length = pos_[buf_id];
   if (buf_length > 0) {
-    MPI_Send(buffers_[buf_id], buf_length, MPI_CHAR, receiver, tag, MPI_COMM_WORLD);
+    MPI_Send((char *)buffers_[buf_id], buf_length, MPI_CHAR, receiver, tag, MPI_COMM_WORLD);
     this->send_keep_receiving(keep_receiving, receiver);
 
     // set pos to 0
@@ -237,7 +237,7 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
   // receive content from all nodes
   char recvbuf[recv_total];
 
-  MPI_Alltoallv(ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
+  MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
   file << std::string(recvbuf, recv_total);
 
@@ -281,7 +281,7 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
     char recvbuf[recv_total];
     std::stringstream ss;
 
-    MPI_Alltoallv(ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
+    MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
       if (recv_total > 0 && myrank_ != 0) {
         file << std::string(recvbuf, recv_total);

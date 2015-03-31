@@ -217,7 +217,7 @@ void CoordinatorNode::send_all(std::string serial_str, int tag) {
 void CoordinatorNode::send_all(const char* buffer, int buffer_size, int tag) {
   assert(buffer_size < MPI_BUFFER_LENGTH);
   for (int i = 1; i < nprocs_; i++) {
-    MPI_Send(buffer, buffer_size, MPI::CHAR, i, tag, MPI_COMM_WORLD);
+    MPI_Send((char *)buffer, buffer_size, MPI::CHAR, i, tag, MPI_COMM_WORLD);
   }
 }
 
