@@ -191,6 +191,11 @@ multi-run-local: $(MULTINODE_EXEC)
 	./setup_env.sh
 	mpiexec -f machinefile_local ./$(MULTINODE_EXEC)
 
+multi-run-istc: $(MULTINODE_EXEC)
+	./setup_env.sh
+	mpiexec.mpich2 -f machinefile_local ./$(MULTINODE_EXEC)
+
+
 clean_multinode:
 	rm -f $(MULTINODE_EXEC) $(MULTINODE_OBJ_DIR)/* main.o
 
