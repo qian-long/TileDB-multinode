@@ -290,4 +290,19 @@ class SamplesMsg : public Msg {
   private:
     std::vector<int64_t> samples_;
 };
+
+/******************************************************
+ ****************** MESSAGE EXCEPTION *****************
+ ******************************************************/
+
+class MessageException {
+  public:
+    MessageException(const std::string& msg): msg_(msg) {}
+    ~MessageException() {}
+
+    const std::string& what() const { return msg_; }
+
+  private:
+    std::string msg_;
+};
 #endif

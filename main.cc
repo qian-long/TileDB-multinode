@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <cstdlib>
+#include <stdlib.h>
 #include "debug.h"
 #include "coordinator_node.h"
 #include "worker_node.h"
@@ -116,6 +117,9 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+
+  // seed srand
+  srand(time(NULL));
 
   if (myrank == MASTER) {
     CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs);

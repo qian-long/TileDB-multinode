@@ -91,7 +91,7 @@ void MPIHandler::receive_content(std::ostream& stream, int sender, int tag) {
 // Maintain buffer for each worker, send data to worker only when buffer is full
 void MPIHandler::send_content(const char* in_buf, int length, int receiver, int tag) {
 
-  auto search = node_to_buf_.find(receiver);
+  std::map<int, int>::iterator search = node_to_buf_.find(receiver);
   assert(search != node_to_buf_.end());
   int buf_id = search->second;
   // TODO handle not found case
@@ -121,7 +121,7 @@ void MPIHandler::send_content(const char* in_buf, int length, int receiver, int 
 }
 
 void MPIHandler::flush_send(int receiver, int tag, bool keep_receiving) {
-  auto search = node_to_buf_.find(receiver);
+  std::map<int, int>::iterator search = node_to_buf_.find(receiver);
   assert(search != node_to_buf_.end());
   int buf_id = search->second;
 
@@ -162,7 +162,7 @@ SamplesMsg* MPIHandler::receive_samples_msg(int sender) {
  ************* ALL TO ALL COMM FUNCTIONS **************
  ******************************************************/
 void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ostream& file) {
-  auto search = node_to_buf_.find(receiver);
+  std::map<int, int>::iterator search = node_to_buf_.find(receiver);
   assert(search != node_to_buf_.end());
   int buf_ind = search->second;
   int buf_length = pos_[buf_ind];
@@ -204,7 +204,7 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
   send_total = scounts[0];
   
   for (int nodeid = 1; nodeid < nprocs; ++nodeid) {
-    auto search = node_to_buf_.find(nodeid);
+    std::map<int, int>::iterator search = node_to_buf_.find(nodeid);
   
     int buf_ind;
     if (search == node_to_buf_.end()) {

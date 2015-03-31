@@ -1,10 +1,8 @@
-#include <random>
 #include <ostream>
 #include <iostream>
 #include <istream>
 #include <fstream>
 #include <cstring>
-#include <stdexcept>      // std::invalid_argument
 #include <sys/time.h>
 #include <fcntl.h> // O_RDONLY
 #include <mpi.h>
@@ -13,6 +11,7 @@
 #include "worker_node.h"
 #include "debug.h"
 #include "csv_file.h"
+#include "hash_functions.h"
 
 WorkerNode::WorkerNode(int rank, int nprocs) {
   myrank_ = rank;
@@ -217,6 +216,7 @@ int WorkerNode::handle(FilterMsg* msg) {
 
 /*************** HANDLE AggregateMsg **********************/
 int WorkerNode::handle(AggregateMsg* msg) {
+  /*
   logger_->log(LOG_INFO, "Received aggregate");
   logger_->log(LOG_INFO, "arrayname: " + msg->array_name());
   std::string global_schema_name = msg->array_name();
@@ -239,6 +239,7 @@ int WorkerNode::handle(AggregateMsg* msg) {
   content.write((char *) &max, sizeof(int));
   MPI_Send(content.str().c_str(), content.str().length(), MPI::CHAR, MASTER, AGGREGATE_TAG, MPI_COMM_WORLD);
 
+  */
   return 0;
 }
 
@@ -276,7 +277,7 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
 
   std::string sorted_filepath = executor_->loader()->workspace() + "/sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
 
-  sorted_file.open(sorted_filepath);
+  sorted_file.open(sorted_filepath.c_str());
 
   logger_->log(LOG_INFO, "Receiving sorted file from master");
   mpi_handler_->receive_content(sorted_file, MASTER, LOAD_TAG);
@@ -316,7 +317,7 @@ int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema
 
   logger_->log(LOG_INFO, "Receiving hash partitioned data from master, writing to filepath " + filepath);
 
-  output.open(filepath);
+  output.open(filepath.c_str());
   // Blocking
   mpi_handler_->receive_content(output, MASTER, LOAD_TAG);
   output.close();
@@ -396,7 +397,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   logger_->log(LOG_INFO, "Starting n to n data shuffle based on partition");
   std::string outpath = my_workspace_ + "/data/PORDERED_" + filename;
   std::ofstream outfile;
-  outfile.open(outpath);
+  outfile.open(outpath.c_str());
   CSVFile csv_in(injected_filepath, CSVFile::READ);
   CSVLine csv_line;
   while (csv_in >> csv_line) {
@@ -460,12 +461,11 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
   std::string outpath = my_workspace_ + "/data/PHASH_" + filename;
 
   std::ofstream outfile;
-  outfile.open(outpath);
+  outfile.open(outpath.c_str());
 
   // scan csv file, compute hash, asynchronous send to receivers
   CSVFile csv_in(filepath, CSVFile::READ);
   CSVLine csv_line;
-  std::hash<std::string> hash_fn;
 
   int nworkers = nprocs_ - 1;
   std::map<int, std::string> chunk_map;
@@ -478,7 +478,7 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
       coord_id += ",";
       coord_id += csv_line.values()[i];
     }
-    std::size_t cell_id_hash = hash_fn(coord_id);
+    std::size_t cell_id_hash = DEKHash(coord_id);
     int receiver = (cell_id_hash % nworkers) + 1;
     std::string csv_line_str = csv_line.str() + "\n";
 
@@ -532,12 +532,15 @@ inline std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
     } else {
 
       // replace elements with gradually decreasing probability
+      /*
       std::default_random_engine generator;
       generator.seed(myrank_);
       std::uniform_int_distribution<int> distribution(0, counter); // TODO check this
       int rand = distribution(generator);
-      if (rand < k) {
-        results[rand] = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
+      */
+      int r = rand() % counter + 1; // 0 to counter inclusive
+      if (r < k) {
+        results[r] = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
       }
 
     }
@@ -579,5 +582,5 @@ int WorkerNode::handle_msg(int type, Msg* msg){
     case PARALLEL_LOAD_TAG:
       return handle((ParallelLoadMsg*) msg);
   }
-  throw std::invalid_argument("trying to deserailze msg of unknown type");
+  throw MessageException("trying to deserailze msg of unknown type");
 }

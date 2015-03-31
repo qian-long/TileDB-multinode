@@ -187,13 +187,13 @@ MetaData* MetaDataManager::retrieve_metadata(std::string array_name) {
  
   // Load array schema
   read(fd, buffer, buffer_size);
-  array_schema->deserialize(buffer, buffer_size);
+  metadata->deserialize(buffer, buffer_size);
 
   // Clean up
   close(fd);
   delete [] buffer;
 
-  return array_schema;
+  return metadata;
 
 }
 

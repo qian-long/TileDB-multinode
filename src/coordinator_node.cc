@@ -13,6 +13,7 @@
 #include "coordinator_node.h"
 #include "csv_file.h"
 #include "debug.h"
+#include "hash_functions.h"
 
 CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   myrank_ = rank;
@@ -255,11 +256,15 @@ void CoordinatorNode::handle_ack() {
     int length;
 
     MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    logger_->log(LOG_INFO, "received tag: " + std::to_string(status.MPI_TAG));
+    std::stringstream ss;
+    ss << "received tag: " << status.MPI_TAG;
+    logger_->log(LOG_INFO, ss.str());
+    ss.str(std::string());
     assert((status.MPI_TAG == DONE_TAG) || (status.MPI_TAG == ERROR_TAG));
     MPI_Get_count(&status, MPI_CHAR, &length);
 
-    logger_->log(LOG_INFO, "Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
+    ss << "Received ack " + std::string(buf, length) + " from worker: " << nodeid;
+    logger_->log(LOG_INFO, ss.str());
 
   }
 
@@ -282,14 +287,18 @@ void CoordinatorNode::handle_load(LoadMsg& lmsg) {
 void CoordinatorNode::handle_get(GetMsg& gmsg) {
   std::string outpath = my_workspace_ + "/GET_" + gmsg.array_name() + ".csv";
   std::ofstream outfile;
-  outfile.open(outpath);
+  outfile.open(outpath.c_str());
   bool keep_receiving = true;
+  std::stringstream ss;
   for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
     // error handling if file is not found on sender
     keep_receiving = mpi_handler_->receive_keep_receiving(nodeid);
-    logger_->log(LOG_INFO, "Sender: " + std::to_string(nodeid) + " Keep receiving: " + std::to_string(keep_receiving));
+    ss << "Sender: " << nodeid << " Keep receiving: " << keep_receiving;
+    logger_->log(LOG_INFO, ss.str());
     if (keep_receiving == true) {
-      logger_->log(LOG_INFO, "Waiting for sender " + std::to_string(nodeid));
+      ss.str(std::string());
+      ss << "Waiting for sender " << nodeid;
+      logger_->log(LOG_INFO, ss.str());
       mpi_handler_->receive_content(outfile, nodeid, GET_TAG);
     }
   }
@@ -297,8 +306,10 @@ void CoordinatorNode::handle_get(GetMsg& gmsg) {
 }
 
 // TODO other types
+
 void CoordinatorNode::handle_aggregate() {
 
+  /*
   int aggregate_max = -10000000;
   int worker_max = -10000000;
   for (int i = 0; i < nworkers_; i++) {
@@ -337,6 +348,7 @@ void CoordinatorNode::handle_aggregate() {
   ss << "Max: " << aggregate_max;
   logger_->log(LOG_INFO, ss.str());
   std::cout << ss.str() << "\n";
+  */
 }
 
 void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
@@ -395,12 +407,15 @@ void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
   // send partitions back to worker nodes
   logger_->log(LOG_INFO, "Counting num_lines");
   std::ifstream sorted_file;
-  sorted_file.open(sorted_filepath);
+  sorted_file.open(sorted_filepath.c_str());
   // using cpp count algo function
   int num_lines = std::count(std::istreambuf_iterator<char>(sorted_file), 
                              std::istreambuf_iterator<char>(), '\n');
 
-  logger_->log(LOG_INFO, "Splitting and sending sorted content to workers, num_lines: " + std::to_string(num_lines));
+
+  ss.str(std::string());
+  ss << "Splitting and sending sorted content to workers, num_lines: " << num_lines;
+  logger_->log(LOG_INFO, ss.str());
 
   int lines_per_worker = num_lines / nworkers_;
   // if not evenly split
@@ -422,7 +437,9 @@ void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
       end++;
     }
 
-    logger_->log(LOG_INFO, "Sending sorted file part to nodeid " + std::to_string(nodeid));
+    ss.str(std::string());
+    ss << "Sending sorted file part to nodeid " << nodeid;
+    logger_->log(LOG_INFO, ss.str());
     for(; pos < end; ++pos) {
 
       // TODO use stavros's csvfile?
@@ -453,15 +470,14 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
   // scan input file, compute hash on cell coords, send to worker
   CSVFile csv_in(filepath, CSVFile::READ);
   CSVLine csv_line;
-  std::hash<std::string> hash_fn;
   while (csv_in >> csv_line) {
-    // TODO look into other hash fns, using default for strings right now
+    // TODO look into other hash fns, see hash_functions.h for borrowed ones
     std::string coord_id = csv_line.values()[0];
     for (int i = 1; i < array_schema.dim_num(); ++i) {
       coord_id += ",";
       coord_id += csv_line.values()[i];
     }
-    std::size_t cell_id_hash = hash_fn(coord_id);
+    std::size_t cell_id_hash = DEKHash(coord_id);
     int receiver = (cell_id_hash % nworkers_) + 1;
     std::string csv_line_str = csv_line.str() + "\n";
     mpi_handler_->send_content(csv_line_str.c_str(), csv_line_str.length(), receiver, LOAD_TAG);
@@ -486,7 +502,8 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
   std::stringstream ss;
   for (int worker = 1; worker <= nworkers_; ++worker) {
 
-    logger_->log(LOG_INFO, "Waiting for samples from worker " + std::to_string(worker));
+    ss << "Waiting for samples from worker " << worker;
+    logger_->log(LOG_INFO, ss.str());
 
     SamplesMsg* smsg = mpi_handler_->receive_samples_msg(worker);
     
@@ -521,12 +538,14 @@ void CoordinatorNode::quit_all() {
  **************** HELPER FUNCTIONS ********************
  ******************************************************/
 std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> samples, int k) {
-  std::default_random_engine generator;
-  std::uniform_int_distribution<int64_t> distribution(0, samples.size()-1);
-  auto dice = std::bind(distribution, generator);
+  //std::default_random_engine generator;
+  //std::uniform_int_distribution<int64_t> distribution(0, samples.size()-1);
+  //auto dice = std::bind(distribution, generator);
+  int r;
   std::vector<int64_t> partitions;
   for (int i = 0; i < k; ++i) {
-    partitions.push_back(samples[dice()]);
+    r = rand() % samples.size();
+    partitions.push_back(samples[r]);
   }
   std::sort(partitions.begin(), partitions.end());
   return partitions;

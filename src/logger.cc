@@ -20,7 +20,7 @@ std::string Logger::get_logfile() {
 void Logger::log(std::string log_info, std::string message) {
   std::string cur_time = current_timestring();
   std::ofstream myfile;
-  myfile.open (logfile_, std::ios::out | std::ios::app);
+  myfile.open(logfile_.c_str(), std::ios::out | std::ios::app);
 
   myfile << "[" << cur_time << "] " << log_info << ": " << message << "\n";
   myfile.close();  

@@ -3,13 +3,12 @@
 #include <cstring>
 #include "debug.h"
 #include <functional>
-#include <stdexcept>      // std::invalid_argument
 
 /******************************************************
  *********************** MESSAGE **********************
  ******************************************************/
 std::pair<char*, int> Msg::serialize() {
-  throw std::bad_function_call();
+  throw MessageException("Bad function call");
 }
 
 Msg* deserialize_msg(int type, char* buf, int length){
@@ -31,7 +30,7 @@ Msg* deserialize_msg(int type, char* buf, int length){
     case JOIN_TAG:
       return JoinMsg::deserialize(buf, length);
   }
-  throw std::invalid_argument("trying to deserailze msg of unknown type");
+  throw MessageException("trying to deserailze msg of unknown type");
 }
 
 /******************************************************

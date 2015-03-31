@@ -4,7 +4,7 @@
 
 # --- Compiler --- #
 #CXX = g++
-CXX = mpic++ -std=c++11
+CXX = mpic++
 DFLAGS = -DDEBUG
 
 # --- Directories --- #
@@ -162,7 +162,7 @@ doxyfile.inc: $(CORE_INCLUDE)
 # Multinode TileDB #
 ####################
 # prints out debug messages
-multi-debug: CXX = mpic++ -std=c++11
+multi-debug: CXX = mpic++
 multi-debug: CXX += -DDEBUG -g
 multi-debug: multi
 
