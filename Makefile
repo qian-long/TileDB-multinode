@@ -197,7 +197,7 @@ multi-run-istc: $(MULTINODE_EXEC)
 
 multi-run-istc-prod: $(MULTINODE_EXEC)
 	./setup_env.sh
-	mpiexec.mpich2 -f machinefile_istc ./$(MULTINODE_EXEC)
+	mpirun.mpich2 -f machinefile_istc ./$(MULTINODE_EXEC)
 
 
 clean_multinode:
