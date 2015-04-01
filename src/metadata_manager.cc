@@ -135,6 +135,8 @@ void MetaData::deserialize(char* buffer, int buffer_size) {
 ******************************************************/
 MetaDataManager::MetaDataManager(std::string& workspace) {
   workspace_ = workspace;
+  set_workspace(workspace);
+  create_workspace();
 }
 
 MetaDataManager::~MetaDataManager() {}
@@ -197,3 +199,20 @@ MetaData* MetaDataManager::retrieve_metadata(std::string array_name) {
 
 }
 
+void MetaDataManager::set_workspace(std::string path) {
+  workspace_ = path;
+  workspace_ += "/MetaData";
+}
+
+void MetaDataManager::create_workspace() {
+  struct stat st;
+  bool workspace_exists = 
+      stat(workspace_.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
+
+  // If the workspace does not exist, create it
+  if(!workspace_exists) { 
+    int dir_flag = mkdir(workspace_.c_str(), S_IRWXU);
+    assert(dir_flag == 0);
+  }
+
+}

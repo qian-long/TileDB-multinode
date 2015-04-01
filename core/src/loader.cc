@@ -152,10 +152,11 @@ bool Loader::check_on_load(const std::string& filename) const {
 
 void Loader::create_workspace() const {
   struct stat st;
-  stat(workspace_.c_str(), &st);
+  bool workspace_exists = 
+      stat(workspace_.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
 
   // If the workspace does not exist, create it
-  if(!S_ISDIR(st.st_mode)) { 
+  if(!workspace_exists) { 
     int dir_flag = mkdir(workspace_.c_str(), S_IRWXU);
     assert(dir_flag == 0);
   }

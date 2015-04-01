@@ -10,6 +10,7 @@
 
 
 #define METADATA_FILENAME "metadata.bkp"
+#define METADATA_DIR "MetaData"
 
 class MetaData {
 
@@ -53,12 +54,19 @@ class MetaDataManager {
     ~MetaDataManager();
 
     // GETTERS
+    std::string workspace() { return workspace_; }
+
     // METHODS
     void store_metadata(std::string array_name, MetaData& metadata);
     MetaData* retrieve_metadata(std::string array_name);
 
   private:
     std::string workspace_;
+
+    // Private methods
+    void set_workspace(std::string path);
+    void create_workspace();
+
 };
 
 /** This exception is thrown by ArrayManager. */
