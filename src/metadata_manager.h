@@ -6,7 +6,8 @@
 #ifndef ARRAYMANAGER_H
 #define ARRAYMANAGER_H
 #include <string>
-#include "messages.h"
+#include <vector>
+#include "constants.h"
 
 
 #define METADATA_FILENAME "metadata.bkp"
@@ -18,8 +19,8 @@ class MetaData {
 
     // CONSTRUCTORS
     MetaData();
-    MetaData(ParallelLoadMsg::ParallelLoadType partition_type);
-    MetaData(ParallelLoadMsg::ParallelLoadType partition_type,
+    MetaData(PartitionType partition_type);
+    MetaData(PartitionType partition_type,
         std::pair<int64_t, int64_t> my_range,
         std::vector<int64_t> all_ranges);
 
@@ -27,17 +28,17 @@ class MetaData {
     ~MetaData();
 
     // GETTERS
-    ParallelLoadMsg::ParallelLoadType partition_type() { return type_; }
+    PartitionType partition_type() { return type_; }
     std::pair<int64_t, int64_t> my_range() { return my_range_; }
     std::vector<int64_t> all_ranges() { return all_ranges_; }
+
 
     // METHODS
     std::pair<char*, int> serialize();
     void deserialize(char* buffer, int buffer_size);
 
   private:
-    ParallelLoadMsg::ParallelLoadType type_; // data is either ordered or hash partitioned across nodes
-
+    PartitionType type_; // data is either ordered or hash partitioned across nodes
     std::pair<int64_t, int64_t> my_range_;
     std::vector<int64_t> all_ranges_;
 

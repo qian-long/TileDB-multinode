@@ -14,6 +14,7 @@
 #include "csv_file.h"
 #include "debug.h"
 #include "hash_functions.h"
+#include "constants.h"
 
 CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   myrank_ = rank;
@@ -86,22 +87,22 @@ void CoordinatorNode::run() {
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
-  /*
   DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
-  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::HASH_PARTITION, array_schema);
+  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, HASH_PARTITION, array_schema);
   send_and_receive(pmsg2);
-  */
 
+  /*
   DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
+  */
 
 
+  /*
   DEBUG_MSG("sending subarray");
   std::vector<double> vec;
   vec.push_back(0); vec.push_back(500000);
   vec.push_back(0); vec.push_back(500000);
-
   SubarrayMsg sbmsg("subarray", array_schema, vec);
   send_and_receive(sbmsg);
   DEBUG_MSG("done sending subarray messages");
@@ -123,6 +124,7 @@ void CoordinatorNode::run() {
   DEBUG_MSG("Sending GET " + farray_name + " to all workers");
   GetMsg gmsg2(farray_name);
   send_and_receive(gmsg2);
+  */
 
 
   /*
@@ -271,11 +273,11 @@ void CoordinatorNode::handle_ack() {
 }
 
 void CoordinatorNode::handle_load(LoadMsg& lmsg) {
-  switch (lmsg.load_type()) {
-    case LoadMsg::ORDERED:
+  switch (lmsg.partition_type()) {
+    case ORDERED_PARTITION:
       handle_load_ordered(lmsg);
       break;
-    case LoadMsg::HASH:
+    case HASH_PARTITION:
       handle_load_hash(lmsg);
       break;
     default:
@@ -354,11 +356,11 @@ void CoordinatorNode::handle_aggregate() {
 void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   logger_->log(LOG_INFO, "In handle_parallel_load");
 
-  switch (pmsg.load_type()) {
-    case ParallelLoadMsg::ORDERED_PARTITION:
+  switch (pmsg.partition_type()) {
+    case ORDERED_PARTITION:
       handle_parallel_load_ordered(pmsg);
       break;
-    case ParallelLoadMsg::HASH_PARTITION:
+    case HASH_PARTITION:
       handle_parallel_load_hash(pmsg);
       break;
     default:
@@ -560,7 +562,7 @@ void CoordinatorNode::test_load(std::string array_name) {
   logger_->log(LOG_INFO, "loading array " + array_name);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
   ArraySchema::Order order = ArraySchema::ROW_MAJOR;
-  LoadMsg lmsg = LoadMsg(array_name, *array_schema, LoadMsg::ORDERED);
+  LoadMsg lmsg = LoadMsg(array_name, *array_schema, ORDERED_PARTITION);
 
   send_and_receive(lmsg);
 

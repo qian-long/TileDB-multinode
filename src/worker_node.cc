@@ -22,6 +22,7 @@ WorkerNode::WorkerNode(int rank, int nprocs) {
   my_workspace_ = workspace.str();
   executor_ = new Executor(my_workspace_);
   logger_ = new Logger(my_workspace_ + "/logfile");
+  md_manager_ = new MetaDataManager(my_workspace_);
 
 
   std::vector<int> other_nodes; // everyone except self
@@ -246,17 +247,18 @@ int WorkerNode::handle(AggregateMsg* msg) {
 
 
 /*************** HANDLE LOAD **********************/
+// TODO add storing metadata
 int WorkerNode::handle(LoadMsg* msg) {
   logger_->log(LOG_INFO, "Received load");
 
-  switch (msg->load_type()) {
-    case LoadMsg::ORDERED:
+  switch (msg->partition_type()) {
+    case ORDERED_PARTITION:
       handle_load_ordered(msg->filename(), msg->array_schema());
       logger_->log(LOG_INFO, "Update Fragment Info");
       executor_->update_fragment_info(msg->array_schema().array_name());
       logger_->log(LOG_INFO, "Finished load");
       break;
-    case LoadMsg::HASH:
+    case HASH_PARTITION:
       handle_load_hash(msg->filename(), msg->array_schema());
       break;
     default:
@@ -268,6 +270,7 @@ int WorkerNode::handle(LoadMsg* msg) {
 }
 
 
+// TODO set metadata
 int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_schema) {
 
   logger_->log(LOG_INFO, "In Handle Load Sort");
@@ -336,26 +339,32 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   logger_->log(LOG_INFO, "Received Parallel Load Message");
   logger_->log(LOG_INFO, "Filename: " + msg->filename());
 
-  switch (msg->load_type()) {
-    case ParallelLoadMsg::ORDERED_PARTITION:
+  MetaData metadata;
+  switch (msg->partition_type()) {
+    case ORDERED_PARTITION:
       handle_parallel_load_ordered(msg->filename(), msg->array_schema(), msg->num_samples());
       logger_->log(LOG_INFO, "Update Fragment Info");
       executor_->update_fragment_info(msg->array_schema().array_name());
       logger_->log(LOG_INFO, "Finished load");
       break;
-    case ParallelLoadMsg::HASH_PARTITION:
+    case HASH_PARTITION:
       handle_parallel_load_hash(msg->filename(), msg->array_schema());
+      logger_->log(LOG_INFO, "Finished load, creating metadata");
+      metadata = MetaData(HASH_PARTITION);
+      logger_->log(LOG_INFO, "Writing metadata to disk");
+      md_manager_->store_metadata(msg->array_schema().array_name(), metadata);
       break;
     default:
       // TODO send error
       break;
   }
+ 
 
-  
   // TODO cleanup
   return 0;
 }
 
+// TODO set metadata
 int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema, int num_samples) {
   logger_->log(LOG_INFO, "Handle parallel load ordered");
 
@@ -449,6 +458,13 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
 
   logger_->log(LOG_INFO, "Finished make tiles");
   executor_->storage_manager()->close_fragment(fd);
+
+  // set metadata
+  logger_->log(LOG_INFO, "Storing metadata");
+  MetaData metadata(ORDERED_PARTITION,
+      std::pair<int64_t, int64_t>(partitions[myrank_-1], partitions[myrank_]),
+      partitions);
+  md_manager_->store_metadata(array_schema.array_name(), metadata);
 
   // TODO cleanup
   delete smsg;
