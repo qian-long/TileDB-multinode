@@ -12,6 +12,7 @@
 #include <map>
 #include <mpi.h>
 #include "messages.h"
+#include "logger.h"
 
 class MPIHandler {
 
@@ -29,7 +30,9 @@ class MPIHandler {
 
     // METHODS
 
-    /************* POINT TO POINT COMM FUNCTIONS **************/
+    /******************************************************
+     *********** POINT TO POINT COMM FUNCTIONS ************
+     ******************************************************/
     /**
      * Sends entire file via mpi to receiving node
      * File is expected to exist
@@ -72,7 +75,9 @@ class MPIHandler {
     // Blocking
     SamplesMsg* receive_samples_msg(int sender);
 
-    /************* ALL TO ALL COMM FUNCTIONS **************/
+    /******************************************************
+     ************* ALL TO ALL COMM FUNCTIONS **************
+     ******************************************************/
     /** These are all wrappers for MPI's MPI_Alltoall function */
 
     /**
@@ -98,6 +103,12 @@ class MPIHandler {
     void finish_recv_a2a(std::ostream& file);
     void finish_recv_a2a();
 
+    // HELPER METHODS
+    /** Check if buffer for nodeid is empty */
+    bool buffer_empty(int nodeid);
+
+    /** Check if all buffers are empty */
+    bool all_buffers_empty();
   private:
 
     std::vector<int> node_ids_;

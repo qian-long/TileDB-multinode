@@ -16,6 +16,7 @@
 #include "messages.h"
 #include "logger.h"
 #include "mpi_handler.h"
+#include "metadata_manager.h"
 
 class WorkerNode {
   public:
@@ -74,6 +75,7 @@ class WorkerNode {
     Executor* executor_;
     Logger* logger_;
     MPIHandler* mpi_handler_;
+    MetaDataManager* md_manager_;
 
     // CATALOGUE of all the arrays in the system
     // map of global array name to local array name

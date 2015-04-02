@@ -14,6 +14,7 @@
 #include "csv_file.h"
 #include "debug.h"
 #include "hash_functions.h"
+#include "constants.h"
 
 CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   myrank_ = rank;
@@ -88,20 +89,20 @@ void CoordinatorNode::run() {
 
   /*
   DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
-  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::HASH_PARTITION, array_schema);
+  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, HASH_PARTITION, array_schema);
   send_and_receive(pmsg2);
   */
 
   DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
-  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::ORDERED_PARTITION, array_schema);
+  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
 
 
+  /*
   DEBUG_MSG("sending subarray");
   std::vector<double> vec;
   vec.push_back(0); vec.push_back(500000);
   vec.push_back(0); vec.push_back(500000);
-
   SubarrayMsg sbmsg("subarray", array_schema, vec);
   send_and_receive(sbmsg);
   DEBUG_MSG("done sending subarray messages");
@@ -111,8 +112,10 @@ void CoordinatorNode::run() {
   DEBUG_MSG("Sending GET " + sarray_name + " to all workers");
   GetMsg gmsg1(sarray_name);
   send_and_receive(gmsg1);
+  */
 
 
+  /*
   DEBUG_MSG("sending filter instruction to all workers");
   std::string expr = "attr1"; // expression hard coded in executor.cc
   std::string result = "filter";
@@ -123,6 +126,7 @@ void CoordinatorNode::run() {
   DEBUG_MSG("Sending GET " + farray_name + " to all workers");
   GetMsg gmsg2(farray_name);
   send_and_receive(gmsg2);
+  */
 
 
   /*
@@ -271,11 +275,11 @@ void CoordinatorNode::handle_ack() {
 }
 
 void CoordinatorNode::handle_load(LoadMsg& lmsg) {
-  switch (lmsg.load_type()) {
-    case LoadMsg::ORDERED:
+  switch (lmsg.partition_type()) {
+    case ORDERED_PARTITION:
       handle_load_ordered(lmsg);
       break;
-    case LoadMsg::HASH:
+    case HASH_PARTITION:
       handle_load_hash(lmsg);
       break;
     default:
@@ -354,11 +358,11 @@ void CoordinatorNode::handle_aggregate() {
 void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   logger_->log(LOG_INFO, "In handle_parallel_load");
 
-  switch (pmsg.load_type()) {
-    case ParallelLoadMsg::ORDERED_PARTITION:
+  switch (pmsg.partition_type()) {
+    case ORDERED_PARTITION:
       handle_parallel_load_ordered(pmsg);
       break;
-    case ParallelLoadMsg::HASH_PARTITION:
+    case HASH_PARTITION:
       handle_parallel_load_hash(pmsg);
       break;
     default:
@@ -506,7 +510,7 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
     logger_->log(LOG_INFO, ss.str());
 
     SamplesMsg* smsg = mpi_handler_->receive_samples_msg(worker);
-    
+
     for (int i = 0; i < smsg->samples().size(); ++i) {
       samples.push_back(smsg->samples()[i]);
     }
@@ -516,9 +520,16 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
   // pick nworkers - 1 samples for the n - 1 "stumps"
   logger_->log(LOG_INFO, "Getting partitions");
   std::vector<int64_t> partitions = get_partitions(samples, nworkers_ - 1);
- 
+
   logger_->log(LOG_INFO, "sending partitions back to all workers");
   // send partition infor back to all workers
+  ss.str(std::string());
+  ss << "[" << partitions[0];
+  for (int i = 1; i < partitions.size(); ++i) {
+    ss << ", " << partitions[i];
+  }
+  ss << "]\n";
+  logger_->log(LOG_INFO, "Partitions: " + ss.str());
   SamplesMsg msg(partitions);
   for (int worker = 1; worker <= nworkers_ ; worker++) {
     mpi_handler_->send_samples_msg(&msg, worker);
@@ -560,7 +571,7 @@ void CoordinatorNode::test_load(std::string array_name) {
   logger_->log(LOG_INFO, "loading array " + array_name);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
   ArraySchema::Order order = ArraySchema::ROW_MAJOR;
-  LoadMsg lmsg = LoadMsg(array_name, *array_schema, LoadMsg::ORDERED);
+  LoadMsg lmsg = LoadMsg(array_name, *array_schema, ORDERED_PARTITION);
 
   send_and_receive(lmsg);
 

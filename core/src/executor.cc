@@ -597,10 +597,11 @@ void Executor::update(const std::string& filename,
 
 void Executor::create_workspace() const {
   struct stat st;
-  stat(workspace_.c_str(), &st);
+  bool workspace_exists = 
+      stat(workspace_.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
 
   // If the workspace does not exist, create it
-  if(!S_ISDIR(st.st_mode)) { 
+  if(!workspace_exists) { 
     int dir_flag = mkdir(workspace_.c_str(), S_IRWXU);
     assert(dir_flag == 0);
   }

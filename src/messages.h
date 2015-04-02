@@ -5,6 +5,7 @@
 #include "array_schema.h"
 #include "loader.h"
 #include "predicate.h"
+#include "constants.h"
 
 #define QUIT_TAG            0
 #define DEF_TAG             1
@@ -71,12 +72,9 @@ class SubarrayMsg : public Msg {
 class LoadMsg : public Msg {
 
   public:
-    // type of data partition
-    enum LoadType {ORDERED, HASH};
-
     // CONSTRUCTORS
     LoadMsg();
-    LoadMsg(const std::string filename, ArraySchema& array_schema, LoadType load_type);
+    LoadMsg(const std::string filename, ArraySchema& array_schema, PartitionType type);
 
     // DESTRUCTORS
     ~LoadMsg(){};
@@ -84,7 +82,7 @@ class LoadMsg : public Msg {
     // ACCESSORS
     std::string filename() { return filename_; }
     ArraySchema& array_schema() { return array_schema_; }
-    LoadType load_type() { return load_type_; }
+    PartitionType partition_type() { return type_; }
 
 
     // METHODS
@@ -94,7 +92,7 @@ class LoadMsg : public Msg {
   private:
     std::string filename_;
     ArraySchema array_schema_;
-    LoadType load_type_;
+    PartitionType type_;
 };
 
 
@@ -208,19 +206,17 @@ class AggregateMsg : public Msg {
 
 class ParallelLoadMsg : public Msg {
   public:
-    // which load algo to use
-    enum ParallelLoadType {ORDERED_PARTITION, HASH_PARTITION, MERGE_SORT, SAMPLING};
 
     // CONSTRUCTORS
     ParallelLoadMsg();
-    ParallelLoadMsg(std::string filename, ParallelLoadType load_type, ArraySchema& array_schema, int num_samples = 10);
+    ParallelLoadMsg(std::string filename, PartitionType type, ArraySchema& array_schema, int num_samples = 10);
 
     // DESTRUCTORS
     ~ParallelLoadMsg(){};
 
     // ACCESSORS
     std::string filename() { return filename_; }
-    ParallelLoadType load_type() { return load_type_; }
+    PartitionType partition_type() { return type_; }
     ArraySchema& array_schema() { return array_schema_; }
     int num_samples() { return num_samples_; }
 
@@ -230,7 +226,7 @@ class ParallelLoadMsg : public Msg {
 
   private:
     std::string filename_;
-    ParallelLoadType load_type_;
+    PartitionType type_;
     ArraySchema array_schema_;
     int num_samples_; // for ordered parallel load, number of samples to pick from each worker
 };

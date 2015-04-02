@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdint.h> 
 #include "metadata_manager.h"
 
 /******************************************************
@@ -15,11 +16,11 @@ MetaData::MetaData() {
 
 }
 
-MetaData::MetaData(ParallelLoadMsg::ParallelLoadType partition_type) {
+MetaData::MetaData(PartitionType partition_type) {
   type_ = partition_type;
 }
 
-MetaData::MetaData(ParallelLoadMsg::ParallelLoadType partition_type,
+MetaData::MetaData(PartitionType partition_type,
   std::pair<int64_t, int64_t> my_range,
   std::vector<int64_t> all_ranges) {
 
@@ -36,15 +37,15 @@ MetaData::~MetaData() {
 ****************** METADATA METHODS *******************
 ******************************************************/
 std::pair<char*, int> MetaData::serialize() {
-  assert(type_ == ParallelLoadMsg::ORDERED_PARTITION || type_ == ParallelLoadMsg::HASH_PARTITION);
+  assert(type_ == ORDERED_PARTITION || type_ == HASH_PARTITION);
 
 
   int buffer_size = 0, pos = 0;
   char* buffer;
 
-  if (type_ == ParallelLoadMsg::ORDERED_PARTITION) {
+  if (type_ == ORDERED_PARTITION) {
     // calculate buffer size
-    buffer_size += sizeof(ParallelLoadMsg::ParallelLoadType); // partition type
+    buffer_size += sizeof(PartitionType); // partition type
     buffer_size += 2 * sizeof(int64_t); // my_range low and high
     buffer_size += sizeof(int); // length of all_ranges
     buffer_size += all_ranges_.size() * sizeof(int64_t); // all_ranges contents
@@ -53,8 +54,8 @@ std::pair<char*, int> MetaData::serialize() {
     buffer = new char[buffer_size];
     
     // serialize partition type
-    memcpy(&buffer[pos], &type_, sizeof(ParallelLoadMsg::ParallelLoadType)); 
-    pos += sizeof(ParallelLoadMsg::ParallelLoadType);
+    memcpy(&buffer[pos], &type_, sizeof(PartitionType)); 
+    pos += sizeof(PartitionType);
 
     // serialize my range
     memcpy(&buffer[pos], &my_range_.first, sizeof(int64_t)); 
@@ -77,18 +78,18 @@ std::pair<char*, int> MetaData::serialize() {
 
     return std::pair<char*, int>(buffer, buffer_size);
 
-  } else if (type_ == ParallelLoadMsg::HASH_PARTITION) {
+  } else if (type_ == HASH_PARTITION) {
 
     // calculate buffer size
-    buffer_size += sizeof(ParallelLoadMsg::ParallelLoadType); // partition type
+    buffer_size += sizeof(PartitionType); // partition type
     
     // creating buffer
     buffer = new char[buffer_size];
     
     // serialize partition type
-    memcpy(&buffer[pos], &type_, sizeof(ParallelLoadMsg::ParallelLoadType)); 
+    memcpy(&buffer[pos], &type_, sizeof(PartitionType)); 
 
-    assert(pos + sizeof(ParallelLoadMsg::ParallelLoadType) == buffer_size);
+    assert(pos + sizeof(PartitionType) == buffer_size);
     
     return std::pair<char*, int>(buffer, buffer_size);
   } else {
@@ -101,12 +102,12 @@ void MetaData::deserialize(char* buffer, int buffer_size) {
   int pos = 0;
 
   // partition type
-  memcpy(&type_, &buffer[pos], sizeof(ParallelLoadMsg::ParallelLoadType));
-  pos += sizeof(ParallelLoadMsg::ParallelLoadType);
+  memcpy(&type_, &buffer[pos], sizeof(PartitionType));
+  pos += sizeof(PartitionType);
 
   // for ordered partition
   if (buffer_size > pos) {
-    assert(type_ == ParallelLoadMsg::ORDERED_PARTITION);
+    assert(type_ == ORDERED_PARTITION);
 
     // my range
     memcpy(&my_range_.first, &buffer[pos], sizeof(int64_t));
@@ -135,6 +136,8 @@ void MetaData::deserialize(char* buffer, int buffer_size) {
 ******************************************************/
 MetaDataManager::MetaDataManager(std::string& workspace) {
   workspace_ = workspace;
+  set_workspace(workspace);
+  create_workspace();
 }
 
 MetaDataManager::~MetaDataManager() {}
@@ -145,8 +148,11 @@ MetaDataManager::~MetaDataManager() {}
 ******************************************************/
 void MetaDataManager::store_metadata(std::string array_name, MetaData& metadata) {
   std::string dir_name = workspace_ + "/" + array_name + "/";  
-  int dir_flag = mkdir(dir_name.c_str(), S_IRWXU);
-  assert(dir_flag == 0);
+  struct stat st;
+  if(stat(dir_name.c_str(), &st) == -1) { 
+    int dir_flag = mkdir(dir_name.c_str(), S_IRWXU);
+    assert(dir_flag == 0);
+  }
 
   // Open file
   std::string filename = dir_name + METADATA_FILENAME;
@@ -184,7 +190,7 @@ MetaData* MetaDataManager::retrieve_metadata(std::string array_name) {
   fstat(fd, &st);
   uint64_t buffer_size = st.st_size;
   char* buffer = new char[buffer_size];
- 
+
   // Load array schema
   read(fd, buffer, buffer_size);
   metadata->deserialize(buffer, buffer_size);
@@ -197,3 +203,18 @@ MetaData* MetaDataManager::retrieve_metadata(std::string array_name) {
 
 }
 
+void MetaDataManager::set_workspace(std::string path) {
+  workspace_ = path;
+  workspace_ += "/MetaData";
+}
+
+void MetaDataManager::create_workspace() {
+  struct stat st;
+
+  // If the workspace does not exist, create it
+  if(stat(workspace_.c_str(), &st) == -1) { 
+    int dir_flag = mkdir(workspace_.c_str(), S_IRWXU);
+    assert(dir_flag == 0);
+  }
+
+}

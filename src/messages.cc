@@ -1,8 +1,8 @@
 #include "messages.h"
 #include <assert.h>
 #include <cstring>
-#include "debug.h"
 #include <functional>
+#include "debug.h"
 
 /******************************************************
  *********************** MESSAGE **********************
@@ -136,10 +136,10 @@ SubarrayMsg* SubarrayMsg::deserialize(char* buffer, int buffer_length){
  ******************************************************/
 LoadMsg::LoadMsg() : Msg(LOAD_TAG) { }
 
-LoadMsg::LoadMsg(const std::string filename, ArraySchema& array_schema, LoadType load_type) :Msg(LOAD_TAG) {
+LoadMsg::LoadMsg(const std::string filename, ArraySchema& array_schema, PartitionType type) :Msg(LOAD_TAG) {
   filename_ = filename;
   array_schema_ = array_schema;
-  load_type_ = load_type;
+  type_ = type;
 }
 
 std::pair<char*, int> LoadMsg::serialize() {
@@ -157,7 +157,7 @@ std::pair<char*, int> LoadMsg::serialize() {
   buffer_size += filename_.size(); // filename
   buffer_size += sizeof(int); // array schema length
   buffer_size += as_pair.second; // array schema
-  buffer_size += sizeof(LoadType); // load type
+  buffer_size += sizeof(PartitionType); // load type
 
   buffer = new char[buffer_size];
 
@@ -176,9 +176,9 @@ std::pair<char*, int> LoadMsg::serialize() {
   pos += length;
 
   // serialize load type
-  memcpy(&buffer[pos], (char *) &load_type_, sizeof(LoadType));
+  memcpy(&buffer[pos], (char *) &type_, sizeof(PartitionType));
 
-  assert(pos + sizeof(LoadType) == buffer_size);
+  assert(pos + sizeof(PartitionType) == buffer_size);
   return std::pair<char*, int>(buffer, buffer_size);
 }
 
@@ -204,12 +204,12 @@ LoadMsg* LoadMsg::deserialize(char* buffer, int buffer_length) {
   counter += arrayschema_length;
 
   // load type
-  LoadType load_type = static_cast<LoadType>(buffer[counter]);
+  PartitionType type = static_cast<PartitionType>(buffer[counter]);
 
 
   // finished parsing
-  assert(counter + sizeof(LoadType) == buffer_length);
-  return new LoadMsg(filename, *schema, load_type);
+  assert(counter + sizeof(PartitionType) == buffer_length);
+  return new LoadMsg(filename, *schema, type);
 }
 
 
@@ -374,12 +374,12 @@ ParallelLoadMsg::ParallelLoadMsg() : Msg(PARALLEL_LOAD_TAG) {}
 
 ParallelLoadMsg::ParallelLoadMsg(
     std::string filename,
-    ParallelLoadType load_type,
+    PartitionType type,
     ArraySchema& array_schema,
     int num_samples) : Msg(PARALLEL_LOAD_TAG) {
 
   filename_ = filename;
-  load_type_ = load_type;
+  type_ = type;
   array_schema_ = array_schema;
   num_samples_ = num_samples;
 }
@@ -394,7 +394,7 @@ std::pair<char*, int> ParallelLoadMsg::serialize() {
   // calculate buffer size
   buffer_size += sizeof(int); // filename length
   buffer_size += filename_.size(); // filename
-  buffer_size += sizeof(ParallelLoadType); // load type
+  buffer_size += sizeof(PartitionType); // load type
   buffer_size += sizeof(int); // array schema length
   buffer_size += as_pair.second; // array schema
   buffer_size += sizeof(int); // num samples
@@ -410,8 +410,8 @@ std::pair<char*, int> ParallelLoadMsg::serialize() {
   pos += length;
 
   // serialize load type
-  memcpy(&buffer[pos], (char *) &load_type_, sizeof(ParallelLoadType));
-  pos += sizeof(ParallelLoadType);
+  memcpy(&buffer[pos], (char *) &type_, sizeof(PartitionType));
+  pos += sizeof(PartitionType);
 
   // serialize array schema
   length = as_pair.second;
@@ -438,8 +438,8 @@ ParallelLoadMsg* ParallelLoadMsg::deserialize(char* buffer, int buffer_size) {
   pos += length;
 
   // load type
-  ParallelLoadType load_type = static_cast<ParallelLoadType>(buffer[pos]);
-  pos += sizeof(ParallelLoadType);
+  PartitionType type = static_cast<PartitionType>(buffer[pos]);
+  pos += sizeof(PartitionType);
 
   // array schema
   length = (int) buffer[pos];
@@ -451,7 +451,7 @@ ParallelLoadMsg* ParallelLoadMsg::deserialize(char* buffer, int buffer_size) {
   // num samples
   int num_samples = (int) buffer[pos];
   assert(pos + sizeof(int) == buffer_size);
-  return new ParallelLoadMsg(filename, load_type, *schema, num_samples);
+  return new ParallelLoadMsg(filename, type, *schema, num_samples);
 }
 
 
