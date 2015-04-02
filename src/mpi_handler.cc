@@ -28,6 +28,10 @@ MPIHandler::MPIHandler(int myrank, std::vector<int>& node_ids) {
 
 MPIHandler::~MPIHandler() {}
 
+
+/******************************************************
+ *********** POINT TO POINT COMM FUNCTIONS ************
+ ******************************************************/
 void MPIHandler::send_file(std::string filepath, int receiver, int tag) {
   CSVFile file(filepath, CSVFile::READ, MPI_BUFFER_LENGTH); 
   CSVLine line;
@@ -198,7 +202,7 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
 
 
   std::string dummy("blob");
-  // coordinator node has no data
+  // coordinator node has no data so send dummy data
   scounts[0] = dummy.size();
   ss << dummy;
   send_total = scounts[0];
@@ -244,7 +248,7 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
   // reset pos
   for (int i = 0; i < pos_.size(); ++i) {
     pos_[i] = 0;
-  } 
+  }
 
 }
 
@@ -260,7 +264,7 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
   int rcounts[nprocs];
   int sdispls[nprocs];
   int rdispls[nprocs];
- 
+
   for (int i = 0; i < nprocs; ++i) {
     scounts[i] = 0;
     sdispls[i] = 0;
@@ -268,24 +272,24 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
     rdispls[i] = 0;
   }
 
+  std::stringstream ss;
   do {
     /* tell the other processors how much data is coming */
     MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
     recv_total = 0;
-    
+
     for (int i = 0; i < nprocs; ++i) {
       recv_total += rcounts[i];
     }
 
     // receive content from all nodes
     char recvbuf[recv_total];
-    std::stringstream ss;
+    std::stringstream nothing;
+    MPI_Alltoallv((char *)nothing.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
-    MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
-
-      if (recv_total > 0 && myrank_ != 0) {
-        file << std::string(recvbuf, recv_total);
-      }
+    if (recv_total > 0 && myrank_ != 0) {
+      file << std::string(recvbuf, recv_total);
+    }
 
   } while (recv_total > 0);
 
@@ -293,4 +297,29 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
 
 void MPIHandler::finish_recv_a2a() {
   finish_recv_a2a(std::cout);
+}
+
+
+/******************************************************
+ ****************** HELPER FUNCTIONS ******************
+ ******************************************************/
+bool MPIHandler::buffer_empty(int nodeid) {
+
+  std::map<int, int>::iterator search = node_to_buf_.find(nodeid);
+
+  // TODO exception?
+  assert(search != node_to_buf_.end());
+  int buf_ind = search->second;
+
+  return (pos_[buf_ind] == 0);
+}
+
+bool MPIHandler::all_buffers_empty() {
+  assert(pos_.size() == buffers_.size());
+  for (int i = 0; i < pos_.size(); ++i) {
+    if (pos_[i] > 0) {
+      return false;
+    }
+  }
+  return true;
 }

@@ -87,15 +87,15 @@ void CoordinatorNode::run() {
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
+  /*
   DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, HASH_PARTITION, array_schema);
   send_and_receive(pmsg2);
-
-  /*
-  DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
-  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ParallelLoadMsg::ORDERED_PARTITION, array_schema);
-  send_and_receive(pmsg2);
   */
+
+  DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
+  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
+  send_and_receive(pmsg2);
 
 
   /*
@@ -112,8 +112,10 @@ void CoordinatorNode::run() {
   DEBUG_MSG("Sending GET " + sarray_name + " to all workers");
   GetMsg gmsg1(sarray_name);
   send_and_receive(gmsg1);
+  */
 
 
+  /*
   DEBUG_MSG("sending filter instruction to all workers");
   std::string expr = "attr1"; // expression hard coded in executor.cc
   std::string result = "filter";
@@ -508,7 +510,7 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
     logger_->log(LOG_INFO, ss.str());
 
     SamplesMsg* smsg = mpi_handler_->receive_samples_msg(worker);
-    
+
     for (int i = 0; i < smsg->samples().size(); ++i) {
       samples.push_back(smsg->samples()[i]);
     }
@@ -518,9 +520,16 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
   // pick nworkers - 1 samples for the n - 1 "stumps"
   logger_->log(LOG_INFO, "Getting partitions");
   std::vector<int64_t> partitions = get_partitions(samples, nworkers_ - 1);
- 
+
   logger_->log(LOG_INFO, "sending partitions back to all workers");
   // send partition infor back to all workers
+  ss.str(std::string());
+  ss << "[" << partitions[0];
+  for (int i = 1; i < partitions.size(); ++i) {
+    ss << ", " << partitions[i];
+  }
+  ss << "]\n";
+  logger_->log(LOG_INFO, "Partitions: " + ss.str());
   SamplesMsg msg(partitions);
   for (int worker = 1; worker <= nworkers_ ; worker++) {
     mpi_handler_->send_samples_msg(&msg, worker);

@@ -45,6 +45,10 @@ WorkerNode::~WorkerNode() {
   delete global_schema_map_;
   delete local_schema_map_;
 
+  delete executor_;
+  delete logger_;
+  delete md_manager_;
+  delete mpi_handler_;
 }
 
 
@@ -364,11 +368,9 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
   return 0;
 }
 
-// TODO set metadata
 int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema, int num_samples) {
   logger_->log(LOG_INFO, "Handle parallel load ordered");
 
-  logger_->log(LOG_INFO, "Injecting cell ids");
   // inject cell_ids
   bool regular = array_schema.has_regular_tiles();
   ArraySchema::Order order = array_schema.order();
@@ -385,7 +387,11 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
       executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
     } catch(LoaderException& le) {
       logger_->log(LOG_INFO, "Caught loader exception " + le.what());
-      //remove(injected_filepath.c_str());
+      
+#ifdef NDEBUG      
+      remove(injected_filepath.c_str());
+#endif
+
       executor_->storage_manager()->delete_array(array_schema.array_name());
       throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
     }
@@ -420,14 +426,18 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
     }
   }
 
-  logger_->log(LOG_INFO, "Flushing All to All send and receive");
-  mpi_handler_->flush_send_and_recv_a2a(outfile);
+  if (!mpi_handler_->all_buffers_empty()) {
+    logger_->log(LOG_INFO, "Have non empty buffers, flush_send_and_recv_a2a");
+    mpi_handler_->flush_send_and_recv_a2a(outfile);
+  } else {
+    logger_->log(LOG_INFO, "All buffers empty, no flush");
+  }
 
   // keep receiving until everyone finishes sending
-  logger_->log(LOG_INFO, "Finish receiving from everyone");
+  logger_->log(LOG_INFO, "Keep receiving from everyone");
   mpi_handler_->finish_recv_a2a(outfile);
   outfile.close();
-
+  logger_->log(LOG_INFO, "Finished receiving all necessary data");
 
   // sort and make tiles
   std::string sorted_filepath = executor_->loader()->workspace() + "/PORDERED_sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
@@ -449,8 +459,11 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
     else
       executor_->loader()->make_tiles_irregular(sorted_filepath, fd);
   } catch(LoaderException& le) {
-    // TODO uncomment
-    //remove(sorted_filepath.c_str());
+
+#ifdef NDEBUG
+    remove(sorted_filepath.c_str());
+#endif
+
     executor_->storage_manager()->delete_fragment(array_schema.array_name(), frag_name);
     throw LoaderException("Error invoking local load" + filename +
                           "'.\n " + le.what());
