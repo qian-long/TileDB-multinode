@@ -12,10 +12,17 @@
 #include "debug.h"
 #include "csv_file.h"
 #include "hash_functions.h"
+WorkerNode::WorkerNode(int rank,
+    int nprocs,
+    std::string datadir,
+    int64_t mpi_buffer_length,
+    int64_t mpi_handler_total_buf_size) {
 
-WorkerNode::WorkerNode(int rank, int nprocs, std::string datadir) {
   myrank_ = rank;
   nprocs_ = nprocs;
+  mpi_buffer_length_ = mpi_buffer_length;
+  mpi_handler_total_buf_size_ = mpi_handler_total_buf_size;
+
   std::stringstream workspace;
   // TODO put in config file
   workspace << "./workspaces/workspace-" << myrank_;
@@ -32,7 +39,11 @@ WorkerNode::WorkerNode(int rank, int nprocs, std::string datadir) {
       other_nodes.push_back(i);
     }
   }
-  mpi_handler_ = new MPIHandler(myrank_, other_nodes);
+
+  mpi_handler_ = new MPIHandler(myrank_, 
+      other_nodes, 
+      mpi_buffer_length_,
+      mpi_handler_total_buf_size_);
 
   // catalogue data structures
   arrayname_map_ = new std::map<std::string, std::string>();
