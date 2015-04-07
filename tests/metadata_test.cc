@@ -11,7 +11,7 @@ namespace {
   };
 
   TEST_F(ArrayManagerTest, MetaDataOrderedTest) {
-    ParallelLoadMsg::ParallelLoadType type = ParallelLoadMsg::ORDERED_PARTITION;
+    PartitionType type = ORDERED_PARTITION;
     std::pair<int64_t, int64_t> my_range = std::pair<int64_t, int64_t>(27, 5749);
     std::vector<int64_t> samples;
     for (int i = 0; i < 10; ++i) {
@@ -33,7 +33,7 @@ namespace {
   }
 
   TEST_F(ArrayManagerTest, MetaDataHashTest) {
-    ParallelLoadMsg::ParallelLoadType type = ParallelLoadMsg::HASH_PARTITION;
+    PartitionType type = HASH_PARTITION;
     MetaData meta = MetaData(type);
     std::pair<char*, int> serial = meta.serialize();
 

@@ -55,6 +55,7 @@ void MPIHandler::send_keep_receiving(bool keep_receiving, int receiver) {
 }
 
 bool MPIHandler::receive_keep_receiving(int sender) {
+
   bool keep_receiving;
   char *buf = new char[MPI_BUFFER_LENGTH];
   MPI_Status status;
@@ -64,8 +65,10 @@ bool MPIHandler::receive_keep_receiving(int sender) {
   MPI_Recv((char *)buf, MPI_BUFFER_LENGTH, MPI_CHAR, sender, KEEP_RECEIVING_TAG, MPI_COMM_WORLD, &status);
   MPI_Get_count(&status, MPI_CHAR, &length);
 
-  keep_receiving = (bool) buf[0];
+  //keep_receiving = (bool) buf[0];
+  memcpy(&keep_receiving, &buf[0], sizeof(bool));
 
+  delete [] buf;
   return keep_receiving;
 }
 
@@ -106,9 +109,10 @@ void MPIHandler::send_content(const char* in_buf, int length, int receiver, int 
     this->flush_send(receiver, tag, true);
 
     // send data from in_buf
+    assert(pos_[buf_id] == 0);
     int pos = 0;
     while (pos < length) {
-      int send_length = std::min(MPI_BUFFER_LENGTH, length - pos);
+      int send_length = std::min(MPI_BUFFER_LENGTH, length);
       MPI_Send((char *)&in_buf[pos], send_length, MPI_CHAR, receiver, tag, MPI_COMM_WORLD);
 
       this->send_keep_receiving(true, receiver);
@@ -145,8 +149,6 @@ void MPIHandler::flush_all_sends(int tag) {
     flush_send(*it, tag);
   }
 }
-
-
 
 // Sending and Receiving samples
 void MPIHandler::send_samples_msg(SamplesMsg* smsg, int receiver) {

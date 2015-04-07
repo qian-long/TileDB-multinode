@@ -54,8 +54,8 @@ namespace {
   TEST_F(MessagesTest, LoadMsgTest) {
 
     std::string filename = "foo.csv";
-    LoadMsg::LoadType load_type = LoadMsg::ORDERED;
-    LoadMsg lmsg = LoadMsg(filename, array_schema_, load_type);
+    PartitionType part_type = ORDERED_PARTITION;
+    LoadMsg lmsg = LoadMsg(filename, array_schema_, part_type);
 
     std::pair<char*, int> lserial = lmsg.serialize();
 
@@ -65,7 +65,7 @@ namespace {
     EXPECT_STREQ(filename.c_str(), new_lmsg->filename().c_str());
     EXPECT_STREQ(array_schema_.to_string().c_str(),
       new_lmsg->array_schema().to_string().c_str());
-    EXPECT_EQ(load_type, new_lmsg->load_type());
+    EXPECT_EQ(part_type, new_lmsg->partition_type());
   }
 
 
@@ -89,8 +89,8 @@ namespace {
     EXPECT_STREQ(array_schema_.to_string().c_str(),
         new_smsg->array_schema().to_string().c_str());
 
-    auto it1 = ranges.begin();
-    auto it2 = new_smsg->ranges().begin();
+    std::vector<double>::iterator it1 = ranges.begin();
+    std::vector<double>::iterator it2 = new_smsg->ranges().begin();
     for(; it1 != ranges.end(); it1++, it2++) {
       EXPECT_EQ(*it1, *it2);
     }
@@ -142,10 +142,10 @@ namespace {
   // PARALLEL LOAD MSG TEST
   TEST_F(MessagesTest, ParallelLoadMsgTest) {
     std::string filename = "test";
-    ParallelLoadMsg::ParallelLoadType load_type = ParallelLoadMsg::ORDERED_PARTITION;
+    PartitionType part_type = ORDERED_PARTITION;
     int num_samples = 3;
 
-    ParallelLoadMsg pmsg = ParallelLoadMsg(filename, load_type, array_schema_, num_samples);
+    ParallelLoadMsg pmsg = ParallelLoadMsg(filename, part_type, array_schema_, num_samples);
 
     std::pair<char*, int> pserial = pmsg.serialize();
 
@@ -153,7 +153,7 @@ namespace {
 
     // comparing message contents
     EXPECT_STREQ(filename.c_str(), new_pmsg->filename().c_str());
-    EXPECT_EQ(load_type, new_pmsg->load_type());
+    EXPECT_EQ(part_type, new_pmsg->partition_type());
     EXPECT_STREQ(array_schema_.to_string().c_str(),
       new_pmsg->array_schema().to_string().c_str());
     EXPECT_EQ(num_samples, new_pmsg->num_samples());

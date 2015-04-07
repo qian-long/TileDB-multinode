@@ -12,7 +12,6 @@
 #include <map>
 #include <mpi.h>
 #include "messages.h"
-#include "logger.h"
 
 class MPIHandler {
 

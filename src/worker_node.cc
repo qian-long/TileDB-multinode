@@ -97,7 +97,9 @@ void WorkerNode::run() {
 
         default:
           std::string content(buf, length);
-          logger_->log(LOG_INFO, content);
+
+          logger_->log(LOG_INFO, "Msg Tag not defined " + content);
+          break;
       }
 
     // TODO delete stuff to avoid memory leak
@@ -116,8 +118,12 @@ void WorkerNode::run() {
 }
 
 void WorkerNode::respond_ack(int result, int tag, double time) {
-  std::stringstream ss;
 
+  std::stringstream ss;
+  ss << "Responding ack: " << result;
+  logger_->log(LOG_INFO, ss.str());
+
+  ss.str(std::string());
   switch (tag) {
     case GET_TAG:
       ss << "GET";
@@ -255,6 +261,7 @@ int WorkerNode::handle(AggregateMsg* msg) {
 int WorkerNode::handle(LoadMsg* msg) {
   logger_->log(LOG_INFO, "Received load");
 
+  MetaData metadata;
   switch (msg->partition_type()) {
     case ORDERED_PARTITION:
       handle_load_ordered(msg->filename(), msg->array_schema());
@@ -264,12 +271,18 @@ int WorkerNode::handle(LoadMsg* msg) {
       break;
     case HASH_PARTITION:
       handle_load_hash(msg->filename(), msg->array_schema());
+      logger_->log(LOG_INFO, "Finished load, creating metadata");
+      metadata = MetaData(HASH_PARTITION);
+      logger_->log(LOG_INFO, "Writing metadata to disk");
+      md_manager_->store_metadata(msg->array_schema().array_name(), metadata);
+      logger_->log(LOG_INFO, "Finished writing metadata to disk");
       break;
     default:
       // TODO send error
       break;
   }
 
+  logger_->log(LOG_INFO, "Finished handle load");
   return 0;
 }
 
@@ -277,7 +290,8 @@ int WorkerNode::handle(LoadMsg* msg) {
 // TODO set metadata
 int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_schema) {
 
-  logger_->log(LOG_INFO, "In Handle Load Sort");
+  logger_->log(LOG_INFO, "In Handle Load Ordered");
+
   // Wait for sorted file from master
   std::string frag_name = "0_0";
   std::ofstream sorted_file;
@@ -286,10 +300,23 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
 
   sorted_file.open(sorted_filepath.c_str());
 
-  logger_->log(LOG_INFO, "Receiving sorted file from master");
+  logger_->log(LOG_INFO, "Receiving sorted file from master to " + sorted_filepath);
   mpi_handler_->receive_content(sorted_file, MASTER, LOAD_TAG);
-
   sorted_file.close();
+
+  logger_->log(LOG_INFO, "Finished receiving sorted file from master to " + sorted_filepath);
+
+  // receive samples from coord
+  logger_->log(LOG_INFO, "Receiving partitions from coordinator");
+  SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
+  std::vector<int64_t> partitions = smsg->samples();
+
+  // store metadata
+  logger_->log(LOG_INFO, "Storing metadata");
+  MetaData metadata(ORDERED_PARTITION,
+      std::pair<int64_t, int64_t>(partitions[myrank_-1], partitions[myrank_]),
+      partitions);
+  md_manager_->store_metadata(array_schema.array_name(), metadata);
 
   logger_->log(LOG_INFO, "Starting make tiles on " + sorted_filepath);
   StorageManager::FragmentDescriptor* fd =
@@ -303,9 +330,12 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
     else
       executor_->loader()->make_tiles_irregular(sorted_filepath, fd);
   } catch(LoaderException& le) {
-    // TODO uncomment
-    //remove(sorted_filepath.c_str());
-    executor_->storage_manager()->delete_fragment(array_schema.array_name(), frag_name);
+
+#ifdef NDEBUG
+      remove(sorted_filepath.c_str());
+      executor_->storage_manager()->delete_fragment(array_schema.array_name(), frag_name);
+#endif
+
     throw LoaderException("Error invoking local load" + filename +
                           "'.\n " + le.what());
   }
@@ -313,6 +343,7 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
   logger_->log(LOG_INFO, "Finished make tiles");
   executor_->storage_manager()->close_fragment(fd);
 
+  logger_->log(LOG_INFO, "Closed fragment");
   // TODO cleanup
   return 0;
 }
@@ -387,12 +418,10 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
       executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
     } catch(LoaderException& le) {
       logger_->log(LOG_INFO, "Caught loader exception " + le.what());
-      
-#ifdef NDEBUG      
+#ifdef NDEBUG
       remove(injected_filepath.c_str());
-#endif
-
       executor_->storage_manager()->delete_array(array_schema.array_name());
+#endif
       throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
     }
   }
