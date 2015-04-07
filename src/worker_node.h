@@ -21,7 +21,7 @@
 class WorkerNode {
   public:
     // CONSTRUCTORS
-    WorkerNode(int rank, int nprocs);
+    WorkerNode(int rank, int nprocs, std::string datadir);
 
     // DESTRUCTOR
     ~WorkerNode();
@@ -72,6 +72,7 @@ class WorkerNode {
     int myrank_;
     int nprocs_;
     std::string my_workspace_;
+    std::string datadir_;
     Executor* executor_;
     Logger* logger_;
     MPIHandler* mpi_handler_;

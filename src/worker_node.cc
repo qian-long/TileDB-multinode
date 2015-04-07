@@ -13,13 +13,14 @@
 #include "csv_file.h"
 #include "hash_functions.h"
 
-WorkerNode::WorkerNode(int rank, int nprocs) {
+WorkerNode::WorkerNode(int rank, int nprocs, std::string datadir) {
   myrank_ = rank;
   nprocs_ = nprocs;
   std::stringstream workspace;
   // TODO put in config file
   workspace << "./workspaces/workspace-" << myrank_;
   my_workspace_ = workspace.str();
+  datadir_ = datadir;
   executor_ = new Executor(my_workspace_);
   logger_ = new Logger(my_workspace_ + "/logfile");
   md_manager_ = new MetaDataManager(my_workspace_);
@@ -224,7 +225,6 @@ int WorkerNode::handle(FilterMsg* msg) {
   return 0;
 }
 
-
 /*************** HANDLE AggregateMsg **********************/
 int WorkerNode::handle(AggregateMsg* msg) {
   /*
@@ -257,7 +257,6 @@ int WorkerNode::handle(AggregateMsg* msg) {
 
 
 /*************** HANDLE LOAD **********************/
-// TODO add storing metadata
 int WorkerNode::handle(LoadMsg* msg) {
   logger_->log(LOG_INFO, "Received load");
 
@@ -287,7 +286,6 @@ int WorkerNode::handle(LoadMsg* msg) {
 }
 
 
-// TODO set metadata
 int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_schema) {
 
   logger_->log(LOG_INFO, "In Handle Load Ordered");
@@ -351,7 +349,7 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
 int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema) {
 
   std::ofstream output;
-  std::string filepath = my_workspace_ + "/data/HASH_" + filename;
+  std::string filepath = executor_->loader()->workspace() + "/HASH_" + filename;
 
   logger_->log(LOG_INFO, "Receiving hash partitioned data from master, writing to filepath " + filepath);
 
@@ -405,7 +403,8 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   // inject cell_ids
   bool regular = array_schema.has_regular_tiles();
   ArraySchema::Order order = array_schema.order();
-  std::string filepath = my_workspace_ + "/data/" + filename;
+  // TODO put into function
+  std::string filepath = datadir_ + "/" + filename;
   std::string injected_filepath = filepath;
   std::string frag_name = "0_0";
 
@@ -439,7 +438,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   std::vector<int64_t> partitions = smsg->samples();
 
   logger_->log(LOG_INFO, "Starting n to n data shuffle based on partition");
-  std::string outpath = my_workspace_ + "/data/PORDERED_" + filename;
+  std::string outpath = executor_->loader()->workspace() + "/PORDERED_" + filename;
   std::ofstream outfile;
   outfile.open(outpath.c_str());
   CSVFile csv_in(injected_filepath, CSVFile::READ);
@@ -515,8 +514,9 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
 
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
 
-  std::string filepath = my_workspace_ + "/data/" + filename;
-  std::string outpath = my_workspace_ + "/data/PHASH_" + filename;
+  // TODO put into function
+  std::string filepath = datadir_ + "/" + filename;
+  std::string outpath = executor_->loader()->workspace() + "/PHASH_" + filename;
 
   std::ofstream outfile;
   outfile.open(outpath.c_str());

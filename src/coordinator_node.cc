@@ -16,7 +16,7 @@
 #include "hash_functions.h"
 #include "constants.h"
 
-CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
+CoordinatorNode::CoordinatorNode(int rank, int nprocs, std::string datadir) {
   myrank_ = rank;
   nprocs_ = nprocs;
   nworkers_ = nprocs - 1;
@@ -32,6 +32,7 @@ CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   }
 
   mpi_handler_ = new MPIHandler(0, workers);
+  datadir_ = datadir;
 }
 
 // TODO
@@ -87,11 +88,9 @@ void CoordinatorNode::run() {
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
-  /*
   DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
-  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, HASH_PARTITION, array_schema);
+  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
-  */
 
   /*
   DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
@@ -99,9 +98,11 @@ void CoordinatorNode::run() {
   send_and_receive(pmsg2);
   */
 
+  /*
   DEBUG_MSG("Sending ordered partition load instructions to all workers");
   LoadMsg lmsg = LoadMsg(filename, array_schema, HASH_PARTITION);
   send_and_receive(lmsg);
+  */
 
   DEBUG_MSG("Sending GET test_C to all workers");
   GetMsg gmsg1 = GetMsg(array_name);
@@ -378,7 +379,7 @@ void CoordinatorNode::handle_load(LoadMsg& lmsg) {
 void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
   std::stringstream ss;
 
-  std::string filepath = my_workspace_ + "/data/" + lmsg.filename();
+  std::string filepath = datadir_ + "/" + lmsg.filename();
 
   // inject ids if regular or hilbert order
   ArraySchema& array_schema = lmsg.array_schema();
@@ -502,7 +503,7 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
   // TODO check that filename exists in workspace, error if doesn't
   ArraySchema array_schema = pmsg.array_schema();
 
-  std::string filepath = my_workspace_ + "/data/" + pmsg.filename();
+  std::string filepath = datadir_ + "/" + pmsg.filename();
   logger_->log(LOG_INFO, "Sending data to workers based on hash value from " + filepath);
   // scan input file, compute hash on cell coords, send to worker
   CSVFile csv_in(filepath, CSVFile::READ);
