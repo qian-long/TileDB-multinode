@@ -17,11 +17,16 @@
 #include "logger.h"
 #include "mpi_handler.h"
 #include "metadata_manager.h"
+#include "constants.h"
 
 class WorkerNode {
   public:
     // CONSTRUCTORS
-    WorkerNode(int rank, int nprocs);
+    WorkerNode(int rank, 
+        int nprocs, 
+        std::string datadir, 
+        int64_t mpi_buffer_length = MPI_BUFFER_LENGTH, 
+        int64_t mpi_handler_total_buf_size = MH_TOTAL_BUF_SIZE);
 
     // DESTRUCTOR
     ~WorkerNode();
@@ -72,10 +77,14 @@ class WorkerNode {
     int myrank_;
     int nprocs_;
     std::string my_workspace_;
+    std::string datadir_;
     Executor* executor_;
     Logger* logger_;
     MPIHandler* mpi_handler_;
     MetaDataManager* md_manager_;
+    int64_t mpi_buffer_length_;
+    int64_t mpi_handler_total_buf_size_;
+
 
     // CATALOGUE of all the arrays in the system
     // map of global array name to local array name

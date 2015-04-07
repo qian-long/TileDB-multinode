@@ -16,7 +16,7 @@
 class CoordinatorNode {
   public:
     // CONSTRUCTORS
-    CoordinatorNode(int rank, int nprocs);
+    CoordinatorNode(int rank, int nprocs, std::string datadir);
 
     // DESTRUCTOR
     ~CoordinatorNode();
@@ -72,6 +72,7 @@ class CoordinatorNode {
     Logger* logger_;
     Executor* executor_;
     MPIHandler* mpi_handler_;
+    std::string datadir_;
 
     /********* HELPER FUNCTIONS ********/
     std::vector<int64_t> get_partitions(std::vector<int64_t>, int k);

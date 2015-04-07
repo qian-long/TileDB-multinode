@@ -12,14 +12,22 @@
 #include "debug.h"
 #include "csv_file.h"
 #include "hash_functions.h"
+WorkerNode::WorkerNode(int rank,
+    int nprocs,
+    std::string datadir,
+    int64_t mpi_buffer_length,
+    int64_t mpi_handler_total_buf_size) {
 
-WorkerNode::WorkerNode(int rank, int nprocs) {
   myrank_ = rank;
   nprocs_ = nprocs;
+  mpi_buffer_length_ = mpi_buffer_length;
+  mpi_handler_total_buf_size_ = mpi_handler_total_buf_size;
+
   std::stringstream workspace;
   // TODO put in config file
   workspace << "./workspaces/workspace-" << myrank_;
   my_workspace_ = workspace.str();
+  datadir_ = datadir;
   executor_ = new Executor(my_workspace_);
   logger_ = new Logger(my_workspace_ + "/logfile");
   md_manager_ = new MetaDataManager(my_workspace_);
@@ -31,7 +39,11 @@ WorkerNode::WorkerNode(int rank, int nprocs) {
       other_nodes.push_back(i);
     }
   }
-  mpi_handler_ = new MPIHandler(myrank_, other_nodes);
+
+  mpi_handler_ = new MPIHandler(myrank_, 
+      other_nodes, 
+      mpi_buffer_length_,
+      mpi_handler_total_buf_size_);
 
   // catalogue data structures
   arrayname_map_ = new std::map<std::string, std::string>();
@@ -97,7 +109,9 @@ void WorkerNode::run() {
 
         default:
           std::string content(buf, length);
-          logger_->log(LOG_INFO, content);
+
+          logger_->log(LOG_INFO, "Msg Tag not defined " + content);
+          break;
       }
 
     // TODO delete stuff to avoid memory leak
@@ -116,8 +130,12 @@ void WorkerNode::run() {
 }
 
 void WorkerNode::respond_ack(int result, int tag, double time) {
-  std::stringstream ss;
 
+  std::stringstream ss;
+  ss << "Responding ack: " << result;
+  logger_->log(LOG_INFO, ss.str());
+
+  ss.str(std::string());
   switch (tag) {
     case GET_TAG:
       ss << "GET";
@@ -218,7 +236,6 @@ int WorkerNode::handle(FilterMsg* msg) {
   return 0;
 }
 
-
 /*************** HANDLE AggregateMsg **********************/
 int WorkerNode::handle(AggregateMsg* msg) {
   /*
@@ -251,10 +268,10 @@ int WorkerNode::handle(AggregateMsg* msg) {
 
 
 /*************** HANDLE LOAD **********************/
-// TODO add storing metadata
 int WorkerNode::handle(LoadMsg* msg) {
   logger_->log(LOG_INFO, "Received load");
 
+  MetaData metadata;
   switch (msg->partition_type()) {
     case ORDERED_PARTITION:
       handle_load_ordered(msg->filename(), msg->array_schema());
@@ -264,20 +281,26 @@ int WorkerNode::handle(LoadMsg* msg) {
       break;
     case HASH_PARTITION:
       handle_load_hash(msg->filename(), msg->array_schema());
+      logger_->log(LOG_INFO, "Finished load, creating metadata");
+      metadata = MetaData(HASH_PARTITION);
+      logger_->log(LOG_INFO, "Writing metadata to disk");
+      md_manager_->store_metadata(msg->array_schema().array_name(), metadata);
+      logger_->log(LOG_INFO, "Finished writing metadata to disk");
       break;
     default:
       // TODO send error
       break;
   }
 
+  logger_->log(LOG_INFO, "Finished handle load");
   return 0;
 }
 
 
-// TODO set metadata
 int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_schema) {
 
-  logger_->log(LOG_INFO, "In Handle Load Sort");
+  logger_->log(LOG_INFO, "In Handle Load Ordered");
+
   // Wait for sorted file from master
   std::string frag_name = "0_0";
   std::ofstream sorted_file;
@@ -286,10 +309,23 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
 
   sorted_file.open(sorted_filepath.c_str());
 
-  logger_->log(LOG_INFO, "Receiving sorted file from master");
+  logger_->log(LOG_INFO, "Receiving sorted file from master to " + sorted_filepath);
   mpi_handler_->receive_content(sorted_file, MASTER, LOAD_TAG);
-
   sorted_file.close();
+
+  logger_->log(LOG_INFO, "Finished receiving sorted file from master to " + sorted_filepath);
+
+  // receive samples from coord
+  logger_->log(LOG_INFO, "Receiving partitions from coordinator");
+  SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
+  std::vector<int64_t> partitions = smsg->samples();
+
+  // store metadata
+  logger_->log(LOG_INFO, "Storing metadata");
+  MetaData metadata(ORDERED_PARTITION,
+      std::pair<int64_t, int64_t>(partitions[myrank_-1], partitions[myrank_]),
+      partitions);
+  md_manager_->store_metadata(array_schema.array_name(), metadata);
 
   logger_->log(LOG_INFO, "Starting make tiles on " + sorted_filepath);
   StorageManager::FragmentDescriptor* fd =
@@ -303,9 +339,12 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
     else
       executor_->loader()->make_tiles_irregular(sorted_filepath, fd);
   } catch(LoaderException& le) {
-    // TODO uncomment
-    //remove(sorted_filepath.c_str());
-    executor_->storage_manager()->delete_fragment(array_schema.array_name(), frag_name);
+
+#ifdef NDEBUG
+      remove(sorted_filepath.c_str());
+      executor_->storage_manager()->delete_fragment(array_schema.array_name(), frag_name);
+#endif
+
     throw LoaderException("Error invoking local load" + filename +
                           "'.\n " + le.what());
   }
@@ -313,6 +352,7 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
   logger_->log(LOG_INFO, "Finished make tiles");
   executor_->storage_manager()->close_fragment(fd);
 
+  logger_->log(LOG_INFO, "Closed fragment");
   // TODO cleanup
   return 0;
 }
@@ -320,7 +360,7 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
 int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema) {
 
   std::ofstream output;
-  std::string filepath = my_workspace_ + "/data/HASH_" + filename;
+  std::string filepath = executor_->loader()->workspace() + "/HASH_" + filename;
 
   logger_->log(LOG_INFO, "Receiving hash partitioned data from master, writing to filepath " + filepath);
 
@@ -374,7 +414,8 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   // inject cell_ids
   bool regular = array_schema.has_regular_tiles();
   ArraySchema::Order order = array_schema.order();
-  std::string filepath = my_workspace_ + "/data/" + filename;
+  // TODO put into function
+  std::string filepath = datadir_ + "/" + filename;
   std::string injected_filepath = filepath;
   std::string frag_name = "0_0";
 
@@ -387,12 +428,10 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
       executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
     } catch(LoaderException& le) {
       logger_->log(LOG_INFO, "Caught loader exception " + le.what());
-      
-#ifdef NDEBUG      
+#ifdef NDEBUG
       remove(injected_filepath.c_str());
-#endif
-
       executor_->storage_manager()->delete_array(array_schema.array_name());
+#endif
       throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
     }
   }
@@ -410,7 +449,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   std::vector<int64_t> partitions = smsg->samples();
 
   logger_->log(LOG_INFO, "Starting n to n data shuffle based on partition");
-  std::string outpath = my_workspace_ + "/data/PORDERED_" + filename;
+  std::string outpath = executor_->loader()->workspace() + "/PORDERED_" + filename;
   std::ofstream outfile;
   outfile.open(outpath.c_str());
   CSVFile csv_in(injected_filepath, CSVFile::READ);
@@ -486,8 +525,9 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
 
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
 
-  std::string filepath = my_workspace_ + "/data/" + filename;
-  std::string outpath = my_workspace_ + "/data/PHASH_" + filename;
+  // TODO put into function
+  std::string filepath = datadir_ + "/" + filename;
+  std::string outpath = executor_->loader()->workspace() + "/PHASH_" + filename;
 
   std::ofstream outfile;
   outfile.open(outpath.c_str());

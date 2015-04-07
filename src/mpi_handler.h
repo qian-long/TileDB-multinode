@@ -12,7 +12,7 @@
 #include <map>
 #include <mpi.h>
 #include "messages.h"
-#include "logger.h"
+#include "constants.h"
 
 class MPIHandler {
 
@@ -22,7 +22,10 @@ class MPIHandler {
     MPIHandler();
 
     /** Constructor initializes how many buffers to maintain */
-    MPIHandler(int rank, std::vector<int>& node_ids);
+    MPIHandler(int rank,
+        std::vector<int>& node_ids,
+        int64_t mpi_buffer_length = MPI_BUFFER_LENGTH,
+        int64_t total_buf_size = MH_TOTAL_BUF_SIZE);
 
     // DESTRUCTOR
     /** Empty destructor. */
@@ -60,7 +63,7 @@ class MPIHandler {
      * Maintain buffer for each worker, send data to worker only when buffer is full
      * Blocking Call
      */
-    void send_content(const char* in_buf, int length, int receiver, int tag);
+    void send_content(const char* in_buf, int64_t length, int receiver, int tag);
     /**
      * Flush buffer for receiver
      */
@@ -111,17 +114,25 @@ class MPIHandler {
     bool all_buffers_empty();
   private:
 
+    /** all my neighbors in the mpi world */
     std::vector<int> node_ids_;
 
-    // map node_id to buffer_id
+    /** map node_id to buffer_id */
     std::map<int, int> node_to_buf_;
 
-    // vector of char buffers
+    /** vector of char buffers */
     std::vector<char *> buffers_;
 
-    // vector of char buf pos (first empty byte)
+    /** vector of char buf pos (first empty byte) */
     std::vector<int> pos_;
 
+    /** my rank in the mpi world */
     int myrank_;
+
+    /** max buffer size for an mpi send/receive */
+    int64_t mpi_buffer_length_;
+
+    /** total memory size allocated for all the buffers for all nodes */
+    int64_t total_buf_size_;
 };
 #endif

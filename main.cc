@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
   srand(time(NULL));
 
   if (myrank == MASTER) {
-    CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs);
+    CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs, "./data");
 
     std::string filename;
 
@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
     coordinator->run();
     coordinator->quit_all();
   } else {
-    WorkerNode * worker = new WorkerNode(myrank, nprocs);
+    WorkerNode * worker = new WorkerNode(myrank, nprocs, "./data");
     worker->run();
   }
 

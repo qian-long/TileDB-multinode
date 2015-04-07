@@ -10,20 +10,23 @@
 
 MPIHandler::MPIHandler() {}
 
-MPIHandler::MPIHandler(int myrank, std::vector<int>& node_ids) {
+MPIHandler::MPIHandler(int myrank, std::vector<int>& node_ids, int64_t mpi_buffer_length, int64_t total_buf_size) {
 
   int buf_id = 0;
+  int64_t buf_size_per_node = total_buf_size / node_ids.size();
   for (std::vector<int>::iterator it = node_ids.begin(); it != node_ids.end(); ++it, ++buf_id) {
     // insert mapping
     node_to_buf_.insert(std::pair<int, int>(*it, buf_id));
 
     // initialize char buffers and char buffer pointers
-    buffers_.push_back(new char[MPI_BUFFER_LENGTH]);
+    buffers_.push_back(new char[buf_size_per_node]);
     pos_.push_back(0);
   }
 
   node_ids_ = node_ids;
   myrank_ = myrank;
+  mpi_buffer_length_ = mpi_buffer_length;
+  total_buf_size_ = total_buf_size;
 }
 
 MPIHandler::~MPIHandler() {}
@@ -33,7 +36,7 @@ MPIHandler::~MPIHandler() {}
  *********** POINT TO POINT COMM FUNCTIONS ************
  ******************************************************/
 void MPIHandler::send_file(std::string filepath, int receiver, int tag) {
-  CSVFile file(filepath, CSVFile::READ, MPI_BUFFER_LENGTH); 
+  CSVFile file(filepath, CSVFile::READ); 
   CSVLine line;
   std::stringstream content;
 
@@ -55,29 +58,32 @@ void MPIHandler::send_keep_receiving(bool keep_receiving, int receiver) {
 }
 
 bool MPIHandler::receive_keep_receiving(int sender) {
+
   bool keep_receiving;
-  char *buf = new char[MPI_BUFFER_LENGTH];
+  char *buf = new char[mpi_buffer_length_];
   MPI_Status status;
   int length;
 
   // see if we should coninue receiving
-  MPI_Recv((char *)buf, MPI_BUFFER_LENGTH, MPI_CHAR, sender, KEEP_RECEIVING_TAG, MPI_COMM_WORLD, &status);
+  MPI_Recv((char *)buf, mpi_buffer_length_, MPI_CHAR, sender, KEEP_RECEIVING_TAG, MPI_COMM_WORLD, &status);
   MPI_Get_count(&status, MPI_CHAR, &length);
 
-  keep_receiving = (bool) buf[0];
+  //keep_receiving = (bool) buf[0];
+  memcpy(&keep_receiving, &buf[0], sizeof(bool));
 
+  delete [] buf;
   return keep_receiving;
 }
 
 void MPIHandler::receive_content(std::ostream& stream, int sender, int tag) {
   bool keep_receiving = true;
-  char *buf = new char[MPI_BUFFER_LENGTH];
+  char *buf = new char[mpi_buffer_length_];
   MPI_Status status;
   int length;
 
   do {
 
-    MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, sender, tag, MPI_COMM_WORLD, &status);
+    MPI_Recv(buf, mpi_buffer_length_, MPI_CHAR, sender, tag, MPI_COMM_WORLD, &status);
     MPI_Get_count(&status, MPI_CHAR, &length);
 
     // write to out stream
@@ -93,22 +99,23 @@ void MPIHandler::receive_content(std::ostream& stream, int sender, int tag) {
 }
 
 // Maintain buffer for each worker, send data to worker only when buffer is full
-void MPIHandler::send_content(const char* in_buf, int length, int receiver, int tag) {
+void MPIHandler::send_content(const char* in_buf, int64_t length, int receiver, int tag) {
 
   std::map<int, int>::iterator search = node_to_buf_.find(receiver);
   assert(search != node_to_buf_.end());
   int buf_id = search->second;
   // TODO handle not found case
   int buf_length = pos_[buf_id];
-  if (length + buf_length >= MPI_BUFFER_LENGTH) {
+  if (length + buf_length >= mpi_buffer_length_) {
 
     // flush buffer to receiver via network
     this->flush_send(receiver, tag, true);
 
     // send data from in_buf
-    int pos = 0;
+    assert(pos_[buf_id] == 0);
+    int64_t pos = 0;
     while (pos < length) {
-      int send_length = std::min(MPI_BUFFER_LENGTH, length - pos);
+      int64_t send_length = std::min(mpi_buffer_length_, length);
       MPI_Send((char *)&in_buf[pos], send_length, MPI_CHAR, receiver, tag, MPI_COMM_WORLD);
 
       this->send_keep_receiving(true, receiver);
@@ -146,8 +153,6 @@ void MPIHandler::flush_all_sends(int tag) {
   }
 }
 
-
-
 // Sending and Receiving samples
 void MPIHandler::send_samples_msg(SamplesMsg* smsg, int receiver) {
   std::pair<char *, int> buf_pair = smsg->serialize();
@@ -172,7 +177,7 @@ void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiv
   int buf_length = pos_[buf_ind];
   // TODO handle not found case
   // TODO optimize later if needed
-  if (length + buf_length >= MPI_BUFFER_LENGTH) {
+  if (length + buf_length >= mpi_buffer_length_) {
     flush_send_and_recv_a2a(in_buf, length, receiver, file);
   } else {
     // save data to buffer

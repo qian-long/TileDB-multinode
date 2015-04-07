@@ -16,7 +16,7 @@
 #include "hash_functions.h"
 #include "constants.h"
 
-CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
+CoordinatorNode::CoordinatorNode(int rank, int nprocs, std::string datadir) {
   myrank_ = rank;
   nprocs_ = nprocs;
   nworkers_ = nprocs - 1;
@@ -32,6 +32,7 @@ CoordinatorNode::CoordinatorNode(int rank, int nprocs) {
   }
 
   mpi_handler_ = new MPIHandler(0, workers);
+  datadir_ = datadir;
 }
 
 // TODO
@@ -87,15 +88,25 @@ void CoordinatorNode::run() {
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
-  /*
   DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
-  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, HASH_PARTITION, array_schema);
+  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
-  */
 
+  /*
   DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
+  */
+
+  /*
+  DEBUG_MSG("Sending ordered partition load instructions to all workers");
+  LoadMsg lmsg = LoadMsg(filename, array_schema, HASH_PARTITION);
+  send_and_receive(lmsg);
+  */
+
+  DEBUG_MSG("Sending GET test_C to all workers");
+  GetMsg gmsg1 = GetMsg(array_name);
+  send_and_receive(gmsg1);
 
 
   /*
@@ -234,8 +245,12 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
       break;
     case LOAD_TAG:
       handle_load(dynamic_cast<LoadMsg&>(msg));
+      handle_ack();
+      break;
     case PARALLEL_LOAD_TAG:
       handle_parallel_load(dynamic_cast<ParallelLoadMsg&>(msg));
+      handle_ack();
+      break;
     case DEFINE_ARRAY_TAG:
     case FILTER_TAG:
     case SUBARRAY_TAG:
@@ -253,6 +268,7 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
 
 void CoordinatorNode::handle_ack() {
 
+  logger_->log(LOG_INFO, "Waiting for acks");
   for (int i = 0; i < nworkers_; i++) {
     MPI_Status status;
     int nodeid = i + 1;
@@ -270,22 +286,9 @@ void CoordinatorNode::handle_ack() {
     ss << "Received ack " + std::string(buf, length) + " from worker: " << nodeid;
     logger_->log(LOG_INFO, ss.str());
 
+    delete [] buf;
   }
 
-}
-
-void CoordinatorNode::handle_load(LoadMsg& lmsg) {
-  switch (lmsg.partition_type()) {
-    case ORDERED_PARTITION:
-      handle_load_ordered(lmsg);
-      break;
-    case HASH_PARTITION:
-      handle_load_hash(lmsg);
-      break;
-    default:
-      // TODO return error?
-      break;
-  }
 }
 
 void CoordinatorNode::handle_get(GetMsg& gmsg) {
@@ -355,15 +358,16 @@ void CoordinatorNode::handle_aggregate() {
   */
 }
 
-void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
-  logger_->log(LOG_INFO, "In handle_parallel_load");
 
-  switch (pmsg.partition_type()) {
+
+/*************** HANDLE LOAD **********************/
+void CoordinatorNode::handle_load(LoadMsg& lmsg) {
+  switch (lmsg.partition_type()) {
     case ORDERED_PARTITION:
-      handle_parallel_load_ordered(pmsg);
+      handle_load_ordered(lmsg);
       break;
     case HASH_PARTITION:
-      handle_parallel_load_hash(pmsg);
+      handle_load_hash(lmsg);
       break;
     default:
       // TODO return error?
@@ -371,10 +375,11 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   }
 }
 
+
 void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
   std::stringstream ss;
 
-  std::string filepath = "./data/" + lmsg.filename();
+  std::string filepath = datadir_ + "/" + lmsg.filename();
 
   // inject ids if regular or hilbert order
   ArraySchema& array_schema = lmsg.array_schema();
@@ -391,8 +396,10 @@ void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
       executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
     } catch(LoaderException& le) {
       logger_->log(LOG_INFO, "Caught loader exception " + le.what());
-      //remove(injected_filepath.c_str());
+#ifdef NDEBUG
+      remove(injected_filepath.c_str());
       executor_->storage_manager()->delete_array(array_schema.array_name());
+#endif
       throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
     }
   }
@@ -432,7 +439,11 @@ void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
     total++;
   }
 
-  sorted_file.seekg(0, std::ios::beg);
+  sorted_file.close();
+  //sorted_file.seekg(0, std::ios::beg);
+  CSVFile csv(sorted_filepath, CSVFile::READ);
+  CSVLine csv_line;
+  std::vector<int64_t> partitions; // nworkers - 1 partitions
   for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
     std::string line;
     std::stringstream content;
@@ -442,24 +453,47 @@ void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
     }
 
     ss.str(std::string());
-    ss << "Sending sorted file part to nodeid " << nodeid;
+    ss << "Sending sorted file part to nodeid " << nodeid << " with " << (end - pos) << " lines";
     logger_->log(LOG_INFO, ss.str());
-    for(; pos < end; ++pos) {
+
+    for(; pos < end - 1; ++pos) {
 
       // TODO use stavros's csvfile?
-      std::getline(sorted_file, line);
-      line += "\n";
+      //std::getline(sorted_file, line);
+      csv >> csv_line;
+      line = csv_line.str() + "\n";
       mpi_handler_->send_content(line.c_str(), line.size(), nodeid, LOAD_TAG);
+    }
+
+    // need nworkers - 1 "stumps" for partition ranges
+    assert(pos == end - 1); 
+    csv >> csv_line;
+    line = csv_line.str() + "\n";
+    mpi_handler_->send_content(line.c_str(), line.size(), nodeid, LOAD_TAG);
+    if (nodeid != nprocs_ - 1) { // not last node
+      int64_t sample = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
+      partitions.push_back(sample);
     }
 
     // final send
     mpi_handler_->flush_send(nodeid, LOAD_TAG);
+    assert(mpi_handler_->all_buffers_empty() == true);
 
     --remainder;
   }
 
 
-  sorted_file.close();
+  assert(partitions.size() == nworkers_ - 1);
+
+  logger_->log(LOG_INFO, "Sending partition samples to all workers");
+  SamplesMsg msg(partitions);
+  for (int worker = 1; worker <= nworkers_ ; worker++) {
+    ss.str(std::string());
+    ss << "Sending partitions to worker " << worker;
+    logger_->log(LOG_INFO, ss.str());
+    mpi_handler_->send_samples_msg(&msg, worker);
+  }
+
 }
 
 void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
@@ -469,7 +503,7 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
   // TODO check that filename exists in workspace, error if doesn't
   ArraySchema array_schema = pmsg.array_schema();
 
-  std::string filepath = "./data/" + pmsg.filename();
+  std::string filepath = datadir_ + "/" + pmsg.filename();
   logger_->log(LOG_INFO, "Sending data to workers based on hash value from " + filepath);
   // scan input file, compute hash on cell coords, send to worker
   CSVFile csv_in(filepath, CSVFile::READ);
@@ -489,6 +523,23 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
 
   logger_->log(LOG_INFO, "Flushing all sends");
   mpi_handler_->flush_all_sends(LOAD_TAG);
+}
+
+/*************** HANDLE PARALLEL LOAD ***************/
+void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
+  logger_->log(LOG_INFO, "In handle_parallel_load");
+
+  switch (pmsg.partition_type()) {
+    case ORDERED_PARTITION:
+      handle_parallel_load_ordered(pmsg);
+      break;
+    case HASH_PARTITION:
+      handle_parallel_load_hash(pmsg);
+      break;
+    default:
+      // TODO return error?
+      break;
+  }
 }
 
 // participates in all to all mpi exchange
