@@ -756,6 +756,7 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
       dim_domains,
       types,
       ArraySchema::HILBERT);
+  return array_schema;
 
   /*
   // for test_[X}.csv 
