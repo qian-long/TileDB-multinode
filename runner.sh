@@ -29,7 +29,7 @@ if [ "$?" -eq "0" ]
 then
   #get data from master
   cp ~/TileDB-multinode/workspaces/workspace-0/logfile $DATA_FOLDER/master_logfile.txt
-  for i in `seq 2 3`;
+  for i in `seq 2 $NUM_NODES`;
   do
     scp istc$i:~/TileDB-multinode/workspaces/workspace-$(($i-1))/logfile $DATA_FOLDER/istc_machine_$i.txt
   done;
