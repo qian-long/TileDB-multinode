@@ -1,14 +1,15 @@
 #! /bin/bash
+NUM_NODES=5
 DATASET=ais_2009_01_allzones
 FILENAME=$DATASET.csv
 TEMP_NAME=$( date +"%m-%dT%H:%M")
 TRIAL=${3:-$TEMP_NAME}
-RUN_NAME=$DATASET\_$TRIAL
+RUN_NAME=t$NUM_WORKERS\_$DATASET\_$TRIAL
 DATA_FOLDER=Result/$RUN_NAME
 mkdir -p $DATA_FOLDER
 
 #clear the machines for running
-for i in `seq 2 3`;
+for i in `seq 1 $NUM_NODES`;
 do
   ssh -i ~/.ssh/qlong istc$i -t "cd ~/TileDB-multinode; make multi-istc; ./setup_env.sh"
 done;
@@ -19,7 +20,7 @@ done;
 # run the actual thing
 make multi-istc
 ./setup_env.sh
-mpiexec.mpich2 -n 3 -f machinefile_istc ./multinode_launcher $FILENAME > $DATA_FOLDER/master.txt
+mpiexec.mpich2 -n $NUM_NODES -f machinefile_istc ./multinode_launcher $FILENAME > $DATA_FOLDER/master.txt
 cat $DATA_FOLDER/master.txt
 
 
