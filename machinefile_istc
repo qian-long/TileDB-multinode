@@ -1,3 +1,3 @@
+istc1.csail.mit.edu:1
+istc2.csail.mit.edu:1  # this will spawn 1 process
 istc3.csail.mit.edu:1
-istc1.csail.mit.edu:1  # this will spawn 1 process
-istc2.csail.mit.edu:1

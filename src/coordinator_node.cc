@@ -692,18 +692,18 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
   attribute_names.push_back("attr2");
 
   // Set attribute types
-  std::vector<const std::type_info*> attribute_types;
-  attribute_types.push_back(&typeid(int));
-  attribute_types.push_back(&typeid(int));
+  std::vector<const std::type_info*> types;
+  types.push_back(&typeid(int));
+  types.push_back(&typeid(int));
 
+
+  // Set dimension type
+  types.push_back(&typeid(int));
 
   // Set dimension names
   std::vector<std::string> dim_names;
   dim_names.push_back("i");
   dim_names.push_back("j");
-
-  // Set dimension type
-  ArraySchema::CellType dim_type = ArraySchema::DOUBLE;
 
   // Set dimension domains
   std::vector<std::pair<double,double> > dim_domains;
@@ -711,12 +711,12 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
   dim_domains.push_back(std::pair<double,double>(0, 1000000));
 
   // Create an array with irregular tiles
-  ArraySchema * array_schema = new ArraySchema(array_name,
-    attribute_names,
-    dim_names,
-    dim_domains,
-    attribute_types,
-    ArraySchema::HILBERT);
+  ArraySchema array_schema = new ArraySchema(array_name,
+      attribute_names,
+      dim_names,
+      dim_domains,
+      types,
+      ArraySchema::HILBERT);
 
   return array_schema;
 }
