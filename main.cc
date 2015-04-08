@@ -64,23 +64,38 @@ const char* get_filename(int dataset_num, int numprocs) {
 }
 
 
-void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
+void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, std::string filename) {
   struct timeval tim;  
   gettimeofday(&tim, NULL);  
   double t1 = tim.tv_sec+(tim.tv_usec/1000000.0);  
   char buffer[100];
   int len;
+  std::string array_name;
 
-  // LOAD TEST
-  coordinator->test_load(array_name);
+  // ORDERED LOAD TEST
+  array_name = array_name_base + "_ordered";
+  coordinator->test_load(array_name, filename, ORDERED_PARTITION);
 
   gettimeofday(&tim, NULL);  
   double t2 = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
-  len = snprintf(buffer, 100, "Load %s wall time: %.6lf secs\n", array_name.c_str(), t2 - t1);
+  len = snprintf(buffer, 100, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t2 - t1);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
 
+  // HASH LOAD TEST
+  array_name = array_name_base + "_hash";
+  coordinator->test_load(array_name, filename, HASH_PARTITION);
+
+  gettimeofday(&tim, NULL);  
+  double t3 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
+  len = snprintf(buffer, 100, "Hash Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t3 - t2);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
+
+
+  /*
   // FILTER TEST
   coordinator->test_filter(array_name);
   gettimeofday(&tim, NULL);  
@@ -107,6 +122,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name) {
 
   // SUBARRAY TEST
   //coordinator->test_subarray(array_name);
+  */
 
 }
 
@@ -121,14 +137,22 @@ int main(int argc, char** argv) {
   // seed srand
   srand(time(NULL));
 
+  std::string datadir;
   if (myrank == MASTER) {
-    CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs, "./data");
+
+    datadir = "/data/qlong/ais_final";
+    CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs, datadir);
 
     std::string filename;
+    std::string array_name;
 
     if (argc <= 1 || strncmp(argv[1], "test",4) == 0) {
-        filename = "test_A.csv";
-    }else if (strncmp(argv[1], "500",3) == 0) {
+      filename = "test_A.csv";
+    } else {
+      filename = argv[1];
+    }
+    /*
+    else if (strncmp(argv[1], "500",3) == 0) {
         filename = std::string(get_filename(1, nprocs));
     }else if (strncmp(argv[1], "1",1) == 0) {
         filename = std::string(get_filename(2, nprocs));
@@ -137,13 +161,22 @@ int main(int argc, char** argv) {
     }else {
         DEBUG_MSG("not a valid total data size");
     }
+    */
 
-    //run_test_suite(coordinator, filename);
-    
-    coordinator->run();
-    coordinator->quit_all();
+    std::stringstream ss(filename);
+    std::string item;
+    std::vector<std::string> elems;
+    while (std::getline(ss, item, '.')) {
+      elems.push_back(item);
+    }
+    array_name = elems[0];
+    run_test_suite(coordinator, array_name, filename);
+    //coordinator->run();
+    //coordinator->quit_all();
   } else {
-    WorkerNode * worker = new WorkerNode(myrank, nprocs, "./data");
+
+    std::string datadir = "/data/qlong/processed_ais_data";
+    WorkerNode * worker = new WorkerNode(myrank, nprocs, datadir);
     worker->run();
   }
 

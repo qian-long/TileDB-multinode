@@ -653,3 +653,20 @@ int WorkerNode::handle_msg(int type, Msg* msg){
   }
   throw MessageException("trying to deserailze msg of unknown type");
 }
+
+
+/******************************************************
+ ****************** PRIVATE FUNCTIONS *****************
+ ******************************************************/
+std::string WorkerNode::get_data_path(std::string filename) {
+
+// directive for testing
+#ifdef ISTC
+  std::stringstream ss;
+  ss << "t" << nprocs_ - 1 << "_s" << myrank_ - 1 << "_" << filename;
+  return datadir_ + "/" + ss.str();
+#else
+  return datadir_ + "/" + filename;
+#endif
+}
+

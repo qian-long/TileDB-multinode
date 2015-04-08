@@ -617,20 +617,21 @@ std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> sample
  *************** TESTING FUNCTIONS ********************
  ******************************************************/
 
-void CoordinatorNode::test_load(std::string array_name) {
-  logger_->log(LOG_INFO, "Start Load");
-  logger_->log(LOG_INFO, "loading array " + array_name);
+void CoordinatorNode::test_load(std::string array_name, 
+    std::string filename, 
+    PartitionType partition_type) {
+  logger_->log(LOG_INFO, "Test loading array_name: " + array_name + " filename: " + filename);
   ArraySchema * array_schema = get_test_arrayschema(array_name);
-  ArraySchema::Order order = ArraySchema::ROW_MAJOR;
-  LoadMsg lmsg = LoadMsg(array_name, *array_schema, ORDERED_PARTITION);
+  LoadMsg lmsg = LoadMsg(filename, *array_schema, partition_type);
 
   send_and_receive(lmsg);
 
   logger_->log(LOG_INFO, "Test Load Done");
 
   // TODO don't leak memory
-  //delete array_schema;
+  delete array_schema;
 }
+
 
 void CoordinatorNode::test_filter(std::string array_name) {
   logger_->log(LOG_INFO, "Start Filter");
@@ -682,6 +683,7 @@ void CoordinatorNode::test_aggregate(std::string array_name) {
   //delete array_schema;
 }
 
+// TODO this is only for test_C.csv, modifiy for ais data
 ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
 
   // Set attribute names
@@ -714,7 +716,7 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
     dim_names,
     dim_domains,
     attribute_types,
-    ArraySchema::ROW_MAJOR);
+    ArraySchema::HILBERT);
 
   return array_schema;
 }

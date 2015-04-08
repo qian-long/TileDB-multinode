@@ -94,6 +94,9 @@ class WorkerNode {
     // map of global array name to local array schema
     std::map<std::string, ArraySchema *> * local_schema_map_;
 
+    /** FOR ISTC TESTING ONLY */
+    std::string get_data_path(std::string filename);
+
 };
 
 #endif

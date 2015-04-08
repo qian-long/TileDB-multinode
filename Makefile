@@ -191,10 +191,17 @@ multi-run-local: $(MULTINODE_EXEC)
 	./setup_env.sh
 	mpiexec -f machinefile_local ./$(MULTINODE_EXEC)
 
+# compiling and runing on istc machines
+multi-istc: CXX = mpic++.mpich2
+multi-istc: CXX += -DISTC
+multi-istc: multi
+
+# running locally on istc
 multi-run-istc: $(MULTINODE_EXEC)
 	./setup_env.sh
 	mpiexec.mpich2 -f machinefile_local ./$(MULTINODE_EXEC)
 
+multi-run-istc-prod: CXX += -DISTC
 multi-run-istc-prod: $(MULTINODE_EXEC)
 	./setup_env.sh
 	mpirun.mpich2 -f machinefile_istc ./$(MULTINODE_EXEC)
