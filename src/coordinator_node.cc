@@ -711,7 +711,7 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
   dim_domains.push_back(std::pair<double,double>(0, 1000000));
 
   // Create an array with irregular tiles
-  ArraySchema array_schema = new ArraySchema(array_name,
+  ArraySchema *array_schema = new ArraySchema(array_name,
       attribute_names,
       dim_names,
       dim_domains,
