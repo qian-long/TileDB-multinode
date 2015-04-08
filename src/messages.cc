@@ -187,15 +187,16 @@ LoadMsg* LoadMsg::deserialize(char* buffer, int buffer_length) {
   std::stringstream ss;
   int counter = 0;
 
-  int filename_length = (int) buffer[counter];
+  int filename_length;
+  memcpy(&filename_length, &buffer[counter], sizeof(int));
   counter += sizeof(int);
   ss.write(&buffer[counter], filename_length);
 
   filename = ss.str(); // first arg
   counter += filename_length;
 
-  int arrayschema_length = (int) buffer[counter];
-
+  int arrayschema_length;
+  memcpy(&arrayschema_length, &buffer[counter], sizeof(int));
   counter += sizeof(int);
 
   // this is creating space for it on the heap.

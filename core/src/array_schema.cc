@@ -449,6 +449,7 @@ void ArraySchema::deserialize(const char* buffer, uint64_t buffer_size) {
     else if(type == DOUBLE)
       types_[i] = &typeid(double);
   }
+  std::cout << "offset: " << offset << " buffer_size: " << buffer_size << "\n";
   assert(offset == buffer_size);
   
   // Extra coordinate attribute
