@@ -16,8 +16,7 @@ done;
 #1 = datatsize, 2 = number of nodes including master, 3 = trial number
 #ex: ./runner 500 8
 
-#run the actual thing
-#cp host thing
+# run the actual thing
 make multi-istc
 ./setup_env.sh
 mpiexec.mpich2 -n 3 -f machinefile_istc ./multinode_launcher $FILENAME > $DATA_FOLDER/master.txt

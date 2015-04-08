@@ -76,8 +76,6 @@ void WorkerNode::run() {
 
   // TIMING VARIABLES
   struct timeval tim;  
-  char tim_buf[100];
-  int tim_len;
   double tstart;
   double tend;
   while (loop) {
@@ -302,6 +300,7 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
   logger_->log(LOG_INFO, "In Handle Load Ordered");
 
   // Wait for sorted file from master
+  logger_->log_start(LOG_INFO, "Receiving file and samples from coord");
   std::string frag_name = "0_0";
   std::ofstream sorted_file;
 
@@ -315,10 +314,12 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
 
   logger_->log(LOG_INFO, "Finished receiving sorted file from master to " + sorted_filepath);
 
+
   // receive samples from coord
   logger_->log(LOG_INFO, "Receiving partitions from coordinator");
   SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
   std::vector<int64_t> partitions = smsg->samples();
+  logger_->log_end(LOG_INFO);
 
   // store metadata
   logger_->log(LOG_INFO, "Storing metadata");
@@ -332,6 +333,7 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
     executor_->storage_manager()->open_fragment(&array_schema, frag_name,
                                                 StorageManager::CREATE);
 
+  logger_->log_start(LOG_INFO, "Make tiles");
   // Make tiles
   try {
     if(array_schema.has_regular_tiles())
@@ -353,6 +355,7 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
   executor_->storage_manager()->close_fragment(fd);
 
   logger_->log(LOG_INFO, "Closed fragment");
+  logger_->log_end(LOG_INFO);
   // TODO cleanup
   return 0;
 }
@@ -363,15 +366,18 @@ int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema
   std::string filepath = executor_->loader()->workspace() + "/HASH_" + filename;
 
   logger_->log(LOG_INFO, "Receiving hash partitioned data from master, writing to filepath " + filepath);
+  logger_->log_start(LOG_INFO, "Receiving data from coord");
 
   output.open(filepath.c_str());
   // Blocking
   mpi_handler_->receive_content(output, MASTER, LOAD_TAG);
   output.close();
+  logger_->log_end(LOG_INFO);
 
   logger_->log(LOG_INFO, "Invoking local executor load");
+  logger_->log_start(LOG_INFO, "Local load");
   executor_->load(filepath, array_schema.array_name());
-
+  logger_->log_end(LOG_INFO);
 
   // TODO cleanup
   return 0;
@@ -412,10 +418,12 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   logger_->log(LOG_INFO, "Handle parallel load ordered");
 
   // inject cell_ids
+  logger_->log_start(LOG_INFO, "Inject cell ids");
   bool regular = array_schema.has_regular_tiles();
   ArraySchema::Order order = array_schema.order();
   // TODO put into function
-  std::string filepath = datadir_ + "/" + filename;
+  std::string filepath = get_data_path(filename);
+
   std::string injected_filepath = filepath;
   std::string frag_name = "0_0";
 
@@ -435,7 +443,9 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
       throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
     }
   }
+  logger_->log_end(LOG_INFO);
 
+  logger_->log_start(LOG_INFO, "Picking X samples");
   // read filename to pick X samples
   std::vector<int64_t> samples = sample(injected_filepath, num_samples);
 
@@ -447,8 +457,9 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   logger_->log(LOG_INFO, "Receiving partitions from coordinator");
   SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
   std::vector<int64_t> partitions = smsg->samples();
+  logger_->log_end(LOG_INFO);
 
-  logger_->log(LOG_INFO, "Starting n to n data shuffle based on partition");
+  logger_->log_start(LOG_INFO, "N to N data shuffle");
   std::string outpath = executor_->loader()->workspace() + "/PORDERED_" + filename;
   std::ofstream outfile;
   outfile.open(outpath.c_str());
@@ -477,16 +488,19 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   mpi_handler_->finish_recv_a2a(outfile);
   outfile.close();
   logger_->log(LOG_INFO, "Finished receiving all necessary data");
+  logger_->log_end(LOG_INFO);
 
   // sort and make tiles
+  logger_->log_start(LOG_INFO, "Sort csv file");
   std::string sorted_filepath = executor_->loader()->workspace() + "/PORDERED_sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
 
   logger_->log(LOG_INFO, "Sorting csv file " + outpath + " into " + sorted_filepath);
 
   executor_->loader()->sort_csv_file(outpath, sorted_filepath, array_schema);
+  logger_->log_end(LOG_INFO);
 
-  logger_->log(LOG_INFO, "Finished sorting csv file");
   logger_->log(LOG_INFO, "Starting make tiles on " + sorted_filepath);
+  logger_->log_start(LOG_INFO, "Make tiles");
   StorageManager::FragmentDescriptor* fd =
     executor_->storage_manager()->open_fragment(&array_schema, frag_name,
                                                 StorageManager::CREATE);
@@ -508,15 +522,16 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
                           "'.\n " + le.what());
   }
 
-  logger_->log(LOG_INFO, "Finished make tiles");
+  logger_->log_end(LOG_INFO);
   executor_->storage_manager()->close_fragment(fd);
 
   // set metadata
-  logger_->log(LOG_INFO, "Storing metadata");
+  logger_->log_start(LOG_INFO, "Storing metadata");
   MetaData metadata(ORDERED_PARTITION,
       std::pair<int64_t, int64_t>(partitions[myrank_-1], partitions[myrank_]),
       partitions);
   md_manager_->store_metadata(array_schema.array_name(), metadata);
+  logger_->log_end(LOG_INFO);
 
   // TODO cleanup
   delete smsg;
@@ -525,8 +540,9 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
 
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
 
-  // TODO put into function
-  std::string filepath = datadir_ + "/" + filename;
+  logger_->log(LOG_INFO, "Handle parallel load hash array : " + array_schema.array_name());
+  logger_->log_start(LOG_INFO, "Hashing + Data Shuffle");
+  std::string filepath = get_data_path(filename);
   std::string outpath = executor_->loader()->workspace() + "/PHASH_" + filename;
 
   std::ofstream outfile;
@@ -568,10 +584,14 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
   outfile.close();
 
 
+  logger_->log_end(LOG_INFO);
   // invoke local load on received data
-  logger_->log(LOG_INFO, "Invoking local executor load");
+  logger_->log(LOG_INFO, "Invoking local executor load filename: " + outpath + " array_name: " + array_schema.array_name());
+
+  logger_->log(LOG_INFO, "Local Load");
   executor_->load(outpath, array_schema.array_name());
 
+  logger_->log_end(LOG_INFO);
 }
 
 

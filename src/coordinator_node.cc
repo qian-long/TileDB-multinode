@@ -639,6 +639,27 @@ void CoordinatorNode::test_load(std::string array_name,
   delete array_schema;
 }
 
+void CoordinatorNode::test_parallel_load(std::string array_name,
+    std::string filename,
+    PartitionType partition_type) {
+    logger_->log(LOG_INFO, "Test parallel loading array_name: " + array_name + " filename: " + filename);
+    logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_name);
+
+  ArraySchema * array_schema = get_test_arrayschema(array_name);
+  DefineArrayMsg damsg = DefineArrayMsg(*array_schema);
+  send_and_receive(damsg);
+
+
+  logger_->log(LOG_INFO, "Sending PARALLEL LOAD ARRAY to all workers for array " + array_name);
+  ParallelLoadMsg msg = ParallelLoadMsg(filename, partition_type, *array_schema);
+
+  send_and_receive(msg);
+
+  logger_->log(LOG_INFO, "Test Parallel Load Done");
+
+
+  delete array_schema;
+}
 
 void CoordinatorNode::test_filter(std::string array_name) {
   logger_->log(LOG_INFO, "Start Filter");
@@ -692,6 +713,7 @@ void CoordinatorNode::test_aggregate(std::string array_name) {
 
 // TODO this is only for test_C.csv, modifiy for ais data
 ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
+
   // Set attribute names
   std::vector<std::string> attribute_names;
   attribute_names.push_back("sog"); // float
@@ -735,7 +757,7 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
       types,
       ArraySchema::HILBERT);
 
-/*
+  /*
   // for test_[X}.csv 
   // Set attribute names
   std::vector<std::string> attribute_names;
@@ -768,6 +790,6 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
       dim_domains,
       types,
       ArraySchema::HILBERT);
-*/
   return array_schema;
+  */
 }

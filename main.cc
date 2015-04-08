@@ -72,6 +72,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   int len;
   std::string array_name;
 
+  /*
   // ORDERED LOAD TEST
   array_name = array_name_base + "_ordered";
   coordinator->test_load(array_name, filename, ORDERED_PARTITION);
@@ -91,6 +92,30 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   double t3 = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
   len = snprintf(buffer, 100, "Hash Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t3 - t2);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
+  */
+
+  // PARALLEL ORDERED LOAD TEST
+  double t3 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+  array_name = array_name_base + "_pordered";
+  coordinator->test_parallel_load(array_name, filename, ORDERED_PARTITION);
+
+  gettimeofday(&tim, NULL);  
+  double t4 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
+  len = snprintf(buffer, 100, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t4 - t3);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
+
+  // PARALLEL HASH LOAD TEST
+  array_name = array_name_base + "_phash";
+  coordinator->test_parallel_load(array_name, filename, HASH_PARTITION);
+
+  gettimeofday(&tim, NULL);  
+  double t5 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+
+  len = snprintf(buffer, 100, "Hash Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t5 - t4);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
 

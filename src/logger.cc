@@ -1,6 +1,7 @@
 #include <time.h>
 #include <iostream>
 #include <fstream>
+#include <sys/time.h>
 #include "logger.h"
 #include "debug.h"
 
@@ -28,6 +29,24 @@ void Logger::log(std::string log_info, std::string message) {
   LOGGER_DEBUG_MSG(message, log_info);
 }
 
+void Logger::log_start(std::string log_info, std::string message) {
+  struct timeval tim;
+  gettimeofday(&tim, NULL);
+  start_time_ = tim.tv_sec+(tim.tv_usec/1000000.0);
+  time_message_ = message;
+  log(log_info, "LOG_START " + message);
+}
+
+void Logger::log_end(std::string log_info) {
+  struct timeval tim;
+  gettimeofday(&tim, NULL);
+  double tend = tim.tv_sec+(tim.tv_usec/1000000.0);
+
+  std::stringstream ss;
+  ss << "LOG_END " << time_message_ << " DURATION: " << tend - start_time_ << " secs";
+  log(log_info, ss.str());
+}
+
 std::string Logger::current_timestring() {
   time_t rawtime;
   struct tm * timeinfo;
@@ -41,3 +60,4 @@ std::string Logger::current_timestring() {
   std::string timestring = std::string(buffer, len);
   return timestring;
 }
+

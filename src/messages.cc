@@ -443,14 +443,15 @@ ParallelLoadMsg* ParallelLoadMsg::deserialize(char* buffer, int buffer_size) {
   pos += sizeof(PartitionType);
 
   // array schema
-  length = (int) buffer[pos];
+  memcpy(&length, &buffer[pos], sizeof(int));
   pos += sizeof(int);
   ArraySchema* schema = new ArraySchema();
   schema->deserialize(&buffer[pos], length);
   pos += length;
 
   // num samples
-  int num_samples = (int) buffer[pos];
+  int num_samples;
+  memcpy(&num_samples, &buffer[pos], sizeof(int));
   assert(pos + sizeof(int) == buffer_size);
   return new ParallelLoadMsg(filename, type, *schema, num_samples);
 }

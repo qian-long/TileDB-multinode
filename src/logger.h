@@ -19,6 +19,10 @@ class Logger {
 
     // LOG METHODS
     void log(std::string log_info, std::string message);
+    // sets start_time to current timte
+    void log_start(std::string log_info, std::string message);
+    // takes difference of current time and start time
+    void log_end(std::string log_info);
 
     // GETTERS
     std::string get_logfile();
@@ -28,6 +32,12 @@ class Logger {
 
   private:
     std::string logfile_;
+
+    // current timing message
+    std::string time_message_;
+
+    // current timing start (in seconds)
+    double start_time_;
 
 
 };
