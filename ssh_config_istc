@@ -10,3 +10,11 @@ Host istc3
   HostName istc3.csail.mit.edu
   User qlong
   IdentityFile ~/.ssh/qlong
+Host istc4
+  HostName istc4.csail.mit.edu
+  User qlong
+  IdentityFile ~/.ssh/qlong
+Host istc5
+  HostName istc5.csail.mit.edu
+  User qlong
+  IdentityFile ~/.ssh/qlong
