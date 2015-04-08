@@ -621,7 +621,14 @@ void CoordinatorNode::test_load(std::string array_name,
     std::string filename, 
     PartitionType partition_type) {
   logger_->log(LOG_INFO, "Test loading array_name: " + array_name + " filename: " + filename);
+  logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_name);
+
   ArraySchema * array_schema = get_test_arrayschema(array_name);
+  DefineArrayMsg damsg = DefineArrayMsg(*array_schema);
+  send_and_receive(damsg);
+
+
+  logger_->log(LOG_INFO, "Sending LOAD ARRAY to all workers for array " + array_name);
   LoadMsg lmsg = LoadMsg(filename, *array_schema, partition_type);
 
   send_and_receive(lmsg);

@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
     array_name = elems[0];
     run_test_suite(coordinator, array_name, filename);
     //coordinator->run();
-    //coordinator->quit_all();
+    coordinator->quit_all();
   } else {
 
     std::string datadir = "/data/qlong/processed_ais_data";
