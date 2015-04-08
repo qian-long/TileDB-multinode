@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
     std::string filename;
     std::string array_name;
 
-    if (argc <= 1 || strncmp(argv[1], "test",4) == 0) {
+    if (argc < 1) {
       filename = "test_A.csv";
     } else {
       filename = argv[1];

@@ -9,7 +9,7 @@ mkdir -p $DATA_FOLDER
 #clear the machines for running
 for i in `seq 2 3`;
 do
-  ssh -i ~/.ssh/qlong istc$i -t "cd ~/TileDB-multinode; make multi-istc"
+  ssh -i ~/.ssh/qlong istc$i -t "cd ~/TileDB-multinode; make multi-istc; setup_env.sh"
 done;
 
 #1 = datatsize, 2 = number of nodes including master, 3 = trial number
@@ -18,7 +18,8 @@ done;
 #run the actual thing
 #cp host thing
 make multi-istc
-mpiexec.mpich2 -n 3 -f machinefile_istc ./multinode_launcher test_C.csv > $DATA_FOLDER/master.txt
+./setup_env.sh
+mpiexec.mpich2 -n 3 -f machinefile_istc ./multinode_launcher `echo test_C.csv` > $DATA_FOLDER/master.txt
 cat $DATA_FOLDER/master.txt
 
 
