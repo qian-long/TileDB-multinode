@@ -9,7 +9,7 @@ DATA_FOLDER=Result/$RUN_NAME
 mkdir -p $DATA_FOLDER
 
 #clear the machines for running
-for i in `seq 1 $NUM_NODES`;
+for i in `seq 2 $NUM_NODES`;
 do
   ssh -i ~/.ssh/qlong istc$i -t "cd ~/TileDB-multinode; make multi-istc; ./setup_env.sh"
 done;
