@@ -250,7 +250,11 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
 
   MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
-  file << std::string(recvbuf, recv_total);
+  // start after rcounts[0] offset
+  assert(rcounts[0] == rdispls[1]);
+
+  // ignore "blob" msg from coordinator
+  file << std::string(&recvbuf[rdispls[1]], recv_total - rcounts[0]);
 
   // reset pos
   for (int i = 0; i < pos_.size(); ++i) {
