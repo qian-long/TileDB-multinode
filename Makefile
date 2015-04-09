@@ -162,7 +162,7 @@ doxyfile.inc: $(CORE_INCLUDE)
 # Multinode TileDB #
 ####################
 # prints out debug messages
-multi-debug: CXX = mpic++.mpich2
+multi-debug: CXX = mpic++
 multi-debug: CXX += -DDEBUG -g
 multi-debug: multi
 
@@ -195,6 +195,11 @@ multi-run-local: $(MULTINODE_EXEC)
 multi-istc: CXX = mpic++.mpich2
 multi-istc: CXX += -DISTC
 multi-istc: multi
+
+multi-istc-debug: CXX = mpic++.mpich2
+multi-istc-debug: CXX += -DISTC -DDEBUG -g
+multi-istc-debug: multi
+
 
 # running locally on istc
 multi-run-istc: $(MULTINODE_EXEC)

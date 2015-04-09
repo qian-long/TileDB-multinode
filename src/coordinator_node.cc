@@ -711,9 +711,45 @@ void CoordinatorNode::test_aggregate(std::string array_name) {
   //delete array_schema;
 }
 
-// TODO this is only for test_C.csv, modifiy for ais data
 ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
 
+  // array schema for test_[X}.csv 
+  if (array_name.compare(0, 4, "test") == 0) {
+    // Set attribute names
+    std::vector<std::string> attribute_names;
+    attribute_names.push_back("attr1");
+    attribute_names.push_back("attr2");
+
+    // Set attribute types
+    std::vector<const std::type_info*> types;
+    types.push_back(&typeid(int));
+    types.push_back(&typeid(int));
+
+
+    // Set dimension type
+    types.push_back(&typeid(int));
+
+    // Set dimension names
+    std::vector<std::string> dim_names;
+    dim_names.push_back("i");
+    dim_names.push_back("j");
+
+    // Set dimension domains
+    std::vector<std::pair<double,double> > dim_domains;
+    dim_domains.push_back(std::pair<double,double>(0, 1000000));
+    dim_domains.push_back(std::pair<double,double>(0, 1000000));
+
+    // Create an array with irregular tiles
+    ArraySchema *array_schema = new ArraySchema(array_name,
+        attribute_names,
+        dim_names,
+        dim_domains,
+        types,
+        ArraySchema::HILBERT);
+    return array_schema;
+  }
+
+  // array schema for ais data
   // Set attribute names
   std::vector<std::string> attribute_names;
   attribute_names.push_back("sog"); // float
@@ -758,39 +794,4 @@ ArraySchema* CoordinatorNode::get_test_arrayschema(std::string array_name) {
       ArraySchema::HILBERT);
   return array_schema;
 
-  /*
-  // for test_[X}.csv 
-  // Set attribute names
-  std::vector<std::string> attribute_names;
-  attribute_names.push_back("attr1");
-  attribute_names.push_back("attr2");
-
-  // Set attribute types
-  std::vector<const std::type_info*> types;
-  types.push_back(&typeid(int));
-  types.push_back(&typeid(int));
-
-
-  // Set dimension type
-  types.push_back(&typeid(int));
-
-  // Set dimension names
-  std::vector<std::string> dim_names;
-  dim_names.push_back("i");
-  dim_names.push_back("j");
-
-  // Set dimension domains
-  std::vector<std::pair<double,double> > dim_domains;
-  dim_domains.push_back(std::pair<double,double>(0, 1000000));
-  dim_domains.push_back(std::pair<double,double>(0, 1000000));
-
-  // Create an array with irregular tiles
-  ArraySchema *array_schema = new ArraySchema(array_name,
-      attribute_names,
-      dim_names,
-      dim_domains,
-      types,
-      ArraySchema::HILBERT);
-  return array_schema;
-  */
 }

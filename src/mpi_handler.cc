@@ -211,10 +211,10 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
   scounts[0] = dummy.size();
   ss << dummy;
   send_total = scounts[0];
-  
+
   for (int nodeid = 1; nodeid < nprocs; ++nodeid) {
     std::map<int, int>::iterator search = node_to_buf_.find(nodeid);
-  
+
     int buf_ind;
     if (search == node_to_buf_.end()) {
       assert(nodeid == myrank_);
@@ -236,7 +236,7 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
 
   /* tell the other processors how much data is coming */
   MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
-  int recv_total = rcounts[0]; 
+  int recv_total = rcounts[0];
   rdispls[0] = 0;
   for (int i = 1; i < nprocs; ++i) {
     recv_total += rcounts[i];
@@ -245,6 +245,7 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
 
   // receive content from all nodes
   char recvbuf[recv_total];
+
 
   MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
@@ -281,18 +282,26 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
   do {
     /* tell the other processors how much data is coming */
     MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
-    recv_total = 0;
 
-    for (int i = 0; i < nprocs; ++i) {
+    // how much data I am expecting from everyone else
+    recv_total = rcounts[0];
+    rdispls[0] = 0;
+    for (int i = 1; i < nprocs; ++i) {
       recv_total += rcounts[i];
+      rdispls[i] = rcounts[i-1] + rdispls[i-1];
     }
+
 
     // receive content from all nodes
     char recvbuf[recv_total];
     std::stringstream nothing;
+    nothing.str(std::string());
+
     MPI_Alltoallv((char *)nothing.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
+    // coordinate doesn't receive
     if (recv_total > 0 && myrank_ != 0) {
+
       file << std::string(recvbuf, recv_total);
     }
 
