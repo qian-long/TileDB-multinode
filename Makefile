@@ -193,7 +193,7 @@ multi-run-local: $(MULTINODE_EXEC)
 
 # compiling and runing on istc machines
 multi-istc: CXX = mpic++.mpich2
-multi-istc: CXX += -DISTC
+multi-istc: CXX += -DISTC -DNDEBUG
 multi-istc: multi
 
 multi-istc-debug: CXX = mpic++.mpich2

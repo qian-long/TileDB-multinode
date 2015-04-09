@@ -177,6 +177,7 @@ void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiv
   int buf_length = pos_[buf_ind];
   // TODO handle not found case
   // TODO optimize later if needed
+  // TODO change to total_buffer_length_ after fixing bug
   if (length + buf_length >= mpi_buffer_length_) {
     flush_send_and_recv_a2a(in_buf, length, receiver, file);
   } else {
@@ -271,15 +272,36 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
   int sdispls[nprocs];
   int rdispls[nprocs];
 
-  for (int i = 0; i < nprocs; ++i) {
-    scounts[i] = 0;
-    sdispls[i] = 0;
-    rcounts[i] = 0;
-    rdispls[i] = 0;
-  }
-
-  std::stringstream ss;
+  bool keep_receiving = true;
+  bool coordinator_last_round = false;
   do {
+
+    // initialize every round
+    std::stringstream ss;
+    for (int i = 0; i < nprocs; ++i) {
+      scounts[i] = 0;
+      sdispls[i] = 0;
+      rcounts[i] = 0;
+      rdispls[i] = 0;
+    }
+
+    if (myrank_ == MASTER && !coordinator_last_round) {
+      /*
+       * Whenever a worker node sends data, they send a blob to the coordinator (in
+       * flush_send_and_recv_a2a).
+       * Here, coordinator will send "blob" out to all workers as long as at least one
+       * worker is still sending data. When Coordinator sends nothing, that is a
+       * signal to everyone else that they can stop receiving. Maybe this is hacky?
+       */
+      std::string dummy("blob");
+      for (int nodeid = 1; nodeid < nprocs; ++nodeid) {
+        scounts[nodeid] = dummy.size();
+        ss << dummy;
+        sdispls[nodeid] = sdispls[nodeid-1] + scounts[nodeid-1];
+      }
+    }
+
+
     /* tell the other processors how much data is coming */
     MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
 
@@ -291,21 +313,33 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
       rdispls[i] = rcounts[i-1] + rdispls[i-1];
     }
 
-
     // receive content from all nodes
     char recvbuf[recv_total];
-    std::stringstream nothing;
-    nothing.str(std::string());
 
-    MPI_Alltoallv((char *)nothing.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
+    MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
-    // coordinate doesn't receive
-    if (recv_total > 0 && myrank_ != 0) {
+    if (recv_total > 0) {
+      // start after rcounts[0] offset
+      assert(rcounts[0] == rdispls[1]);
 
-      file << std::string(recvbuf, recv_total);
+      // ignore "blob" msg from coordinator
+      file << std::string(&recvbuf[rdispls[1]], recv_total - rcounts[0]);
+    } else {
+      assert(recv_total == 0);
+
+      if (myrank_ == MASTER) {
+        if (!coordinator_last_round) {
+          coordinator_last_round = true;
+        } else {
+          keep_receiving = false;
+        }
+
+      } else {
+        keep_receiving = false;
+      }
     }
 
-  } while (recv_total > 0);
+  } while (keep_receiving);
 
 }
 

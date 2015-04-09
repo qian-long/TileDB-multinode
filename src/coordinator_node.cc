@@ -586,9 +586,9 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
     mpi_handler_->send_samples_msg(&msg, worker);
   }
 
-  logger_->log(LOG_INFO, "Participating in all to all communication");
+  logger_->log_start(LOG_INFO, "Participating in all to all communication");
   mpi_handler_->finish_recv_a2a();
-
+  logger_->log_end(LOG_INFO);
   // cleanup
 }
 

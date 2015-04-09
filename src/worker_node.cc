@@ -421,13 +421,11 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   logger_->log_start(LOG_INFO, "Inject cell ids");
   bool regular = array_schema.has_regular_tiles();
   ArraySchema::Order order = array_schema.order();
-  // TODO put into function
   std::string filepath = get_data_path(filename);
 
   std::string injected_filepath = filepath;
   std::string frag_name = "0_0";
 
-  
   if (regular || order == ArraySchema::HILBERT) {
     injected_filepath = executor_->loader()->workspace() + "/injected_" +
                         array_schema.array_name() + "_" + frag_name + ".csv";
@@ -491,21 +489,18 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   logger_->log_end(LOG_INFO);
 
   // sort and make tiles
-  logger_->log_start(LOG_INFO, "Sort csv file");
   std::string sorted_filepath = executor_->loader()->workspace() + "/PORDERED_sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
 
-  logger_->log(LOG_INFO, "Sorting csv file " + outpath + " into " + sorted_filepath);
-
+  logger_->log_start(LOG_INFO, "Sorting csv file " + outpath + " into " + sorted_filepath);
   executor_->loader()->sort_csv_file(outpath, sorted_filepath, array_schema);
   logger_->log_end(LOG_INFO);
 
-  logger_->log(LOG_INFO, "Starting make tiles on " + sorted_filepath);
-  logger_->log_start(LOG_INFO, "Make tiles");
+  // Make tiles
+  logger_->log_start(LOG_INFO, "Starting make tiles on " + sorted_filepath);
   StorageManager::FragmentDescriptor* fd =
     executor_->storage_manager()->open_fragment(&array_schema, frag_name,
                                                 StorageManager::CREATE);
 
-  // Make tiles
   try {
     if(array_schema.has_regular_tiles())
       executor_->loader()->make_tiles_regular(sorted_filepath, fd);
