@@ -1,5 +1,5 @@
 #! /bin/bash
-NUM_NODES=5
+NUM_NODES=9
 DATASET=ais_2009_01_allzones
 FILENAME=$DATASET.csv
 TEMP_NAME=$( date +"%m-%dT%H:%M")
