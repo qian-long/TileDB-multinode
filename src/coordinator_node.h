@@ -56,7 +56,10 @@ class CoordinatorNode {
     /******** TESTING FUNCTIONS ********/
     // filename must be in the Data directory
     // filename is the part before .csv
-    void test_load(std::string array_name, std::string filename, PartitionType partition_type);
+    void test_load(std::string array_name, 
+        std::string filename, 
+        PartitionType partition_type,
+        LoadMsg::LoadMethod method = LoadMsg::SORT);
     void test_parallel_load(std::string array_name,
         std::string filename, PartitionType partition_type);
     void test_filter(std::string);

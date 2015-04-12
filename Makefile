@@ -4,7 +4,7 @@
 
 # --- Compiler --- #
 #CXX = g++
-CXX = mpic++.mpich2
+CXX = mpic++
 DFLAGS = -DDEBUG
 
 # --- Directories --- #

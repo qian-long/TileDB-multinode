@@ -109,7 +109,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
 
   // ORDERED LOAD TEST
   array_name = array_name_base + "_ordered";
-  coordinator->test_load(array_name, filename, ORDERED_PARTITION);
+  coordinator->test_load(array_name, filename, ORDERED_PARTITION, LoadMsg::SORT);
 
   gettimeofday(&tim, NULL);  
   double t5 = tim.tv_sec+(tim.tv_usec/1000000.0);  
@@ -161,20 +161,24 @@ int main(int argc, char** argv) {
   // seed srand
   srand(time(NULL));
 
-  std::string datadir;
+  std::string datadir = "./data";
   if (myrank == MASTER) {
 
+#ifdef ISTC
     datadir = "/data/qlong/ais_final";
+#endif
     CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs, datadir);
 
     std::string filename;
     std::string array_name;
 
-    if (argc < 1) {
-      filename = "test_A.csv";
+    std::cout << "argc: " << argc << "\n";
+    if (argc <= 1) {
+      filename = "test_C.csv";
     } else {
       filename = argv[1];
     }
+
     /*
     else if (strncmp(argv[1], "500",3) == 0) {
         filename = std::string(get_filename(1, nprocs));
@@ -187,6 +191,7 @@ int main(int argc, char** argv) {
     }
     */
 
+#ifdef ISTC
     std::stringstream ss(filename);
     std::string item;
     std::vector<std::string> elems;
@@ -195,11 +200,17 @@ int main(int argc, char** argv) {
     }
     array_name = elems[0];
     run_test_suite(coordinator, array_name, filename);
-    //coordinator->run();
     coordinator->quit_all();
+#else
+    std::cout << "Running debug\n";
+    coordinator->run();
+#endif
+
   } else {
 
-    std::string datadir = "/data/qlong/processed_ais_data";
+#ifdef ISTC
+    datadir = "/data/qlong/processed_ais_data";
+#endif
     WorkerNode * worker = new WorkerNode(myrank, nprocs, datadir);
     worker->run();
   }

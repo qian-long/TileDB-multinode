@@ -55,7 +55,8 @@ namespace {
 
     std::string filename = "foo.csv";
     PartitionType part_type = ORDERED_PARTITION;
-    LoadMsg lmsg = LoadMsg(filename, array_schema_, part_type);
+    LoadMsg::LoadMethod method = LoadMsg::SORT;
+    LoadMsg lmsg = LoadMsg(filename, array_schema_, part_type, method);
 
     std::pair<char*, int> lserial = lmsg.serialize();
 
@@ -66,6 +67,7 @@ namespace {
     EXPECT_STREQ(array_schema_.to_string().c_str(),
       new_lmsg->array_schema().to_string().c_str());
     EXPECT_EQ(part_type, new_lmsg->partition_type());
+    EXPECT_EQ(method, new_lmsg->load_method());
   }
 
 

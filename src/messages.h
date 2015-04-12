@@ -72,9 +72,14 @@ class SubarrayMsg : public Msg {
 class LoadMsg : public Msg {
 
   public:
+    enum LoadMethod {SORT, SAMPLE};
+
     // CONSTRUCTORS
     LoadMsg();
-    LoadMsg(const std::string filename, ArraySchema& array_schema, PartitionType type);
+    LoadMsg(const std::string filename,
+        ArraySchema& array_schema,
+        PartitionType type,
+        LoadMethod method);
 
     // DESTRUCTORS
     ~LoadMsg(){};
@@ -83,6 +88,7 @@ class LoadMsg : public Msg {
     std::string filename() { return filename_; }
     ArraySchema& array_schema() { return array_schema_; }
     PartitionType partition_type() { return type_; }
+    LoadMethod load_method() { return method_; }
 
 
     // METHODS
@@ -93,6 +99,7 @@ class LoadMsg : public Msg {
     std::string filename_;
     ArraySchema array_schema_;
     PartitionType type_;
+    LoadMethod method_;
 };
 
 

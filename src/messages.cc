@@ -136,10 +136,14 @@ SubarrayMsg* SubarrayMsg::deserialize(char* buffer, int buffer_length){
  ******************************************************/
 LoadMsg::LoadMsg() : Msg(LOAD_TAG) { }
 
-LoadMsg::LoadMsg(const std::string filename, ArraySchema& array_schema, PartitionType type) :Msg(LOAD_TAG) {
+LoadMsg::LoadMsg(const std::string filename, 
+    ArraySchema& array_schema, 
+    PartitionType type,
+    LoadMethod method) :Msg(LOAD_TAG) {
   filename_ = filename;
   array_schema_ = array_schema;
   type_ = type;
+  method_ = method;
 }
 
 std::pair<char*, int> LoadMsg::serialize() {
@@ -157,7 +161,8 @@ std::pair<char*, int> LoadMsg::serialize() {
   buffer_size += filename_.size(); // filename
   buffer_size += sizeof(int); // array schema length
   buffer_size += as_pair.second; // array schema
-  buffer_size += sizeof(PartitionType); // load type
+  buffer_size += sizeof(PartitionType); // partition type
+  buffer_size += sizeof(LoadMethod); // load method (sort or sample)
 
   buffer = new char[buffer_size];
 
@@ -175,10 +180,13 @@ std::pair<char*, int> LoadMsg::serialize() {
   memcpy(&buffer[pos], as_pair.first, length);
   pos += length;
 
-  // serialize load type
+  // serialize partition type
   memcpy(&buffer[pos], (char *) &type_, sizeof(PartitionType));
+  pos += sizeof(PartitionType);
 
-  assert(pos + sizeof(PartitionType) == buffer_size);
+  // serialize load method
+  memcpy(&buffer[pos], (char *) &method_, sizeof(LoadMethod));
+  assert(pos + sizeof(LoadMethod) == buffer_size);
   return std::pair<char*, int>(buffer, buffer_size);
 }
 
@@ -204,13 +212,20 @@ LoadMsg* LoadMsg::deserialize(char* buffer, int buffer_length) {
   schema->deserialize(&buffer[counter], arrayschema_length); // second arg
   counter += arrayschema_length;
 
-  // load type
-  PartitionType type = static_cast<PartitionType>(buffer[counter]);
+  // paritition type
+  //PartitionType type = static_cast<PartitionType>(buffer[counter]);
+  PartitionType type;
+  memcpy(&type, &buffer[counter], sizeof(PartitionType));
+  counter += sizeof(PartitionType);
+
+  // load method
+  LoadMethod method;
+  memcpy(&method, &buffer[counter], sizeof(LoadMethod));
 
 
-  // finished parsing
-  assert(counter + sizeof(PartitionType) == buffer_length);
-  return new LoadMsg(filename, *schema, type);
+  // sanity check
+  assert(counter + sizeof(LoadMethod) == buffer_length);
+  return new LoadMsg(filename, *schema, type, method);
 }
 
 

@@ -603,6 +603,7 @@ std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> sample
   //std::default_random_engine generator;
   //std::uniform_int_distribution<int64_t> distribution(0, samples.size()-1);
   //auto dice = std::bind(distribution, generator);
+  /*
   int r;
   std::vector<int64_t> partitions;
   for (int i = 0; i < k; ++i) {
@@ -610,6 +611,14 @@ std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> sample
     partitions.push_back(samples[r]);
   }
   std::sort(partitions.begin(), partitions.end());
+  */
+
+  // pick k equal size (hopefully) partitions from sorted samples
+  assert(samples.size() > k);
+  std::sort(samples.begin(), samples.end());
+  std::vector<int64_t> partitions;
+
+  
   return partitions;
 }
 
@@ -619,7 +628,8 @@ std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> sample
 
 void CoordinatorNode::test_load(std::string array_name, 
     std::string filename, 
-    PartitionType partition_type) {
+    PartitionType partition_type,
+    LoadMsg::LoadMethod method) {
   logger_->log(LOG_INFO, "Test loading array_name: " + array_name + " filename: " + filename);
   logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_name);
 
@@ -629,7 +639,7 @@ void CoordinatorNode::test_load(std::string array_name,
 
 
   logger_->log(LOG_INFO, "Sending LOAD ARRAY to all workers for array " + array_name);
-  LoadMsg lmsg = LoadMsg(filename, *array_schema, partition_type);
+  LoadMsg lmsg = LoadMsg(filename, *array_schema, partition_type, method);
 
   send_and_receive(lmsg);
 
