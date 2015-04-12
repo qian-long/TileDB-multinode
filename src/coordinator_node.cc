@@ -686,25 +686,21 @@ void CoordinatorNode::quit_all() {
  **************** HELPER FUNCTIONS ********************
  ******************************************************/
 std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> samples, int k) {
-  //std::default_random_engine generator;
-  //std::uniform_int_distribution<int64_t> distribution(0, samples.size()-1);
-  //auto dice = std::bind(distribution, generator);
-  /*
-  int r;
-  std::vector<int64_t> partitions;
-  for (int i = 0; i < k; ++i) {
-    r = rand() % samples.size();
-    partitions.push_back(samples[r]);
-  }
-  std::sort(partitions.begin(), partitions.end());
-  */
-
-  // pick k equal size (hopefully) partitions from sorted samples
-  assert(samples.size() > k);
+  // We are picking k partition boundaries that will divide the
+  // entire distributed dataset into k + 1 somewhat equal (hopefully) partitions
   std::sort(samples.begin(), samples.end());
   std::vector<int64_t> partitions;
 
-  
+  int num_partitions = k + 1;
+  int num_samples_per_part = samples.size() / num_partitions;
+  int remainder = samples.size() % num_partitions;
+  if (remainder > 0) {
+    num_samples_per_part++;
+  }
+
+  for (int i = 1; i <= k; ++i) {
+    partitions.push_back(samples[i*num_samples_per_part]);
+  }
   return partitions;
 }
 
@@ -749,7 +745,7 @@ void CoordinatorNode::test_load(std::string array_name,
 
 void CoordinatorNode::test_parallel_load(std::string array_name,
     std::string filename,
-    PartitionType partition_type) {
+    PartitionType partition_type, int num_samples = 10) {
     logger_->log(LOG_INFO, "Test parallel loading array_name: " + array_name + " filename: " + filename);
     logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_name);
 
@@ -759,7 +755,7 @@ void CoordinatorNode::test_parallel_load(std::string array_name,
 
 
   logger_->log(LOG_INFO, "Sending PARALLEL LOAD ARRAY to all workers for array " + array_name);
-  ParallelLoadMsg msg = ParallelLoadMsg(filename, partition_type, *array_schema);
+  ParallelLoadMsg msg = ParallelLoadMsg(filename, partition_type, *array_schema, num_samples);
 
   send_and_receive(msg);
 

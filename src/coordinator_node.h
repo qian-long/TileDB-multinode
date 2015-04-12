@@ -84,7 +84,9 @@ class CoordinatorNode {
         PartitionType partition_type,
         LoadMsg::LoadMethod method = LoadMsg::SORT);
     void test_parallel_load(std::string array_name,
-        std::string filename, PartitionType partition_type);
+        std::string filename, 
+        PartitionType partition_type,
+        int num_samples);
     void test_filter(std::string);
     void test_subarray(std::string);
     void test_aggregate(std::string);

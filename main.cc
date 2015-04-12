@@ -71,7 +71,11 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   char buffer[100];
   int len;
   std::string array_name;
+  int num_samples = 1000;
+  double tstart;
+  double tend;
 
+  /*
   // PARALLEL HASH LOAD TEST
   array_name = array_name_base + "_phash";
   coordinator->test_parallel_load(array_name, filename, HASH_PARTITION);
@@ -82,18 +86,22 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   len = snprintf(buffer, 100, "Hash Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t2 - t1);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
+  */
 
   // PARALLEL ORDERED LOAD TEST
   array_name = array_name_base + "_pordered";
-  coordinator->test_parallel_load(array_name, filename, ORDERED_PARTITION);
+  gettimeofday(&tim, NULL);  
+  tstart = tim.tv_sec+(tim.tv_usec/1000000.0);  
+  coordinator->test_parallel_load(array_name, filename, ORDERED_PARTITION, num_samples);
 
   gettimeofday(&tim, NULL);  
-  double t3 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+  tend = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
-  len = snprintf(buffer, 100, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t3 - t2);
+  len = snprintf(buffer, 100, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), tend - tstart);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
 
+  /*
   // HASH LOAD TEST
   array_name = array_name_base + "_hash";
   coordinator->test_load(array_name, filename, HASH_PARTITION);
@@ -106,7 +114,6 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   printf("%s", buffer);
 
 
-
   // ORDERED LOAD TEST
   array_name = array_name_base + "_ordered";
   coordinator->test_load(array_name, filename, ORDERED_PARTITION, LoadMsg::SORT);
@@ -117,6 +124,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   len = snprintf(buffer, 100, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t5 - t4);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
+  */
 
 
   /*
