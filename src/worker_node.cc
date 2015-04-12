@@ -271,12 +271,26 @@ int WorkerNode::handle(LoadMsg* msg) {
 
   MetaData metadata;
   switch (msg->partition_type()) {
+
     case ORDERED_PARTITION:
-      handle_load_ordered(msg->filename(), msg->array_schema());
+
+      switch(msg->load_method()) {
+        case LoadMsg::SORT:
+          handle_load_ordered_sort(msg->filename(), msg->array_schema());
+          break;
+        case LoadMsg::SAMPLE:
+          handle_load_ordered_sample(msg->filename(), msg->array_schema());
+          break;
+        default:
+          // shouldn't get here
+          break;
+      }
+
       logger_->log(LOG_INFO, "Update Fragment Info");
       executor_->update_fragment_info(msg->array_schema().array_name());
       logger_->log(LOG_INFO, "Finished load");
       break;
+
     case HASH_PARTITION:
       handle_load_hash(msg->filename(), msg->array_schema());
       logger_->log(LOG_INFO, "Finished load, creating metadata");
@@ -295,11 +309,11 @@ int WorkerNode::handle(LoadMsg* msg) {
 }
 
 
-int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_schema) {
+int WorkerNode::handle_load_ordered_sort(std::string filename, ArraySchema& array_schema) {
 
   logger_->log(LOG_INFO, "In Handle Load Ordered");
 
-  // Wait for sorted file from master
+  // Wait for sorted file from coordinator
   logger_->log_start(LOG_INFO, "Receiving file and samples from coord");
   std::string frag_name = "0_0";
   std::ofstream sorted_file;
@@ -357,6 +371,75 @@ int WorkerNode::handle_load_ordered(std::string filename, ArraySchema& array_sch
   logger_->log(LOG_INFO, "Closed fragment");
   logger_->log_end(LOG_INFO);
   // TODO cleanup
+  return 0;
+}
+
+int WorkerNode::handle_load_ordered_sample(std::string filename, ArraySchema& array_schema) {
+
+  logger_->log(LOG_INFO, "Start Worker Handle Load Ordered Partiion using Sampling");
+  
+  std::string outpath = executor_->loader()->workspace() + "/ORDERED_SAMPLE_" + filename;
+
+  // receive data
+  logger_->log_start(LOG_INFO, "Receiving file partition from master to " + outpath);
+  std::ofstream outfile;
+
+  outfile.open(outpath.c_str());
+  mpi_handler_->receive_content(outfile, MASTER, LOAD_TAG);
+  outfile.close();
+  logger_->log_end(LOG_INFO);
+
+  // receive samples from coordinator
+  logger_->log_start(LOG_INFO, "Receiving partitions from coordinator");
+  SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
+  std::vector<int64_t> partitions = smsg->samples();
+  logger_->log_end(LOG_INFO);
+
+
+  // store metadata
+  logger_->log(LOG_INFO, "Storing metadata");
+  MetaData metadata(ORDERED_PARTITION,
+      std::pair<int64_t, int64_t>(partitions[myrank_-1], partitions[myrank_]),
+      partitions);
+  md_manager_->store_metadata(array_schema.array_name(), metadata);
+
+  // sort
+  std::string frag_name = "0_0";
+  std::string sorted_filepath = executor_->loader()->workspace() + "/ORDERED_SAMPLE_sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
+
+  logger_->log_start(LOG_INFO, "Sorting csv file " + outpath + " into " + sorted_filepath);
+  executor_->loader()->sort_csv_file(outpath, sorted_filepath, array_schema);
+  logger_->log_end(LOG_INFO);
+
+
+  // make tiles
+  logger_->log_start(LOG_INFO, "Starting make tiles on " + sorted_filepath);
+
+  StorageManager::FragmentDescriptor* fd =
+    executor_->storage_manager()->open_fragment(&array_schema, frag_name,
+                                                StorageManager::CREATE);
+
+  try {
+    if(array_schema.has_regular_tiles())
+      executor_->loader()->make_tiles_regular(sorted_filepath, fd);
+    else
+      executor_->loader()->make_tiles_irregular(sorted_filepath, fd);
+  } catch(LoaderException& le) {
+
+#ifdef NDEBUG
+    remove(sorted_filepath.c_str());
+#endif
+
+    executor_->storage_manager()->delete_fragment(array_schema.array_name(), frag_name);
+    throw LoaderException("Error invoking local load" + filename +
+                          "'.\n " + le.what());
+  }
+
+  logger_->log_end(LOG_INFO);
+  executor_->storage_manager()->close_fragment(fd);
+
+  // cleanup
+  delete smsg;
   return 0;
 }
 
@@ -633,6 +716,7 @@ inline std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
   return results;
 }
 
+// TODO optimize to use binary search if needed
 inline int WorkerNode::get_receiver(std::vector<int64_t> partitions, int64_t cell_id) {
   int recv = 1;
   for (std::vector<int64_t>::iterator it = partitions.begin(); it != partitions.end(); ++it) {

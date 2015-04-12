@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "hash_functions.h"
 #include "constants.h"
+#include "util.h"
 
 CoordinatorNode::CoordinatorNode(int rank, int nprocs, std::string datadir) {
   myrank_ = rank;
@@ -364,8 +365,17 @@ void CoordinatorNode::handle_aggregate() {
 void CoordinatorNode::handle_load(LoadMsg& lmsg) {
   switch (lmsg.partition_type()) {
     case ORDERED_PARTITION:
-      handle_load_ordered(lmsg);
-      break;
+      switch(lmsg.load_method()) {
+        case LoadMsg::SORT: 
+          handle_load_ordered_sort(lmsg);
+          break;
+        case LoadMsg::SAMPLE:
+          handle_load_ordered_sample(lmsg);
+          break;
+        default:
+          // shouldn't get here
+          break;
+      }
     case HASH_PARTITION:
       handle_load_hash(lmsg);
       break;
@@ -376,7 +386,7 @@ void CoordinatorNode::handle_load(LoadMsg& lmsg) {
 }
 
 
-void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
+void CoordinatorNode::handle_load_ordered_sort(LoadMsg& lmsg) {
   std::stringstream ss;
 
   std::string filepath = datadir_ + "/" + lmsg.filename();
@@ -495,6 +505,82 @@ void CoordinatorNode::handle_load_ordered(LoadMsg& lmsg) {
   }
 
 }
+
+void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
+  logger_->log(LOG_INFO, "Start Handle Load Ordered Partiion using Sampling");
+
+  std::stringstream ss;
+
+  std::string filepath = datadir_ + "/" + msg.filename();
+
+  // inject cell ids
+  logger_->log_start(LOG_INFO, "Inject cell ids");
+  ArraySchema& array_schema = msg.array_schema();
+  bool regular = array_schema.has_regular_tiles();
+  ArraySchema::Order order = array_schema.order();
+  std::string injected_filepath = filepath;
+  std::string frag_name = "0_0";
+
+  if (regular || order == ArraySchema::HILBERT) {
+    injected_filepath = executor_->loader()->workspace() + "/injected_" +
+                        array_schema.array_name() + "_" + frag_name + ".csv";
+    try {
+      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
+      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
+    } catch(LoaderException& le) {
+      logger_->log(LOG_INFO, "Caught loader exception " + le.what());
+#ifdef NDEBUG
+      remove(injected_filepath.c_str());
+      executor_->storage_manager()->delete_array(array_schema.array_name());
+#endif
+      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
+    }
+  }
+  logger_->log_end(LOG_INFO);
+
+
+  // sample and get partitions
+  logger_->log_start(LOG_INFO, "Sample and determine partitions");
+  // TODO parameterize num_samples
+  std::vector<int64_t> samples = util::resevoir_sample(injected_filepath, 100);
+  std::vector<int64_t> partitions = get_partitions(samples, nworkers_ - 1);
+
+  // scan input and send partitions to workers
+  CSVFile csv_in(injected_filepath, CSVFile::READ);
+  CSVLine csv_line;
+  while (csv_in >> csv_line) {
+    int64_t cell_id = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
+    int receiver = get_receiver(partitions, cell_id);
+    std::string csv_line_str = csv_line.str() + "\n";
+    mpi_handler_->send_content(csv_line_str.c_str(),
+        csv_line_str.length(), receiver, LOAD_TAG);
+  }
+
+  // flush all sends
+  logger_->log(LOG_INFO, "Flushing all sends");
+  mpi_handler_->flush_all_sends(LOAD_TAG);
+
+  // send partitions back to workers to record
+  logger_->log(LOG_INFO, "Sending partition samples to all workers");
+  // send partition infor back to all workers
+  ss.str(std::string());
+  ss << "[" << partitions[0];
+  for (int i = 1; i < partitions.size(); ++i) {
+    ss << ", " << partitions[i];
+  }
+  ss << "]\n";
+  logger_->log(LOG_INFO, "Partitions: " + ss.str());
+ 
+  SamplesMsg smsg(partitions);
+  for (int worker = 1; worker <= nworkers_ ; worker++) {
+    ss.str(std::string());
+    logger_->log(LOG_INFO, ss.str());
+    mpi_handler_->send_samples_msg(&smsg, worker);
+  }
+
+
+}
+
 
 void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
   logger_->log(LOG_INFO, "Start Handle Load Hash Partiion");
@@ -622,6 +708,18 @@ std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> sample
   return partitions;
 }
 
+// TODO optimize to use binary search if needed
+// TODO move to util class
+inline int CoordinatorNode::get_receiver(std::vector<int64_t> partitions, int64_t cell_id) {
+  int recv = 1;
+  for (std::vector<int64_t>::iterator it = partitions.begin(); it != partitions.end(); ++it) {
+    if (cell_id <= *it) {
+      return recv;
+    }
+    recv++;
+  }
+  return recv;
+}
 /******************************************************
  *************** TESTING FUNCTIONS ********************
  ******************************************************/

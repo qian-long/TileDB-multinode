@@ -46,7 +46,12 @@ class WorkerNode {
     int handle(ParallelLoadMsg* msg); // distributed load (input randomly scattered in workers)
 
 
-    int handle_load_ordered(std::string filename, ArraySchema& array_schema);
+    // See CoordinatorNode::handle_load_ordered_sort
+    int handle_load_ordered_sort(std::string filename, ArraySchema& array_schema);
+    // See CoordinatorNode::handle_load_ordered_sample
+    int handle_load_ordered_sample(std::string filename, ArraySchema& array_schema);
+
+    // See CoordinatorNode::handle_load_hash
     int handle_load_hash(std::string filename, ArraySchema& array_schema);
 
     int handle_parallel_load_ordered(

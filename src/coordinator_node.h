@@ -40,9 +40,32 @@ class CoordinatorNode {
     void handle_ack();
     void handle_parallel_load(ParallelLoadMsg& pmsg);
 
-    // different parallel loads
-    // assumes workers have initial csv partitions
-    void handle_load_ordered(LoadMsg& pmsg);
+    // DIFFERENT LOADING ALGORITHMS
+
+    /**
+     * This loading algorithm assumes the coordinator has the initial csv file.
+     * The coordinator will inject cell ids to each line of the csv file.
+     * The coordinator sorts the injected file and partitions the sorted file into
+     * nworkers equal chunks to send to each worker.
+     * Each worker waits for their respective partitions. When it
+     * has received its share of the data, the worker will perform a local sort,
+     * which involves invoking make tiles.
+     *
+     * The result is that the workers will end up with a globally sorted array.
+     */
+    void handle_load_ordered_sort(LoadMsg& msg);
+
+    /**
+     * This loading algorithm assumes the coordinator has the initial csv file.
+     * The coordinator will inject cell ids to each line of the csv file.
+     * The coordinator then samples the injected file to determine which partitions to send to
+     * each worker. Each worker waits for their respective partitions. When it
+     * has received its share of the data, the worker will perform a local sort,
+     * which involves sorting on cell id and invoking make tiles.
+     *
+     * The result is that the workers will end up with a globally sorted array.
+     */
+    void handle_load_ordered_sample(LoadMsg& msg);
 
     // assumes coordinator has initial csv
     void handle_load_hash(LoadMsg& pmsg);
@@ -82,6 +105,7 @@ class CoordinatorNode {
 
     /********* HELPER FUNCTIONS ********/
     std::vector<int64_t> get_partitions(std::vector<int64_t>, int k);
+    int get_receiver(std::vector<int64_t> partitions, int64_t cell_id);
 
 
 };
