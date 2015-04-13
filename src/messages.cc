@@ -139,11 +139,13 @@ LoadMsg::LoadMsg() : Msg(LOAD_TAG) { }
 LoadMsg::LoadMsg(const std::string filename, 
     ArraySchema& array_schema, 
     PartitionType type,
-    LoadMethod method) :Msg(LOAD_TAG) {
+    LoadMethod method,
+    int num_samples) :Msg(LOAD_TAG) {
   filename_ = filename;
   array_schema_ = array_schema;
   type_ = type;
   method_ = method;
+  num_samples_ = num_samples;
 }
 
 std::pair<char*, int> LoadMsg::serialize() {
@@ -163,6 +165,7 @@ std::pair<char*, int> LoadMsg::serialize() {
   buffer_size += as_pair.second; // array schema
   buffer_size += sizeof(PartitionType); // partition type
   buffer_size += sizeof(LoadMethod); // load method (sort or sample)
+  buffer_size += sizeof(int); // num_samples
 
   buffer = new char[buffer_size];
 
@@ -186,7 +189,11 @@ std::pair<char*, int> LoadMsg::serialize() {
 
   // serialize load method
   memcpy(&buffer[pos], (char *) &method_, sizeof(LoadMethod));
-  assert(pos + sizeof(LoadMethod) == buffer_size);
+  pos += sizeof(LoadMethod);
+
+  // serialize num_samples
+  memcpy(&buffer[pos], (char *) &num_samples_, sizeof(int));
+  assert(pos + sizeof(int) == buffer_size);
   return std::pair<char*, int>(buffer, buffer_size);
 }
 
@@ -221,11 +228,17 @@ LoadMsg* LoadMsg::deserialize(char* buffer, int buffer_length) {
   // load method
   LoadMethod method;
   memcpy(&method, &buffer[counter], sizeof(LoadMethod));
+  counter += sizeof(LoadMethod);
 
+  // num samples
+  int num_samples;
+  memcpy(&num_samples, &buffer[counter], sizeof(int));
+  counter += sizeof(int);
 
   // sanity check
-  assert(counter + sizeof(LoadMethod) == buffer_length);
-  return new LoadMsg(filename, *schema, type, method);
+  assert(counter == buffer_length);
+
+  return new LoadMsg(filename, *schema, type, method, num_samples);
 }
 
 

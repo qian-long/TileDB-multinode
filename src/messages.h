@@ -79,7 +79,8 @@ class LoadMsg : public Msg {
     LoadMsg(const std::string filename,
         ArraySchema& array_schema,
         PartitionType type,
-        LoadMethod method);
+        LoadMethod method,
+        int num_samples = 10);
 
     // DESTRUCTORS
     ~LoadMsg(){};
@@ -89,6 +90,7 @@ class LoadMsg : public Msg {
     ArraySchema& array_schema() { return array_schema_; }
     PartitionType partition_type() { return type_; }
     LoadMethod load_method() { return method_; }
+    int num_samples() { return num_samples_; }
 
 
     // METHODS
@@ -100,6 +102,7 @@ class LoadMsg : public Msg {
     ArraySchema array_schema_;
     PartitionType type_;
     LoadMethod method_;
+    int num_samples_;
 };
 
 

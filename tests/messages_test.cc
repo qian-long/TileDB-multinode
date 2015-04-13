@@ -56,7 +56,8 @@ namespace {
     std::string filename = "foo.csv";
     PartitionType part_type = ORDERED_PARTITION;
     LoadMsg::LoadMethod method = LoadMsg::SORT;
-    LoadMsg lmsg = LoadMsg(filename, array_schema_, part_type, method);
+    int num_samples = 933;
+    LoadMsg lmsg = LoadMsg(filename, array_schema_, part_type, method, num_samples);
 
     std::pair<char*, int> lserial = lmsg.serialize();
 
@@ -68,6 +69,7 @@ namespace {
       new_lmsg->array_schema().to_string().c_str());
     EXPECT_EQ(part_type, new_lmsg->partition_type());
     EXPECT_EQ(method, new_lmsg->load_method());
+    EXPECT_EQ(933, new_lmsg->num_samples());
   }
 
 
@@ -184,8 +186,8 @@ namespace {
   // SAMPLES MSG TEST
   TEST_F(MessagesTest, SamplesMsgTest) {
 
-    std::vector<int64_t> samples;
-    for (int i = 0; i < 10; ++i) {
+    std::vector<uint64_t> samples;
+    for (uint64_t i = 0; i < 10; ++i) {
       samples.push_back(i * 1232);
     }
     SamplesMsg smsg = SamplesMsg(samples);

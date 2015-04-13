@@ -12,9 +12,9 @@ namespace {
 
   TEST_F(ArrayManagerTest, MetaDataOrderedTest) {
     PartitionType type = ORDERED_PARTITION;
-    std::pair<int64_t, int64_t> my_range = std::pair<int64_t, int64_t>(27, 5749);
-    std::vector<int64_t> samples;
-    for (int i = 0; i < 10; ++i) {
+    std::pair<uint64_t, uint64_t> my_range = std::pair<uint64_t, uint64_t>(27, 5749);
+    std::vector<uint64_t> samples;
+    for (uint64_t i = 0; i < 10; ++i) {
       samples.push_back(i * 1232);
     }
 

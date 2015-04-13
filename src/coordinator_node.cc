@@ -94,16 +94,16 @@ void CoordinatorNode::run() {
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
   */
+  /*
 
   DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
+  */
 
-  /*
   DEBUG_MSG("Sending ordered partition load instructions to all workers");
   LoadMsg lmsg = LoadMsg(filename, array_schema, ORDERED_PARTITION, LoadMsg::SAMPLE);
   send_and_receive(lmsg);
-  */
 
   DEBUG_MSG("Sending GET test_C to all workers");
   GetMsg gmsg1 = GetMsg(array_name);
@@ -535,7 +535,7 @@ void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
   coordinates.resize(dim_num);
   double coordinate;
   int resevoir_count = 0;
-  int num_samples = 100; // TODO parameterize
+  int num_samples = msg.num_samples();
   std::vector<uint64_t> samples;
 
   logger_->log_start(LOG_INFO, "Inject cell ids to " + injected_filepath + " and while resevoir sampling");

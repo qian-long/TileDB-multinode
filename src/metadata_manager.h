@@ -7,6 +7,7 @@
 #define ARRAYMANAGER_H
 #include <string>
 #include <vector>
+#include <stdint.h>
 #include "constants.h"
 
 
