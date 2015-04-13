@@ -50,7 +50,7 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "test_C";
+  std::string array_name = "test_D";
   std::string filename = array_name + ".csv";
 
   // Set attribute names
@@ -510,7 +510,6 @@ void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
   std::string filepath = datadir_ + "/" + msg.filename();
 
   // inject cell ids and sample
-
   CSVFile csv_in(filepath, CSVFile::READ);
   CSVLine line_in, line_out;
   ArraySchema& array_schema = msg.array_schema();

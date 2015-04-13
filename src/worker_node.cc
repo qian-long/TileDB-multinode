@@ -131,9 +131,9 @@ void WorkerNode::run() {
 
 void WorkerNode::respond_ack(int result, int tag, double time) {
 
-  std::stringstream ss;
-  ss << "Responding ack: " + util::to_string(result);
+  logger_->log(LOG_INFO, "Responding ack: " + util::to_string(result));
 
+  std::stringstream ss;
   switch (tag) {
     case GET_TAG:
       ss << "GET";
@@ -499,43 +499,83 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
 int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema, int num_samples) {
   logger_->log(LOG_INFO, "Handle parallel load ordered");
 
-  // inject cell_ids
-  logger_->log_start(LOG_INFO, "Inject cell ids");
-  bool regular = array_schema.has_regular_tiles();
-  ArraySchema::Order order = array_schema.order();
   std::string filepath = get_data_path(filename);
 
-  std::string injected_filepath = filepath;
+  // inject cell_ids
+  logger_->log_start(LOG_INFO, "Inject cell ids and resevoir sample");
+  CSVFile csv_in(filepath, CSVFile::READ);
+  CSVLine line_in, line_out;
+  ArraySchema::Order order = array_schema.order();
+
   std::string frag_name = "0_0";
 
-  if (regular || order == ArraySchema::HILBERT) {
-    injected_filepath = executor_->loader()->workspace() + "/injected_" +
-                        array_schema.array_name() + "_" + frag_name + ".csv";
-    try {
-      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
-      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
-    } catch(LoaderException& le) {
-      logger_->log(LOG_INFO, "Caught loader exception " + le.what());
-#ifdef NDEBUG
-      remove(injected_filepath.c_str());
-      executor_->storage_manager()->delete_array(array_schema.array_name());
-#endif
-      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
+  // TODO support other orderings later
+  assert(array_schema.has_regular_tiles() || 
+         array_schema.order() == ArraySchema::HILBERT);
+
+  std::string injected_filepath = executor_->loader()->workspace() + "/injected_" + array_schema.array_name() + "_" + frag_name + ".csv";
+
+  CSVFile *csv_out = new CSVFile(injected_filepath, CSVFile::WRITE);
+
+  uint64_t cell_id;
+  std::vector<double> coordinates;
+  unsigned int dim_num = array_schema.dim_num();
+  coordinates.resize(dim_num);
+  double coordinate;
+  int resevoir_count = 0;
+  std::vector<uint64_t> samples;
+
+  while (csv_in >> line_in) {
+    // Retrieve coordinates from the input line
+    for(unsigned int i=0; i < array_schema.dim_num(); i++) {
+      if(!(line_in >> coordinate))
+        throw LoaderException("Cannot read coordinate value from CSV file."); 
+      coordinates[i] = coordinate;
     }
+
+    // Put the id at the beginning of the output line
+    if(array_schema.has_regular_tiles()) { // Regular tiles
+      if(order == ArraySchema::HILBERT)
+        cell_id = array_schema.tile_id_hilbert(coordinates);
+      else if(order == ArraySchema::ROW_MAJOR)
+        cell_id = array_schema.tile_id_row_major(coordinates);
+      else if(order == ArraySchema::COLUMN_MAJOR)
+        cell_id = array_schema.tile_id_column_major(coordinates);
+    } else { // Irregular tiles + Hilbert cell order
+        cell_id = array_schema.cell_id_hilbert(coordinates);
+    }
+    line_out = cell_id;
+    // Append the input line to the output line, 
+    // and then into the output CSV file
+    line_out << line_in;
+    (*csv_out) << line_out;
+
+    // do resevoir sampling
+    if (resevoir_count < num_samples) {
+      samples.push_back(cell_id);
+    } else {
+        // replace elements with gradually decreasing probability
+        int r = (rand() % resevoir_count) + 1; // 0 to counter inclusive // TODO double check
+        if (r < num_samples) {
+          samples[r] = cell_id;
+        }
+    }
+
+    resevoir_count++;
   }
+
+  delete csv_out;
+
   logger_->log_end(LOG_INFO);
 
-  logger_->log_start(LOG_INFO, "Picking X samples");
-  // read filename to pick X samples
-  //std::vector<uint64_t> samples = sample(injected_filepath, num_samples);
-  std::vector<uint64_t> samples = util::resevoir_sample(injected_filepath, num_samples);
-
   // send samples to coordinator
+  logger_->log_start(LOG_INFO, "Send samples to coordinator");
   SamplesMsg msg(samples);
   mpi_handler_->send_samples_msg(&msg, MASTER);
+  logger_->log_end(LOG_INFO);
 
   // receive partitions from coordinator
-  logger_->log(LOG_INFO, "Receiving partitions from coordinator");
+  logger_->log_start(LOG_INFO, "Receiving partitions from coordinator");
   SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
   std::vector<uint64_t> partitions = smsg->samples();
   logger_->log_end(LOG_INFO);
@@ -544,9 +584,9 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   std::string outpath = executor_->loader()->workspace() + "/PORDERED_" + filename;
   std::ofstream outfile;
   outfile.open(outpath.c_str());
-  CSVFile csv_in(injected_filepath, CSVFile::READ);
+  CSVFile csv_injected(injected_filepath, CSVFile::READ);
   CSVLine csv_line;
-  while (csv_in >> csv_line) {
+  while (csv_injected >> csv_line) {
     uint64_t cell_id = std::strtoull(csv_line.values()[0].c_str(), NULL, 10);
     int receiver = get_receiver(partitions, cell_id);
     std::string csv_line_str = csv_line.str() + "\n";
@@ -613,6 +653,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
 
   // TODO cleanup
   delete smsg;
+
   return 0;
 }
 
