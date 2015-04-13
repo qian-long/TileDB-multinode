@@ -12,6 +12,8 @@
 #include "debug.h"
 #include "csv_file.h"
 #include "hash_functions.h"
+#include "util.h"
+
 WorkerNode::WorkerNode(int rank,
     int nprocs,
     std::string datadir,
@@ -332,13 +334,13 @@ int WorkerNode::handle_load_ordered_sort(std::string filename, ArraySchema& arra
   // receive samples from coord
   logger_->log(LOG_INFO, "Receiving partitions from coordinator");
   SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
-  std::vector<int64_t> partitions = smsg->samples();
+  std::vector<uint64_t> partitions = smsg->samples();
   logger_->log_end(LOG_INFO);
 
   // store metadata
   logger_->log(LOG_INFO, "Storing metadata");
   MetaData metadata(ORDERED_PARTITION,
-      std::pair<int64_t, int64_t>(partitions[myrank_-1], partitions[myrank_]),
+      std::pair<uint64_t, uint64_t>(partitions[myrank_-1], partitions[myrank_]),
       partitions);
   md_manager_->store_metadata(array_schema.array_name(), metadata);
 
@@ -392,14 +394,13 @@ int WorkerNode::handle_load_ordered_sample(std::string filename, ArraySchema& ar
   // receive samples from coordinator
   logger_->log_start(LOG_INFO, "Receiving partitions from coordinator");
   SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
-  std::vector<int64_t> partitions = smsg->samples();
+  std::vector<uint64_t> partitions = smsg->samples();
   logger_->log_end(LOG_INFO);
-
 
   // store metadata
   logger_->log(LOG_INFO, "Storing metadata");
   MetaData metadata(ORDERED_PARTITION,
-      std::pair<int64_t, int64_t>(partitions[myrank_-1], partitions[myrank_]),
+      std::pair<uint64_t, uint64_t>(partitions[myrank_-1], partitions[myrank_]),
       partitions);
   md_manager_->store_metadata(array_schema.array_name(), metadata);
 
@@ -528,7 +529,8 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
 
   logger_->log_start(LOG_INFO, "Picking X samples");
   // read filename to pick X samples
-  std::vector<int64_t> samples = sample(injected_filepath, num_samples);
+  //std::vector<uint64_t> samples = sample(injected_filepath, num_samples);
+  std::vector<uint64_t> samples = util::resevoir_sample(injected_filepath, num_samples);
 
   // send samples to coordinator
   SamplesMsg msg(samples);
@@ -537,7 +539,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   // receive partitions from coordinator
   logger_->log(LOG_INFO, "Receiving partitions from coordinator");
   SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
-  std::vector<int64_t> partitions = smsg->samples();
+  std::vector<uint64_t> partitions = smsg->samples();
   logger_->log_end(LOG_INFO);
 
   logger_->log_start(LOG_INFO, "N to N data shuffle");
@@ -547,7 +549,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   CSVFile csv_in(injected_filepath, CSVFile::READ);
   CSVLine csv_line;
   while (csv_in >> csv_line) {
-    int64_t cell_id = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
+    uint64_t cell_id = std::strtoull(csv_line.values()[0].c_str(), NULL, 10);
     int receiver = get_receiver(partitions, cell_id);
     std::string csv_line_str = csv_line.str() + "\n";
     if (receiver == myrank_) {
@@ -606,7 +608,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   // set metadata
   logger_->log_start(LOG_INFO, "Storing metadata");
   MetaData metadata(ORDERED_PARTITION,
-      std::pair<int64_t, int64_t>(partitions[myrank_-1], partitions[myrank_]),
+      std::pair<uint64_t, uint64_t>(partitions[myrank_-1], partitions[myrank_]),
       partitions);
   md_manager_->store_metadata(array_schema.array_name(), metadata);
   logger_->log_end(LOG_INFO);
@@ -685,6 +687,7 @@ inline std::string WorkerNode::arrayname_to_csv_filename(std::string arrayname) 
 }
 
 // http://en.wikipedia.org/wiki/Reservoir_sampling
+/*
 inline std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
   std::vector<int64_t> results;
   CSVFile csv_in(csvpath, CSVFile::READ);
@@ -699,12 +702,6 @@ inline std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
     } else {
 
       // replace elements with gradually decreasing probability
-      /*
-      std::default_random_engine generator;
-      generator.seed(myrank_);
-      std::uniform_int_distribution<int> distribution(0, counter); // TODO check this
-      int rand = distribution(generator);
-      */
       int r = rand() % counter + 1; // 0 to counter inclusive
       if (r < k) {
         results[r] = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
@@ -715,11 +712,12 @@ inline std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
   }
   return results;
 }
+*/
 
 // TODO optimize to use binary search if needed
-inline int WorkerNode::get_receiver(std::vector<int64_t> partitions, int64_t cell_id) {
+inline int WorkerNode::get_receiver(std::vector<uint64_t> partitions, uint64_t cell_id) {
   int recv = 1;
-  for (std::vector<int64_t>::iterator it = partitions.begin(); it != partitions.end(); ++it) {
+  for (std::vector<uint64_t>::iterator it = partitions.begin(); it != partitions.end(); ++it) {
     if (cell_id <= *it) {
       return recv;
     }

@@ -106,8 +106,8 @@ class CoordinatorNode {
     std::string datadir_;
 
     /********* HELPER FUNCTIONS ********/
-    std::vector<int64_t> get_partitions(std::vector<int64_t>, int k);
-    int get_receiver(std::vector<int64_t> partitions, int64_t cell_id);
+    std::vector<uint64_t> get_partitions(std::vector<uint64_t>, int k);
+    int get_receiver(std::vector<uint64_t> partitions, uint64_t cell_id);
 
 
 };

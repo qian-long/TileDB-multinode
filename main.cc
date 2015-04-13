@@ -212,6 +212,8 @@ int main(int argc, char** argv) {
 #else
     std::cout << "Running debug\n";
     coordinator->run();
+
+    std::cout << "Finished running debug\n";
 #endif
 
   } else {

@@ -21,16 +21,16 @@ class MetaData {
     MetaData();
     MetaData(PartitionType partition_type);
     MetaData(PartitionType partition_type,
-        std::pair<int64_t, int64_t> my_range,
-        std::vector<int64_t> all_ranges);
+        std::pair<uint64_t, uint64_t> my_range,
+        std::vector<uint64_t> all_ranges);
 
     // DESTRUCTOR
     ~MetaData();
 
     // GETTERS
     PartitionType partition_type() { return type_; }
-    std::pair<int64_t, int64_t> my_range() { return my_range_; }
-    std::vector<int64_t> all_ranges() { return all_ranges_; }
+    std::pair<uint64_t, uint64_t> my_range() { return my_range_; }
+    std::vector<uint64_t> all_ranges() { return all_ranges_; }
 
 
     // METHODS
@@ -39,8 +39,8 @@ class MetaData {
 
   private:
     PartitionType type_; // data is either ordered or hash partitioned across nodes
-    std::pair<int64_t, int64_t> my_range_;
-    std::vector<int64_t> all_ranges_;
+    std::pair<uint64_t, uint64_t> my_range_;
+    std::vector<uint64_t> all_ranges_;
 
 };
 

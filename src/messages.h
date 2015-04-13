@@ -278,20 +278,20 @@ class SamplesMsg : public Msg {
   public:
     // CONSTRUCTOR
     SamplesMsg();
-    SamplesMsg(std::vector<int64_t> samples);
+    SamplesMsg(std::vector<uint64_t> samples);
 
     // DESTRUCTOR
     ~SamplesMsg(){};
 
     // ACCESSORS
-    std::vector<int64_t> samples() { return samples_; }
+    std::vector<uint64_t> samples() { return samples_; }
 
     // METHODS
     std::pair<char*, int> serialize();
     static SamplesMsg* deserialize(char* buffer, int buffer_length);
 
   private:
-    std::vector<int64_t> samples_;
+    std::vector<uint64_t> samples_;
 };
 
 /******************************************************

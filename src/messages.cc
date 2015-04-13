@@ -619,7 +619,7 @@ JoinMsg* JoinMsg::deserialize(char* buffer, int buffer_length) {
  ******************************************************/
 SamplesMsg::SamplesMsg() : Msg(SAMPLES_TAG) {};
 
-SamplesMsg::SamplesMsg(std::vector<int64_t> samples) : Msg(SAMPLES_TAG)  {
+SamplesMsg::SamplesMsg(std::vector<uint64_t> samples) : Msg(SAMPLES_TAG)  {
   samples_ = samples;
 }
 
@@ -627,14 +627,14 @@ std::pair<char*, int> SamplesMsg::serialize() {
   int buffer_size = 0, pos = 0;
   char* buffer;
 
-  buffer_size = sizeof(int64_t) * samples_.size();
+  buffer_size = sizeof(uint64_t) * samples_.size();
 
   buffer = new char[buffer_size];
 
-  for (std::vector<int64_t>::iterator it = samples_.begin();
-       it != samples_.end(); ++it, pos += sizeof(int64_t)) {
-    int64_t sample = *it;
-    memcpy(&buffer[pos], &sample, sizeof(int64_t));
+  for (std::vector<uint64_t>::iterator it = samples_.begin();
+       it != samples_.end(); ++it, pos += sizeof(uint64_t)) {
+    uint64_t sample = *it;
+    memcpy(&buffer[pos], &sample, sizeof(uint64_t));
   }
 
   assert(pos == buffer_size);
@@ -643,13 +643,13 @@ std::pair<char*, int> SamplesMsg::serialize() {
 
 SamplesMsg* SamplesMsg::deserialize(char* buffer, int buffer_length) {
 
-  std::vector<int64_t> samples; 
+  std::vector<uint64_t> samples; 
   int pos;
 
   assert(buffer_length % 8 == 0);
-  for (pos = 0; pos < buffer_length; pos += sizeof(int64_t)) {
-    int64_t sample;
-    memcpy(&sample, &buffer[pos], sizeof(int64_t));
+  for (pos = 0; pos < buffer_length; pos += sizeof(uint64_t)) {
+    uint64_t sample;
+    memcpy(&sample, &buffer[pos], sizeof(uint64_t));
     samples.push_back(sample);
   }
 

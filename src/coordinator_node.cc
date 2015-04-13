@@ -89,9 +89,11 @@ void CoordinatorNode::run() {
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
+  /*
   DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
+  */
 
   /*
   DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
@@ -99,11 +101,9 @@ void CoordinatorNode::run() {
   send_and_receive(pmsg2);
   */
 
-  /*
   DEBUG_MSG("Sending ordered partition load instructions to all workers");
-  LoadMsg lmsg = LoadMsg(filename, array_schema, HASH_PARTITION);
+  LoadMsg lmsg = LoadMsg(filename, array_schema, ORDERED_PARTITION, LoadMsg::SAMPLE);
   send_and_receive(lmsg);
-  */
 
   DEBUG_MSG("Sending GET test_C to all workers");
   GetMsg gmsg1 = GetMsg(array_name);
@@ -376,6 +376,7 @@ void CoordinatorNode::handle_load(LoadMsg& lmsg) {
           // shouldn't get here
           break;
       }
+      break;
     case HASH_PARTITION:
       handle_load_hash(lmsg);
       break;
@@ -453,7 +454,7 @@ void CoordinatorNode::handle_load_ordered_sort(LoadMsg& lmsg) {
   //sorted_file.seekg(0, std::ios::beg);
   CSVFile csv(sorted_filepath, CSVFile::READ);
   CSVLine csv_line;
-  std::vector<int64_t> partitions; // nworkers - 1 partitions
+  std::vector<uint64_t> partitions; // nworkers - 1 partitions
   for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
     std::string line;
     std::stringstream content;
@@ -481,7 +482,7 @@ void CoordinatorNode::handle_load_ordered_sort(LoadMsg& lmsg) {
     line = csv_line.str() + "\n";
     mpi_handler_->send_content(line.c_str(), line.size(), nodeid, LOAD_TAG);
     if (nodeid != nprocs_ - 1) { // not last node
-      int64_t sample = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
+      uint64_t sample = std::strtoull(csv_line.values()[0].c_str(), NULL, 10);
       partitions.push_back(sample);
     }
 
@@ -513,7 +514,7 @@ void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
 
   std::string filepath = datadir_ + "/" + msg.filename();
 
-  // inject cell ids
+  // inject cell ids and sample
   logger_->log_start(LOG_INFO, "Inject cell ids");
   ArraySchema& array_schema = msg.array_schema();
   bool regular = array_schema.has_regular_tiles();
@@ -542,8 +543,8 @@ void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
   // sample and get partitions
   logger_->log_start(LOG_INFO, "Sample and determine partitions");
   // TODO parameterize num_samples
-  std::vector<int64_t> samples = util::resevoir_sample(injected_filepath, 100);
-  std::vector<int64_t> partitions = get_partitions(samples, nworkers_ - 1);
+  std::vector<uint64_t> samples = util::resevoir_sample(injected_filepath, 100);
+  std::vector<uint64_t> partitions = get_partitions(samples, nworkers_ - 1);
 
   // scan input and send partitions to workers
   CSVFile csv_in(injected_filepath, CSVFile::READ);
@@ -570,7 +571,7 @@ void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
   }
   ss << "]\n";
   logger_->log(LOG_INFO, "Partitions: " + ss.str());
- 
+
   SamplesMsg smsg(partitions);
   for (int worker = 1; worker <= nworkers_ ; worker++) {
     ss.str(std::string());
@@ -585,7 +586,7 @@ void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
 void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
   logger_->log(LOG_INFO, "Start Handle Load Hash Partiion");
   std::stringstream ss;
-  
+
   // TODO check that filename exists in workspace, error if doesn't
   ArraySchema array_schema = pmsg.array_schema();
 
@@ -639,7 +640,7 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
 
   // receive samples from all workers
   logger_->log(LOG_INFO, "Receiving samples from workers");
-  std::vector<int64_t> samples;
+  std::vector<uint64_t> samples;
   std::stringstream ss;
   for (int worker = 1; worker <= nworkers_; ++worker) {
 
@@ -656,7 +657,7 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
 
   // pick nworkers - 1 samples for the n - 1 "stumps"
   logger_->log(LOG_INFO, "Getting partitions");
-  std::vector<int64_t> partitions = get_partitions(samples, nworkers_ - 1);
+  std::vector<uint64_t> partitions = get_partitions(samples, nworkers_ - 1);
 
   logger_->log(LOG_INFO, "sending partitions back to all workers");
   // send partition infor back to all workers
@@ -685,11 +686,11 @@ void CoordinatorNode::quit_all() {
 /******************************************************
  **************** HELPER FUNCTIONS ********************
  ******************************************************/
-std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> samples, int k) {
+std::vector<uint64_t> CoordinatorNode::get_partitions(std::vector<uint64_t> samples, int k) {
   // We are picking k partition boundaries that will divide the
   // entire distributed dataset into k + 1 somewhat equal (hopefully) partitions
   std::sort(samples.begin(), samples.end());
-  std::vector<int64_t> partitions;
+  std::vector<uint64_t> partitions;
 
   int num_partitions = k + 1;
   int num_samples_per_part = samples.size() / num_partitions;
@@ -706,9 +707,9 @@ std::vector<int64_t> CoordinatorNode::get_partitions(std::vector<int64_t> sample
 
 // TODO optimize to use binary search if needed
 // TODO move to util class
-inline int CoordinatorNode::get_receiver(std::vector<int64_t> partitions, int64_t cell_id) {
+inline int CoordinatorNode::get_receiver(std::vector<uint64_t> partitions, uint64_t cell_id) {
   int recv = 1;
-  for (std::vector<int64_t>::iterator it = partitions.begin(); it != partitions.end(); ++it) {
+  for (std::vector<uint64_t>::iterator it = partitions.begin(); it != partitions.end(); ++it) {
     if (cell_id <= *it) {
       return recv;
     }

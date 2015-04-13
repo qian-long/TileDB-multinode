@@ -21,8 +21,8 @@ MetaData::MetaData(PartitionType partition_type) {
 }
 
 MetaData::MetaData(PartitionType partition_type,
-  std::pair<int64_t, int64_t> my_range,
-  std::vector<int64_t> all_ranges) {
+  std::pair<uint64_t, uint64_t> my_range,
+  std::vector<uint64_t> all_ranges) {
 
   type_ = partition_type;
   my_range_ = my_range;
@@ -46,9 +46,9 @@ std::pair<char*, int> MetaData::serialize() {
   if (type_ == ORDERED_PARTITION) {
     // calculate buffer size
     buffer_size += sizeof(PartitionType); // partition type
-    buffer_size += 2 * sizeof(int64_t); // my_range low and high
+    buffer_size += 2 * sizeof(uint64_t); // my_range low and high
     buffer_size += sizeof(int); // length of all_ranges
-    buffer_size += all_ranges_.size() * sizeof(int64_t); // all_ranges contents
+    buffer_size += all_ranges_.size() * sizeof(uint64_t); // all_ranges contents
     
     // creating buffer
     buffer = new char[buffer_size];
@@ -58,20 +58,20 @@ std::pair<char*, int> MetaData::serialize() {
     pos += sizeof(PartitionType);
 
     // serialize my range
-    memcpy(&buffer[pos], &my_range_.first, sizeof(int64_t)); 
-    pos += sizeof(int64_t);
-    memcpy(&buffer[pos], &my_range_.second, sizeof(int64_t)); 
-    pos += sizeof(int64_t);
+    memcpy(&buffer[pos], &my_range_.first, sizeof(uint64_t)); 
+    pos += sizeof(uint64_t);
+    memcpy(&buffer[pos], &my_range_.second, sizeof(uint64_t)); 
+    pos += sizeof(uint64_t);
 
     // serialize all_ranges
     int length = all_ranges_.size();
     memcpy(&buffer[pos], &length, sizeof(int));
     pos += sizeof(int);
 
-    for (std::vector<int64_t>::iterator it = all_ranges_.begin();
-       it != all_ranges_.end(); ++it, pos += sizeof(int64_t)) {
-      int64_t boundary = *it;
-      memcpy(&buffer[pos], &boundary, sizeof(int64_t));
+    for (std::vector<uint64_t>::iterator it = all_ranges_.begin();
+       it != all_ranges_.end(); ++it, pos += sizeof(uint64_t)) {
+      uint64_t boundary = *it;
+      memcpy(&buffer[pos], &boundary, sizeof(uint64_t));
     }
 
     assert(pos == buffer_size);
@@ -90,11 +90,11 @@ std::pair<char*, int> MetaData::serialize() {
     memcpy(&buffer[pos], &type_, sizeof(PartitionType)); 
 
     assert(pos + sizeof(PartitionType) == buffer_size);
-    
+
     return std::pair<char*, int>(buffer, buffer_size);
   } else {
     // shouldn't get here
-  } 
+  }
 
 }
 
@@ -110,25 +110,25 @@ void MetaData::deserialize(char* buffer, int buffer_size) {
     assert(type_ == ORDERED_PARTITION);
 
     // my range
-    memcpy(&my_range_.first, &buffer[pos], sizeof(int64_t));
-    pos += sizeof(int64_t);
-    memcpy(&my_range_.second, &buffer[pos], sizeof(int64_t));
-    pos += sizeof(int64_t);
+    memcpy(&my_range_.first, &buffer[pos], sizeof(uint64_t));
+    pos += sizeof(uint64_t);
+    memcpy(&my_range_.second, &buffer[pos], sizeof(uint64_t));
+    pos += sizeof(uint64_t);
 
     assert(my_range_.first <= my_range_.second);
-    
+
     // all ranges
     int num_bounds = (int) buffer[pos];
     pos += sizeof(int);
     assert((buffer_size - pos) % 8 == 0);
-    for (int i = 0; i < num_bounds; ++i, pos += sizeof(int64_t)) {
-      int64_t bound;
-      memcpy(&bound, &buffer[pos], sizeof(int64_t));
+    for (int i = 0; i < num_bounds; ++i, pos += sizeof(uint64_t)) {
+      uint64_t bound;
+      memcpy(&bound, &buffer[pos], sizeof(uint64_t));
       all_ranges_.push_back(bound);
     }
 
   }
-  
+
 }
 
 /******************************************************
