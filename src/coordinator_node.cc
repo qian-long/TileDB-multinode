@@ -95,15 +95,15 @@ void CoordinatorNode::run() {
   send_and_receive(pmsg2);
   */
 
-  /*
   DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
   ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
   send_and_receive(pmsg2);
-  */
 
+  /*
   DEBUG_MSG("Sending ordered partition load instructions to all workers");
   LoadMsg lmsg = LoadMsg(filename, array_schema, ORDERED_PARTITION, LoadMsg::SAMPLE);
   send_and_receive(lmsg);
+  */
 
   DEBUG_MSG("Sending GET test_C to all workers");
   GetMsg gmsg1 = GetMsg(array_name);
@@ -403,7 +403,7 @@ void CoordinatorNode::handle_load_ordered_sort(LoadMsg& lmsg) {
     injected_filepath = executor_->loader()->workspace() + "/injected_" +
                         array_schema.array_name() + "_" + frag_name + ".csv";
     try {
-      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
+      logger_->log_start(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
       executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
     } catch(LoaderException& le) {
       logger_->log(LOG_INFO, "Caught loader exception " + le.what());
@@ -414,15 +414,16 @@ void CoordinatorNode::handle_load_ordered_sort(LoadMsg& lmsg) {
       throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
     }
   }
+  logger_->log_end(LOG_INFO);
 
 
   // local sort
   std::string sorted_filepath = executor_->loader()->workspace() + "/sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
 
-  logger_->log(LOG_INFO, "Sorting csv file " + injected_filepath + " into " + sorted_filepath);
+  logger_->log_start(LOG_INFO, "Sorting csv file " + injected_filepath + " into " + sorted_filepath);
 
   executor_->loader()->sort_csv_file(injected_filepath, sorted_filepath, array_schema);
-  logger_->log(LOG_INFO, "Finished sorting csv file");
+  logger_->log_end(LOG_INFO);
 
 
 
@@ -463,14 +464,10 @@ void CoordinatorNode::handle_load_ordered_sort(LoadMsg& lmsg) {
       end++;
     }
 
-    ss.str(std::string());
-    ss << "Sending sorted file part to nodeid " << nodeid << " with " << (end - pos) << " lines";
-    logger_->log(LOG_INFO, ss.str());
+    logger_->log(LOG_INFO, "Sending sorted file part to nodeid " + util::to_string(nodeid) + " with " + util::to_string(end - pos) +  " lines");
 
     for(; pos < end - 1; ++pos) {
 
-      // TODO use stavros's csvfile?
-      //std::getline(sorted_file, line);
       csv >> csv_line;
       line = csv_line.str() + "\n";
       mpi_handler_->send_content(line.c_str(), line.size(), nodeid, LOAD_TAG);
@@ -499,9 +496,7 @@ void CoordinatorNode::handle_load_ordered_sort(LoadMsg& lmsg) {
   logger_->log(LOG_INFO, "Sending partition samples to all workers");
   SamplesMsg msg(partitions);
   for (int worker = 1; worker <= nworkers_ ; worker++) {
-    ss.str(std::string());
-    ss << "Sending partitions to worker " << worker;
-    logger_->log(LOG_INFO, ss.str());
+    logger_->log(LOG_INFO, "Sending partitions to worker " + util::to_string(worker));
     mpi_handler_->send_samples_msg(&msg, worker);
   }
 
@@ -515,41 +510,88 @@ void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
   std::string filepath = datadir_ + "/" + msg.filename();
 
   // inject cell ids and sample
-  logger_->log_start(LOG_INFO, "Inject cell ids");
+
+  CSVFile csv_in(filepath, CSVFile::READ);
+  CSVLine line_in, line_out;
   ArraySchema& array_schema = msg.array_schema();
-  bool regular = array_schema.has_regular_tiles();
   ArraySchema::Order order = array_schema.order();
-  std::string injected_filepath = filepath;
   std::string frag_name = "0_0";
 
-  if (regular || order == ArraySchema::HILBERT) {
-    injected_filepath = executor_->loader()->workspace() + "/injected_" +
-                        array_schema.array_name() + "_" + frag_name + ".csv";
-    try {
-      logger_->log(LOG_INFO, "Injecting ids into " + filepath + ", outputting to " + injected_filepath);
-      executor_->loader()->inject_ids_to_csv_file(filepath, injected_filepath, array_schema);
-    } catch(LoaderException& le) {
-      logger_->log(LOG_INFO, "Caught loader exception " + le.what());
-#ifdef NDEBUG
-      remove(injected_filepath.c_str());
-      executor_->storage_manager()->delete_array(array_schema.array_name());
-#endif
-      throw LoaderException("[WorkerNode] Cannot inject ids to file\n" + le.what());
+
+  std::string injected_filepath = filepath;
+
+  // TODO support other orderings later
+  assert(array_schema.has_regular_tiles() || 
+         array_schema.order() == ArraySchema::HILBERT);
+
+
+  injected_filepath = executor_->loader()->workspace() + "/injected_" +
+                      array_schema.array_name() + "_" + frag_name + ".csv";
+
+  CSVFile *csv_out = new CSVFile(injected_filepath, CSVFile::WRITE);
+
+  uint64_t cell_id;
+  std::vector<double> coordinates;
+  unsigned int dim_num = array_schema.dim_num();
+  coordinates.resize(dim_num);
+  double coordinate;
+  int resevoir_count = 0;
+  int num_samples = 100; // TODO parameterize
+  std::vector<uint64_t> samples;
+
+  logger_->log_start(LOG_INFO, "Inject cell ids to " + injected_filepath + " and while resevoir sampling");
+  while (csv_in >> line_in) {
+    // Retrieve coordinates from the input line
+    for(unsigned int i=0; i < array_schema.dim_num(); i++) {
+      if(!(line_in >> coordinate))
+        throw LoaderException("Cannot read coordinate value from CSV file."); 
+      coordinates[i] = coordinate;
     }
+
+    // Put the id at the beginning of the output line
+    if(array_schema.has_regular_tiles()) { // Regular tiles
+      if(order == ArraySchema::HILBERT)
+        cell_id = array_schema.tile_id_hilbert(coordinates);
+      else if(order == ArraySchema::ROW_MAJOR)
+        cell_id = array_schema.tile_id_row_major(coordinates);
+      else if(order == ArraySchema::COLUMN_MAJOR)
+        cell_id = array_schema.tile_id_column_major(coordinates);
+    } else { // Irregular tiles + Hilbert cell order
+        cell_id = array_schema.cell_id_hilbert(coordinates);
+    }
+    line_out = cell_id;
+    // Append the input line to the output line, 
+    // and then into the output CSV file
+    line_out << line_in;
+    (*csv_out) << line_out;
+
+    // do resevoir sampling
+    if (resevoir_count < num_samples) {
+      samples.push_back(cell_id);
+    } else {
+        // replace elements with gradually decreasing probability
+        int r = (rand() % resevoir_count) + 1; // 0 to counter inclusive // TODO double check
+        if (r < num_samples) {
+          samples[r] = cell_id;
+        }
+    }
+
+    resevoir_count++;
   }
+
   logger_->log_end(LOG_INFO);
 
+  // call destructor to force flush
+  delete csv_out;
 
   // sample and get partitions
-  logger_->log_start(LOG_INFO, "Sample and determine partitions");
-  // TODO parameterize num_samples
-  std::vector<uint64_t> samples = util::resevoir_sample(injected_filepath, 100);
   std::vector<uint64_t> partitions = get_partitions(samples, nworkers_ - 1);
 
   // scan input and send partitions to workers
-  CSVFile csv_in(injected_filepath, CSVFile::READ);
+  logger_->log_start(LOG_INFO, "Send partitions to workers, reading " + injected_filepath);
+  CSVFile csv_injected(injected_filepath, CSVFile::READ);
   CSVLine csv_line;
-  while (csv_in >> csv_line) {
+  while (csv_injected >> csv_line) {
     int64_t cell_id = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
     int receiver = get_receiver(partitions, cell_id);
     std::string csv_line_str = csv_line.str() + "\n";
@@ -557,25 +599,19 @@ void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
         csv_line_str.length(), receiver, LOAD_TAG);
   }
 
+
   // flush all sends
   logger_->log(LOG_INFO, "Flushing all sends");
   mpi_handler_->flush_all_sends(LOAD_TAG);
 
-  // send partitions back to workers to record
-  logger_->log(LOG_INFO, "Sending partition samples to all workers");
-  // send partition infor back to all workers
-  ss.str(std::string());
-  ss << "[" << partitions[0];
-  for (int i = 1; i < partitions.size(); ++i) {
-    ss << ", " << partitions[i];
-  }
-  ss << "]\n";
-  logger_->log(LOG_INFO, "Partitions: " + ss.str());
+  logger_->log_end(LOG_INFO);
+
+  // send partition boundaries back to workers to record
+  logger_->log(LOG_INFO, "Sending partition samples to all workers: " +
+      util::to_string(partitions));
 
   SamplesMsg smsg(partitions);
   for (int worker = 1; worker <= nworkers_ ; worker++) {
-    ss.str(std::string());
-    logger_->log(LOG_INFO, ss.str());
     mpi_handler_->send_samples_msg(&smsg, worker);
   }
 
@@ -644,8 +680,7 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
   std::stringstream ss;
   for (int worker = 1; worker <= nworkers_; ++worker) {
 
-    ss << "Waiting for samples from worker " << worker;
-    logger_->log(LOG_INFO, ss.str());
+    logger_->log(LOG_INFO, "Waiting for samples from worker " + util::to_string(worker));
 
     SamplesMsg* smsg = mpi_handler_->receive_samples_msg(worker);
 
@@ -661,13 +696,7 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
 
   logger_->log(LOG_INFO, "sending partitions back to all workers");
   // send partition infor back to all workers
-  ss.str(std::string());
-  ss << "[" << partitions[0];
-  for (int i = 1; i < partitions.size(); ++i) {
-    ss << ", " << partitions[i];
-  }
-  ss << "]\n";
-  logger_->log(LOG_INFO, "Partitions: " + ss.str());
+  logger_->log(LOG_INFO, "Partitions: " + util::to_string(partitions));
   SamplesMsg msg(partitions);
   for (int worker = 1; worker <= nworkers_ ; worker++) {
     mpi_handler_->send_samples_msg(&msg, worker);
@@ -748,6 +777,7 @@ void CoordinatorNode::test_parallel_load(std::string array_name,
     std::string filename,
     PartitionType partition_type, int num_samples = 10) {
     logger_->log(LOG_INFO, "Test parallel loading array_name: " + array_name + " filename: " + filename);
+
     logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_name);
 
   ArraySchema * array_schema = get_test_arrayschema(array_name);

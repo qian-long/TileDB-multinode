@@ -65,9 +65,6 @@ class WorkerNode {
     // HELPER FUNCTIONS
     std::string arrayname_to_csv_filename(std::string arrayname);
 
-    /** Picks k samples at random from csvpath. Uses resevoir sampling **/
-    //std::vector<int64_t> sample(std::string csvpath, int k);
-
     /** 
      * Given partition buckets and cell_id, determine which worker the cell
      * should go to.

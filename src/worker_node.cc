@@ -132,10 +132,8 @@ void WorkerNode::run() {
 void WorkerNode::respond_ack(int result, int tag, double time) {
 
   std::stringstream ss;
-  ss << "Responding ack: " << result;
-  logger_->log(LOG_INFO, ss.str());
+  ss << "Responding ack: " + util::to_string(result);
 
-  ss.str(std::string());
   switch (tag) {
     case GET_TAG:
       ss << "GET";
@@ -685,34 +683,6 @@ inline std::string WorkerNode::arrayname_to_csv_filename(std::string arrayname) 
   ss << my_workspace_ << "/" << arrayname.c_str() << "_rnk" << myrank_ << ".csv";
   return ss.str();
 }
-
-// http://en.wikipedia.org/wiki/Reservoir_sampling
-/*
-inline std::vector<int64_t> WorkerNode::sample(std::string csvpath, int k) {
-  std::vector<int64_t> results;
-  CSVFile csv_in(csvpath, CSVFile::READ);
-  CSVLine csv_line;
-  int counter = 0;
-
-  while (csv_in >> csv_line) {
-
-    // fill the resevoir
-    if (counter < k) {
-      results.push_back(std::strtoll(csv_line.values()[0].c_str(), NULL, 10));
-    } else {
-
-      // replace elements with gradually decreasing probability
-      int r = rand() % counter + 1; // 0 to counter inclusive
-      if (r < k) {
-        results[r] = std::strtoll(csv_line.values()[0].c_str(), NULL, 10);
-      }
-
-    }
-    counter++;
-  }
-  return results;
-}
-*/
 
 // TODO optimize to use binary search if needed
 inline int WorkerNode::get_receiver(std::vector<uint64_t> partitions, uint64_t cell_id) {
