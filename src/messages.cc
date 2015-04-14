@@ -29,6 +29,8 @@ Msg* deserialize_msg(int type, char* buf, int length){
       return ParallelLoadMsg::deserialize(buf, length);
     case JOIN_TAG:
       return JoinMsg::deserialize(buf, length);
+    case ACK_TAG:
+      return AckMsg::deserialize(buf, length);
   }
   throw MessageException("trying to deserailze msg of unknown type");
 }
@@ -626,6 +628,110 @@ JoinMsg* JoinMsg::deserialize(char* buffer, int buffer_length) {
   return new JoinMsg(array_name_A, array_name_B, result_array_name);
 }
 
+/******************************************************
+ ******************** ACK MESSAGE *********************
+ ******************************************************/
+AckMsg::AckMsg() : Msg(ACK_TAG) {};
+
+AckMsg::AckMsg(Result r, int tag, double time) : Msg(ACK_TAG) {
+  result_ = r;
+  tag_ = tag;
+  time_ = time;
+}
+
+std::pair<char*, int> AckMsg::serialize() {
+  int buffer_size = 0, pos = 0;
+  char* buffer;
+
+  buffer_size = sizeof(Result); // result
+  buffer_size += sizeof(int); // tag
+  buffer_size += sizeof(double); // time
+
+  buffer = new char[buffer_size];
+
+  // serialize result
+  memcpy(&buffer[pos], &result_, sizeof(Result));
+  pos += sizeof(Result);
+
+  // serialize tag
+  memcpy(&buffer[pos], &tag_, sizeof(int));
+  pos += sizeof(int);
+
+  // serialize time
+  memcpy(&buffer[pos], &time_, sizeof(double));
+  pos += sizeof(double);
+
+  assert(pos == buffer_size);
+  return std::pair<char*, int>(buffer, buffer_size);
+}
+
+AckMsg* AckMsg::deserialize(char* buffer, int buffer_length) {
+
+  // getmsg args
+  int pos = 0;
+
+  // deserialize result
+  Result result;
+  memcpy(&result, &buffer[pos], sizeof(Result));
+  pos += sizeof(Result);
+
+  // deserialize tag
+  int tag;
+  memcpy(&tag, &buffer[pos], sizeof(int));
+  pos += sizeof(int);
+
+  // deserialize time
+  double time;
+  memcpy(&time, &buffer[pos], sizeof(double));
+  pos += sizeof(double);
+
+  // sanity check
+  assert(pos == buffer_length);
+  return new AckMsg(result, tag, time);
+}
+
+std::string AckMsg::to_string() {
+  std::stringstream ss;
+  switch (tag_) {
+    case GET_TAG:
+      ss << "GET";
+      break;
+    case DEFINE_ARRAY_TAG:
+      ss << "DEFINE_ARRAY_TAG";
+      break;
+    case LOAD_TAG:
+      ss << "LOAD";
+      break;
+    case SUBARRAY_TAG:
+      ss << "SUBARRAY";
+      break;
+    case FILTER_TAG:
+      ss << "FILTER";
+      break;
+    case AGGREGATE_TAG:
+      ss << "AGGREGATE";
+      break;
+    case PARALLEL_LOAD_TAG:
+      ss << "PARALLEL_LOAD";
+      break;
+    case JOIN_TAG:
+      ss << "JOIN_TAG";
+      break;
+    default:
+      break;
+  }
+
+  if (result_ == DONE) {
+    ss << "[DONE]";
+  } else {
+    assert(result_ == ERROR);
+    ss << "[ERROR]";
+  }
+
+  ss << " Time[" << time_ << " secs]";
+
+  return ss.str();
+}
 
 /******************************************************
  ******************* Samples MESSAGE ******************

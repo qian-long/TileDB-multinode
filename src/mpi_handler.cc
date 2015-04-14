@@ -166,6 +166,18 @@ SamplesMsg* MPIHandler::receive_samples_msg(int sender) {
   return SamplesMsg::deserialize((char *)ss.str().c_str(), ss.str().length());
 }
 
+// Sending and Receiving acks
+void MPIHandler::send_ack(AckMsg* msg, int receiver) {
+  std::pair<char *, int> buf_pair = msg->serialize();
+  send_content(buf_pair.first, buf_pair.second, receiver, SAMPLES_TAG);
+  flush_send(receiver, ACK_TAG);
+}
+
+AckMsg* MPIHandler::receive_ack(int sender) {
+  std::stringstream ss;
+  receive_content(ss, sender, ACK_TAG);
+  return AckMsg::deserialize((char *)ss.str().c_str(), ss.str().length());
+}
 
 /******************************************************
  ************* ALL TO ALL COMM FUNCTIONS **************

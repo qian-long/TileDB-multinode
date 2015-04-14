@@ -59,7 +59,7 @@ class MPIHandler {
      * Blocking call.
      */
     bool receive_keep_receiving(int sender);
-    /** TODO test
+    /**
      * Maintain buffer for each worker, send data to worker only when buffer is full
      * Blocking Call
      */
@@ -73,10 +73,17 @@ class MPIHandler {
      */
     void flush_all_sends(int tag);
 
-    // Blocking
+    // Sending and Receiving specific messages
+    // TODO maybe consolidate these?
+    
+    /** Sending samples to receiver Blocking */
     void send_samples_msg(SamplesMsg* smsg, int receiver);
-    // Blocking
+    /** Receiving samples. Blocking */
     SamplesMsg* receive_samples_msg(int sender);
+    /** Sending ack. Blocking */
+    void send_ack(AckMsg* msg, int receiver);
+    /** Receiving ack. Blocking */
+    AckMsg* receive_ack(int sender);
 
     /******************************************************
      ************* ALL TO ALL COMM FUNCTIONS **************

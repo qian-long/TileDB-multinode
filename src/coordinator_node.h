@@ -38,7 +38,7 @@ class CoordinatorNode {
     void handle_get(GetMsg& gmsg);
     void handle_load(LoadMsg& lmsg);
     void handle_aggregate();
-    void handle_ack();
+    void handle_acks();
     void handle_parallel_load(ParallelLoadMsg& pmsg);
     void handle_join(JoinMsg& msg);
 

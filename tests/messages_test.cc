@@ -220,5 +220,23 @@ namespace {
     EXPECT_STREQ(result_array_name.c_str(), new_msg->result_array_name().c_str());
   }
 
+  // ACK MSG TEST
+  TEST_F(MessagesTest, AckMsgTest) {
+
+    AckMsg::Result result = AckMsg::DONE;
+    int tag = 3;
+    double time = 34.4;
+    AckMsg msg = AckMsg(result, tag, time);
+
+    std::pair<char*, int> buffer = msg.serialize();
+
+    AckMsg* new_msg = AckMsg::deserialize(buffer.first, buffer.second);
+
+    // comparing message contents
+    EXPECT_EQ(result, new_msg->result());
+    EXPECT_EQ(tag, new_msg->tag());
+    EXPECT_EQ(time, new_msg->time());
+
+  }
 
 }

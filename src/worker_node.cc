@@ -130,51 +130,15 @@ void WorkerNode::run() {
   }
 }
 
-void WorkerNode::respond_ack(int result, int tag, double time) {
+void WorkerNode::respond_ack(int r, int tag, double time) {
 
-  logger_->log(LOG_INFO, "Responding ack: " + util::to_string(result));
+  logger_->log(LOG_INFO, "Responding ack: " + util::to_string(r));
 
-  std::stringstream ss;
-  switch (tag) {
-    case GET_TAG:
-      ss << "GET";
-      break;
-    case DEFINE_ARRAY_TAG:
-      ss << "DEFINE_ARRAY_TAG";
-      break;
-    case LOAD_TAG:
-      ss << "LOAD";
-      break;
-    case SUBARRAY_TAG:
-      ss << "SUBARRAY";
-      break;
-    case FILTER_TAG:
-      ss << "FILTER";
-      break;
-    case AGGREGATE_TAG:
-      ss << "AGGREGATE";
-      break;
-    case PARALLEL_LOAD_TAG:
-      ss << "PARALLEL_LOAD";
-      break;
-    case JOIN_TAG:
-      ss << "JOIN_TAG";
-      break;
-    default:
-      break;
-  }
-  if (result == 0) {
-    tag = DONE_TAG;
-    ss << "[DONE]";
-  } else {
-    tag = ERROR_TAG;
-    ss << "[ERROR]";
-  }
+  AckMsg::Result result = (r < 0) ? AckMsg::ERROR : AckMsg::DONE;
+  AckMsg ack(result, tag, time); 
 
-  ss << " Time[" << time << " secs]";
-
-  logger_->log(LOG_INFO, "Sending ack: " + ss.str());
-  MPI_Send((char *)ss.str().c_str(), ss.str().length(), MPI::CHAR, MASTER, tag, MPI_COMM_WORLD);
+  logger_->log(LOG_INFO, "Sending ack: " + ack.to_string());
+  mpi_handler_->send_ack(&ack, MASTER);
 
 }
 
@@ -182,8 +146,9 @@ void WorkerNode::respond_ack(int result, int tag, double time) {
  ****************** MESSAGE HANDLERS ******************
  ******************************************************/
 
-
-/******************* HANDLE GET **********************/
+/******************************************************
+ **                   HANDLE GET                     **
+ ******************************************************/
 int WorkerNode::handle(GetMsg* msg) {
   logger_->log(LOG_INFO, "ReceiveD Get Msg: " + msg->array_name());
 
@@ -207,7 +172,9 @@ int WorkerNode::handle(GetMsg* msg) {
   return 0;
 }
 
-/*************** HANDLE DEFINE ARRAY ***************/
+/******************************************************
+ **               HANDLE Define Array                **
+ ******************************************************/
 int WorkerNode::handle(DefineArrayMsg* msg) {
   logger_->log(LOG_INFO, "Received define array msg");
 
@@ -220,7 +187,6 @@ int WorkerNode::handle(DefineArrayMsg* msg) {
 /******************************************************
  **               HANDLE SubarrayMsg                 **
  ******************************************************/
-
 int WorkerNode::handle(SubarrayMsg* msg) {
   logger_->log(LOG_INFO, "Received subarray \n");
 
@@ -231,7 +197,9 @@ int WorkerNode::handle(SubarrayMsg* msg) {
   return 0;
 }
 
-/***************** HANDLE FilterMsg **********************/
+/******************************************************
+ **               HANDLE Filter Msg                  **
+ ******************************************************/
 int WorkerNode::handle(FilterMsg* msg) {
   logger_->log(LOG_INFO, "Received filter\n");
 
@@ -272,8 +240,9 @@ int WorkerNode::handle(AggregateMsg* msg) {
 }
 
 
-
-/*************** HANDLE LOAD **********************/
+/******************************************************
+ **                 HANDLE LOAD                      **
+ ******************************************************/
 int WorkerNode::handle(LoadMsg* msg) {
   logger_->log(LOG_INFO, "Received load");
 
@@ -315,7 +284,6 @@ int WorkerNode::handle(LoadMsg* msg) {
   logger_->log(LOG_INFO, "Finished handle load");
   return 0;
 }
-
 
 int WorkerNode::handle_load_ordered_sort(std::string filename, ArraySchema& array_schema) {
 
@@ -474,7 +442,9 @@ int WorkerNode::handle_load_hash(std::string filename, ArraySchema& array_schema
 
 }
 
-/*************** HANDLE PARALLEL LOAD ***************/
+/******************************************************
+ **             HANDLE PARALLEL LOAD                 **
+ ******************************************************/
 int WorkerNode::handle(ParallelLoadMsg* msg) {
   logger_->log(LOG_INFO, "Received Parallel Load Message");
   logger_->log(LOG_INFO, "Filename: " + msg->filename());
@@ -498,7 +468,6 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
       // TODO send error
       break;
   }
- 
 
   // TODO cleanup
   return 0;
@@ -732,6 +701,7 @@ int WorkerNode::handle(JoinMsg* msg) {
 
   assert(md_A->partition_type() == md_B->partition_type());
 
+  MetaData metadata;
   switch (md_A->partition_type()) {
     case ORDERED_PARTITION:
       handle_join_ordered(msg->array_name_A(),
@@ -740,9 +710,13 @@ int WorkerNode::handle(JoinMsg* msg) {
 
       break;
     case HASH_PARTITION:
-      // just wait for ack
       logger_->log_start(LOG_INFO, "Join hash partition on " + msg->array_name_A() + " and " + msg->array_name_B()); 
       executor_->join(msg->array_name_A(), msg->array_name_B(), msg->result_array_name());
+      logger_->log_end(LOG_INFO);
+
+      logger_->log_start(LOG_INFO, "Write metadata to disk");
+      metadata = MetaData(HASH_PARTITION);
+      md_manager_->store_metadata(msg->result_array_name(), metadata);
       logger_->log_end(LOG_INFO);
       break;
     default:

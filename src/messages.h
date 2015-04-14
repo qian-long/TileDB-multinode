@@ -21,6 +21,7 @@
 #define JOIN_TAG            11
 #define KEEP_RECEIVING_TAG  12
 #define SAMPLES_TAG         13
+#define ACK_TAG             14
 
 class Msg {
 
@@ -272,6 +273,39 @@ class JoinMsg : public Msg {
 
 };
 
+/******************************************************
+ ******************** ACK MESSAGE *********************
+ ******************************************************/
+class AckMsg: public Msg {
+
+  public:
+
+    enum Result {DONE, ERROR};
+
+    // CONSTRUCTOR
+    AckMsg();
+    AckMsg(Result r, int tag, double time = -1);
+
+    // DESTRUCTOR
+    ~AckMsg(){};
+
+    // ACCESSORS
+    Result result() { return result_; }
+    int tag() { return tag_; }
+    double time() { return time_; }
+    
+    // METHODS
+    std::pair<char*, int> serialize();
+    static AckMsg* deserialize(char* buffer, int buffer_length);
+    std::string to_string();
+
+  private:
+    Result result_;
+    int tag_;
+    double time_;
+
+};
+
 // CONTENT MESSAGES
 /******************************************************
  ******************* Samples MESSAGE ******************
@@ -297,10 +331,10 @@ class SamplesMsg : public Msg {
     std::vector<uint64_t> samples_;
 };
 
+
 /******************************************************
  ****************** MESSAGE EXCEPTION *****************
  ******************************************************/
-
 class MessageException {
   public:
     MessageException(const std::string& msg): msg_(msg) {}
@@ -311,4 +345,7 @@ class MessageException {
   private:
     std::string msg_;
 };
+
+
+
 #endif

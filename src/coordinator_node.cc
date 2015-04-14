@@ -264,23 +264,23 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
       break;
     case LOAD_TAG:
       handle_load(dynamic_cast<LoadMsg&>(msg));
-      handle_ack();
+      handle_acks();
       break;
     case PARALLEL_LOAD_TAG:
       handle_parallel_load(dynamic_cast<ParallelLoadMsg&>(msg));
-      handle_ack();
+      handle_acks();
       break;
     case DEFINE_ARRAY_TAG:
     case FILTER_TAG:
     case SUBARRAY_TAG:
-      handle_ack();
+      handle_acks();
       break;
     case AGGREGATE_TAG:
-      handle_aggregate();
+      //handle_aggregate();
       break;
     case JOIN_TAG:
       handle_join(dynamic_cast<JoinMsg&>(msg));
-      handle_ack();
+      // acks handled internally
       break;
     default:
       // don't do anything
@@ -289,32 +289,23 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
 
 }
 
-void CoordinatorNode::handle_ack() {
+void CoordinatorNode::handle_acks() {
 
-  logger_->log(LOG_INFO, "Waiting for acks");
-  for (int i = 0; i < nworkers_; i++) {
-    MPI_Status status;
-    int nodeid = i + 1;
-    char *buf = new char[MPI_BUFFER_LENGTH];
-    int length;
+  for (int nodeid = 1; nodeid <= nworkers_; nodeid++) {
+    logger_->log(LOG_INFO, "Waiting for ack from worker " + util::to_string(nodeid));
+    AckMsg* ack = mpi_handler_->receive_ack(nodeid);
+    logger_->log(LOG_INFO, "Received ack " + ack->to_string() + " from worker: " + util::to_string(nodeid));
 
-    MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    std::stringstream ss;
-    ss << "received tag: " << status.MPI_TAG;
-    logger_->log(LOG_INFO, ss.str());
-    ss.str(std::string());
-    // TODO use an ack message
-    assert((status.MPI_TAG == DONE_TAG) || (status.MPI_TAG == ERROR_TAG));
-    MPI_Get_count(&status, MPI_CHAR, &length);
-
-    ss << "Received ack " + std::string(buf, length) + " from worker: " << nodeid;
-    logger_->log(LOG_INFO, ss.str());
-
-    delete [] buf;
+      // cleanup
+    delete ack;
   }
 
+  
 }
 
+/******************************************************
+ **                  HANDLE GET                      **
+ ******************************************************/
 void CoordinatorNode::handle_get(GetMsg& gmsg) {
   std::string outpath = my_workspace_ + "/GET_" + gmsg.array_name() + ".csv";
   std::ofstream outfile;
@@ -335,53 +326,6 @@ void CoordinatorNode::handle_get(GetMsg& gmsg) {
   }
   outfile.close();
 }
-
-// TODO other types
-
-void CoordinatorNode::handle_aggregate() {
-
-  /*
-  int aggregate_max = -10000000;
-  int worker_max = -10000000;
-  for (int i = 0; i < nworkers_; i++) {
-    MPI_Status status;
-    int nodeid = i + 1;
-    char *buf = new char[MPI_BUFFER_LENGTH];
-    int length;
-
-    MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-
-    assert((status.MPI_TAG == AGGREGATE_TAG) || (status.MPI_TAG == ERROR_TAG));
-    MPI_Get_count(&status, MPI_CHAR, &length);
-
-    if (status.MPI_TAG == ERROR_TAG) { // Error
-      logger_->log(LOG_INFO, "Received aggregate error from worker: " + std::to_string(nodeid));
-
-    } else { // Success
-      memcpy(&worker_max, buf, sizeof(int));
-      logger_->log(LOG_INFO, "Received max from Worker " + std::to_string(nodeid) + ": " + std::to_string(worker_max));
-      if (worker_max > aggregate_max) {
-        aggregate_max = worker_max;
-      }
-
-      MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, nodeid, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-      assert(status.MPI_TAG == DONE_TAG);
-      MPI_Get_count(&status, MPI_CHAR, &length);
-
-      logger_->log(LOG_INFO, "Received ack " + std::string(buf, length) + " from worker: " + std::to_string(nodeid));
-    }
-
-    delete[] buf;
-
-  }
-
-  std::stringstream ss;
-  ss << "Max: " << aggregate_max;
-  logger_->log(LOG_INFO, ss.str());
-  std::cout << ss.str() << "\n";
-  */
-}
-
 
 /******************************************************
  **                  HANDLE LOAD                     **
@@ -698,7 +642,10 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
   mpi_handler_->flush_all_sends(LOAD_TAG);
 }
 
-/*************** HANDLE PARALLEL LOAD ***************/
+
+/******************************************************
+ **             HANDLE PARALLEL LOAD                 **
+ ******************************************************/
 void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   logger_->log(LOG_INFO, "In handle_parallel_load");
 
@@ -770,13 +717,35 @@ void CoordinatorNode::handle_join(JoinMsg& msg) {
   // should be verified the 2 arrays have matching types
   assert(md_A->partition_type() == md_B->partition_type());
   MetaData md_C;
+  bool all_success = true;
   switch (md_A->partition_type()) {
     case ORDERED_PARTITION:
       handle_join_ordered(msg);
       break;
     case HASH_PARTITION:
-      // wait for ack
-      // TODO write metadata if successful
+      // workers all do local join with no need for data shuffling
+      // write metadata if all successful acks
+      for (int nodeid = 1; nodeid <= nworkers_; ++nodeid) {
+        AckMsg* ack = mpi_handler_->receive_ack(nodeid);
+        if (ack->result() == AckMsg::ERROR) {
+          all_success = false;
+        }
+
+        // no memory leak
+        delete ack;
+      }
+
+      // write metadata for new data
+      if (all_success) {
+        logger_->log_start(LOG_INFO, "Query successful, writing new metadata");
+        md_C = MetaData(HASH_PARTITION);
+        md_manager_->store_metadata(msg.result_array_name(), md_C);
+
+        logger_->log_end(LOG_INFO);
+      } else {
+        logger_->log(LOG_INFO, "Query failed, no new array created");
+      }
+
       break;
     default:
       // shouldn't get here

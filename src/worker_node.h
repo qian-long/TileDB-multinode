@@ -87,8 +87,6 @@ class WorkerNode {
      */
     int get_receiver(std::vector<uint64_t> partitions, uint64_t cell_id);
 
-    
-
   private:
     // PRIVATE ATTRIBUTES
     int myrank_;
