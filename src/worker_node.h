@@ -44,22 +44,37 @@ class WorkerNode {
     int handle(FilterMsg* msg);
     int handle(AggregateMsg* msg);
     int handle(ParallelLoadMsg* msg); // distributed load (input randomly scattered in workers)
+    int handle(JoinMsg* msg);
 
+    // LOAD ALGORITHMS
 
-    // See CoordinatorNode::handle_load_ordered_sort
+    /** See CoordinatorNode::handle_load_ordered_sort */
     int handle_load_ordered_sort(std::string filename, ArraySchema& array_schema);
-    // See CoordinatorNode::handle_load_ordered_sample
+    /** See CoordinatorNode::handle_load_ordered_sample */
     int handle_load_ordered_sample(std::string filename, ArraySchema& array_schema);
 
-    // See CoordinatorNode::handle_load_hash
+    /** See CoordinatorNode::handle_load_hash */
     int handle_load_hash(std::string filename, ArraySchema& array_schema);
 
+    /** See CoordinatorNode::handle_parallel_load_ordered */
     int handle_parallel_load_ordered(
         std::string filename, 
         ArraySchema& array_schema,
         int num_samples);
+
+    /** See CoordinatorNode::handle_parallel_load_sort */
     int handle_parallel_load_hash(std::string filename, ArraySchema& array_schema);
-    
+
+    // JOIN ALGORITHMS
+    /** See CoordinatorNode::handle_join_ordered */
+    int handle_join_ordered(std::string array_name_A, 
+        std::string array_name_B,
+        std::string result_array_name);
+
+    /** See CoordinatorNode::handle_join_hash */
+    //int handle_join_hash(ArraySchema& schema_A, ArraySchema& schema_B);
+
+    /** Sends coordinator an acknowledgement with success or error */
     void respond_ack(int result, int tag, double time);
 
     // HELPER FUNCTIONS

@@ -12,6 +12,7 @@
 #include "messages.h"
 #include "logger.h"
 #include "mpi_handler.h"
+#include "metadata_manager.h"
 
 class CoordinatorNode {
   public:
@@ -39,6 +40,7 @@ class CoordinatorNode {
     void handle_aggregate();
     void handle_ack();
     void handle_parallel_load(ParallelLoadMsg& pmsg);
+    void handle_join(JoinMsg& msg);
 
     // DIFFERENT LOADING ALGORITHMS
 
@@ -52,6 +54,8 @@ class CoordinatorNode {
      * which involves invoking make tiles.
      *
      * The result is that the workers will end up with a globally sorted array.
+     *
+     * This is the baseline solution.
      */
     void handle_load_ordered_sort(LoadMsg& msg);
 
@@ -75,6 +79,21 @@ class CoordinatorNode {
 
     // matches same function in worker_node.h
     void handle_parallel_load_hash(ParallelLoadMsg& pmsg);
+
+    // DIFFERENT JOIN ALGORITHMS
+    /**
+     * This is the join method called when the data is order partitioned across
+     * all machines. This requires data shuffling.
+     */
+    void handle_join_ordered(JoinMsg& msg);
+
+    /**
+     * Join algo for when data is hash partitioned across machines.
+     * This is easy and does not require any data shuffling
+     */
+    void handle_join_hash(JoinMsg& msg);
+
+
 
     /******** TESTING FUNCTIONS ********/
     // filename must be in the Data directory
@@ -104,6 +123,7 @@ class CoordinatorNode {
     Executor* executor_;
     MPIHandler* mpi_handler_;
     std::string datadir_;
+    MetaDataManager* md_manager_;
 
     /********* HELPER FUNCTIONS ********/
     std::vector<uint64_t> get_partitions(std::vector<uint64_t>, int k);

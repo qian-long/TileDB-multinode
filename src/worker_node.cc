@@ -95,6 +95,7 @@ void WorkerNode::run() {
         case FILTER_TAG:
         case AGGREGATE_TAG:
         case PARALLEL_LOAD_TAG:
+        case JOIN_TAG:
           gettimeofday(&tim, NULL);
           tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
 
@@ -155,6 +156,10 @@ void WorkerNode::respond_ack(int result, int tag, double time) {
       break;
     case PARALLEL_LOAD_TAG:
       ss << "PARALLEL_LOAD";
+      break;
+    case JOIN_TAG:
+      ss << "JOIN_TAG";
+      break;
     default:
       break;
   }
@@ -178,7 +183,7 @@ void WorkerNode::respond_ack(int result, int tag, double time) {
  ******************************************************/
 
 
-/*************** HANDLE GET **********************/
+/******************* HANDLE GET **********************/
 int WorkerNode::handle(GetMsg* msg) {
   logger_->log(LOG_INFO, "ReceiveD Get Msg: " + msg->array_name());
 
@@ -212,7 +217,10 @@ int WorkerNode::handle(DefineArrayMsg* msg) {
   return 0;
 }
 
-/*************** HANDLE SubarrayMsg **********************/
+/******************************************************
+ **               HANDLE SubarrayMsg                 **
+ ******************************************************/
+
 int WorkerNode::handle(SubarrayMsg* msg) {
   logger_->log(LOG_INFO, "Received subarray \n");
 
@@ -713,6 +721,51 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
   logger_->log_end(LOG_INFO);
 }
 
+/******************************************************
+ **                  HANDLE JOIN                     **
+ ******************************************************/
+int WorkerNode::handle(JoinMsg* msg) {
+  logger_->log(LOG_INFO, "Received join query");
+
+  MetaData *md_A = md_manager_->retrieve_metadata(msg->array_name_A());
+  MetaData *md_B = md_manager_->retrieve_metadata(msg->array_name_B());
+
+  assert(md_A->partition_type() == md_B->partition_type());
+
+  switch (md_A->partition_type()) {
+    case ORDERED_PARTITION:
+      handle_join_ordered(msg->array_name_A(),
+          msg->array_name_B(),
+          msg->result_array_name());
+
+      break;
+    case HASH_PARTITION:
+      // just wait for ack
+      logger_->log_start(LOG_INFO, "Join hash partition on " + msg->array_name_A() + " and " + msg->array_name_B()); 
+      executor_->join(msg->array_name_A(), msg->array_name_B(), msg->result_array_name());
+      logger_->log_end(LOG_INFO);
+      break;
+    default:
+      // shouldn't get here
+      break;
+  }
+
+  // cleanup
+  delete md_A;
+  delete md_B;
+
+
+}
+
+// TODO
+int WorkerNode::handle_join_ordered(std::string array_name_A, 
+    std::string array_name_B,
+    std::string result_array_name) {
+
+
+}
+
+
 
 // TODO send_error function
 
@@ -758,6 +811,8 @@ int WorkerNode::handle_msg(int type, Msg* msg){
       return handle((AggregateMsg*) msg);
     case PARALLEL_LOAD_TAG:
       return handle((ParallelLoadMsg*) msg);
+    case JOIN_TAG:
+      return handle((JoinMsg*) msg);
   }
   throw MessageException("trying to deserailze msg of unknown type");
 }

@@ -34,6 +34,7 @@ CoordinatorNode::CoordinatorNode(int rank, int nprocs, std::string datadir) {
 
   mpi_handler_ = new MPIHandler(0, workers);
   datadir_ = datadir;
+  md_manager_ = new MetaDataManager(my_workspace_);
 }
 
 // TODO
@@ -85,7 +86,7 @@ void CoordinatorNode::run() {
       types,
       ArraySchema::HILBERT);
 
-  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_A");
+  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_C");
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
@@ -102,12 +103,29 @@ void CoordinatorNode::run() {
   */
 
   DEBUG_MSG("Sending ordered partition load instructions to all workers");
-  LoadMsg lmsg = LoadMsg(filename, array_schema, ORDERED_PARTITION, LoadMsg::SAMPLE);
+  LoadMsg lmsg = LoadMsg(filename, array_schema, HASH_PARTITION);
   send_and_receive(lmsg);
 
+  ArraySchema array_schema_B = array_schema.clone("test_C");
+
+
+  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_C");
+  DefineArrayMsg damsg2 = DefineArrayMsg(array_schema_B);
+  send_and_receive(damsg2);
+
+  DEBUG_MSG("Sending ordered partition load instructions to all workers");
+  LoadMsg lmsg2 = LoadMsg(filename, array_schema_B, HASH_PARTITION);
+  send_and_receive(lmsg2);
+
+  DEBUG_MSG("Join on test_C and test_D hash partition");
+  JoinMsg jmsg = JoinMsg("test_C", "test_D", "join_test_C_test_D");
+  send_and_receive(jmsg);
+
+  /*
   DEBUG_MSG("Sending GET test_C to all workers");
   GetMsg gmsg1 = GetMsg(array_name);
   send_and_receive(gmsg1);
+  */
 
 
   /*
@@ -260,6 +278,10 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
     case AGGREGATE_TAG:
       handle_aggregate();
       break;
+    case JOIN_TAG:
+      handle_join(dynamic_cast<JoinMsg&>(msg));
+      handle_ack();
+      break;
     default:
       // don't do anything
       break;
@@ -281,6 +303,7 @@ void CoordinatorNode::handle_ack() {
     ss << "received tag: " << status.MPI_TAG;
     logger_->log(LOG_INFO, ss.str());
     ss.str(std::string());
+    // TODO use an ack message
     assert((status.MPI_TAG == DONE_TAG) || (status.MPI_TAG == ERROR_TAG));
     MPI_Get_count(&status, MPI_CHAR, &length);
 
@@ -360,9 +383,11 @@ void CoordinatorNode::handle_aggregate() {
 }
 
 
-
-/*************** HANDLE LOAD **********************/
+/******************************************************
+ **                  HANDLE LOAD                     **
+ ******************************************************/
 void CoordinatorNode::handle_load(LoadMsg& lmsg) {
+  MetaData metadata;
   switch (lmsg.partition_type()) {
     case ORDERED_PARTITION:
       switch(lmsg.load_method()) {
@@ -379,6 +404,12 @@ void CoordinatorNode::handle_load(LoadMsg& lmsg) {
       break;
     case HASH_PARTITION:
       handle_load_hash(lmsg);
+
+      logger_->log_start(LOG_INFO, "Writing metadata to disk");
+      metadata = MetaData(HASH_PARTITION);
+      md_manager_->store_metadata(lmsg.array_schema().array_name(), metadata);
+      logger_->log_end(LOG_INFO);
+
       break;
     default:
       // TODO return error?
@@ -500,6 +531,15 @@ void CoordinatorNode::handle_load_ordered_sort(LoadMsg& lmsg) {
     mpi_handler_->send_samples_msg(&msg, worker);
   }
 
+  // store metadata to disk
+  logger_->log_start(LOG_INFO, "Writing metadata to disk");
+  MetaData metadata(ORDERED_PARTITION,
+      std::pair<uint64_t, uint64_t>(partitions[0], partitions[partitions.size()-1]),
+      partitions);
+  md_manager_->store_metadata(array_schema.array_name(), metadata);
+  logger_->log_end(LOG_INFO);
+
+  logger_->log(LOG_INFO, "Finished handle load ordered sort");
 }
 
 void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
@@ -569,7 +609,8 @@ void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
       samples.push_back(cell_id);
     } else {
         // replace elements with gradually decreasing probability
-        int r = (rand() % resevoir_count) + 1; // 0 to counter inclusive // TODO double check
+        // TODO double check off by one error?
+        int r = (rand() % resevoir_count) + 1; // 0 to counter inclusive
         if (r < num_samples) {
           samples[r] = cell_id;
         }
@@ -614,7 +655,17 @@ void CoordinatorNode::handle_load_ordered_sample(LoadMsg& msg) {
     mpi_handler_->send_samples_msg(&smsg, worker);
   }
 
+  // store metadata to disk
+  logger_->log_start(LOG_INFO, "Writing metadata to disk");
+  MetaData metadata(ORDERED_PARTITION,
+      std::pair<uint64_t, uint64_t>(partitions[0], partitions[partitions.size()-1]),
+      partitions);
+  md_manager_->store_metadata(array_schema.array_name(), metadata);
 
+
+  logger_->log_end(LOG_INFO);
+
+  logger_->log(LOG_INFO, "Finished handle load ordered sampling");
 }
 
 
@@ -706,6 +757,42 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
   logger_->log_end(LOG_INFO);
   // cleanup
 }
+
+
+/******************************************************
+ **                  HANDLE JOIN                     **
+ ******************************************************/
+void CoordinatorNode::handle_join(JoinMsg& msg) {
+  MetaData *md_A = md_manager_->retrieve_metadata(msg.array_name_A());
+  MetaData *md_B = md_manager_->retrieve_metadata(msg.array_name_B());
+
+  // handle checking partition type somewhere else, by the time it gets here, it
+  // should be verified the 2 arrays have matching types
+  assert(md_A->partition_type() == md_B->partition_type());
+  MetaData md_C;
+  switch (md_A->partition_type()) {
+    case ORDERED_PARTITION:
+      handle_join_ordered(msg);
+      break;
+    case HASH_PARTITION:
+      // wait for ack
+      // TODO write metadata if successful
+      break;
+    default:
+      // shouldn't get here
+      break;
+  }
+
+  // cleanup
+  delete md_A;
+  delete md_B;
+}
+
+// TODO
+void CoordinatorNode::handle_join_ordered(JoinMsg& msg) {
+
+}
+
 
 void CoordinatorNode::quit_all() {
   send_all("quit", QUIT_TAG);

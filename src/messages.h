@@ -79,7 +79,7 @@ class LoadMsg : public Msg {
     LoadMsg(const std::string filename,
         ArraySchema& array_schema,
         PartitionType type,
-        LoadMethod method,
+        LoadMethod method = LoadMsg::SAMPLE,
         int num_samples = 10);
 
     // DESTRUCTORS

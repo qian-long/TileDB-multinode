@@ -60,6 +60,7 @@ class MetaDataManager {
 
     // METHODS
     void store_metadata(std::string array_name, MetaData& metadata);
+    // TODO optimizations: store metadata for arrays in memory 
     MetaData* retrieve_metadata(std::string array_name);
 
   private:
