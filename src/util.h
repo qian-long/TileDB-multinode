@@ -1,8 +1,8 @@
 #ifndef UTIL_H
-
 #define UTIL_H
 
 #include "csv_file.h"
+#include "storage_manager.h"
 
 namespace util {
   std::vector<uint64_t> resevoir_sample(std::string csvpath, int num_samples);
@@ -14,6 +14,7 @@ namespace util {
   std::string to_string(std::vector<uint64_t>);
   std::string to_string(int x);
   std::string to_string(double x);
+  std::string to_string(StorageManager::BoundingCoordinates bounding_coords);
 
 
 };

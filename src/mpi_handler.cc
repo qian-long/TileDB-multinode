@@ -7,6 +7,7 @@
 #include "csv_file.h"
 #include "constants.h"
 #include "messages.h"
+#include "util.h"
 
 MPIHandler::MPIHandler() {}
 
@@ -182,16 +183,20 @@ AckMsg* MPIHandler::receive_ack(int sender) {
 /******************************************************
  ************* ALL TO ALL COMM FUNCTIONS **************
  ******************************************************/
-void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ostream& file) {
+
+/******************************************************
+ **              send_and_recieve_a2a                **
+ ******************************************************/
+void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiver, std::vector<std::ostream *> rstreams) {
   std::map<int, int>::iterator search = node_to_buf_.find(receiver);
   assert(search != node_to_buf_.end());
   int buf_ind = search->second;
   int buf_length = pos_[buf_ind];
   // TODO handle not found case
   // TODO optimize later if needed
-  // TODO change to total_buffer_length_ after fixing bug
+  // TODO change to total_buffer_length_
   if (length + buf_length >= mpi_buffer_length_) {
-    flush_send_and_recv_a2a(in_buf, length, receiver, file);
+    flush_send_and_recv_a2a(in_buf, length, receiver, rstreams);
   } else {
     // save data to buffer
     std::memmove(&(buffers_[buf_ind][pos_[buf_ind]]), in_buf, length);
@@ -199,15 +204,53 @@ void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiv
   }
 }
 
-void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int receiver, std::ostream& file) {
-  
+void MPIHandler::send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ostream& rstream) {
+  std::vector<std::ostream *> rstreams;
+  rstreams.push_back(&rstream);
+  send_and_receive_a2a(in_buf, length, receiver, rstreams);
+}
+
+void MPIHandler::send_and_receive_a2a(BoundingCoordsMsg& msg, std::vector<std::ostream *> rstreams) {
+
+  for (std::vector<int>::iterator it = node_ids_.begin();
+      it != node_ids_.end(); ++it) {
+    int receiver = *it;
+    if (receiver != MASTER) {
+      std::pair<char*, int> buf_pair = msg.serialize();
+      send_and_receive_a2a(buf_pair.first, buf_pair.second, receiver, rstreams);
+    }
+  }
+
+}
+
+/******************************************************
+ **            flush_send_and_recv_a2a               **
+ ******************************************************/
+void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length,
+  int receiver, std::ostream& rstream) {
+  std::vector<std::ostream *> rstreams;
+  rstreams.push_back(&rstream);
+  flush_send_and_recv_a2a(in_buf, length, receiver, rstreams);
+}
+
+void MPIHandler::flush_send_and_recv_a2a(std::vector<std::ostream *> rstreams) {
+  flush_send_and_recv_a2a(NULL, 0, myrank_, rstreams);
+}
+
+void MPIHandler::flush_send_and_recv_a2a(std::ostream& file) {
+  flush_send_and_recv_a2a(NULL, 0, myrank_, file);
+}
+
+void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int receiver, std::vector<std::ostream *> rstreams) {
+  assert(rstreams.size() == 1 || rstreams.size() == node_ids_.size() + 1);
+
   // blocking
   int nprocs = node_ids_.size() + 1;
   int scounts[nprocs];
   int rcounts[nprocs];
   int sdispls[nprocs];
   int rdispls[nprocs];
- 
+
   int send_total = 0;
   std::stringstream ss;
 
@@ -266,7 +309,18 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
   assert(rcounts[0] == rdispls[1]);
 
   // ignore "blob" msg from coordinator
-  file << std::string(&recvbuf[rdispls[1]], recv_total - rcounts[0]);
+  // copy the data from each receiver into corresponding receiving streams
+  if (rstreams.size() == 1) {
+    // ignore "blob" msg from coordinator
+    (*rstreams[0]) << std::string(&recvbuf[rdispls[1]], recv_total - rcounts[0]);
+  } else {
+    for (int i = 1; i < nprocs; ++i) {
+      // ignore master and yourself
+      if (i != myrank_) {
+        (*rstreams[i]) << std::string(&recvbuf[rdispls[i]], rcounts[i]);
+      }
+    }
+  }
 
   // reset pos
   for (int i = 0; i < pos_.size(); ++i) {
@@ -275,12 +329,22 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
 
 }
 
-void MPIHandler::flush_send_and_recv_a2a(std::ostream& file) {
-  flush_send_and_recv_a2a(NULL, 0, 0, file);
+
+/******************************************************
+ **                finish_recv_a2a                   **
+ ******************************************************/
+void MPIHandler::finish_recv_a2a() {
+  finish_recv_a2a(std::cout);
+}
+
+void MPIHandler::finish_recv_a2a(std::ostream& file) {
+  std::vector<std::ostream *> rstreams;
+  rstreams.push_back(&file);
+  finish_recv_a2a(rstreams);
 }
 
 // keep receiving from other nodes
-void MPIHandler::finish_recv_a2a(std::ostream& file) {
+void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
   int recv_total;
   int nprocs = node_ids_.size() + 1;
   int scounts[nprocs];
@@ -288,6 +352,7 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
   int sdispls[nprocs];
   int rdispls[nprocs];
 
+  assert (rstreams.size() == 1 || rstreams.size() == nprocs);
   bool keep_receiving = true;
   bool coordinator_last_round = false;
   do {
@@ -338,8 +403,19 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
       // start after rcounts[0] offset
       assert(rcounts[0] == rdispls[1]);
 
-      // ignore "blob" msg from coordinator
-      file << std::string(&recvbuf[rdispls[1]], recv_total - rcounts[0]);
+      if (rstreams.size() == 1) {
+        // ignore "blob" msg from coordinator
+        rstreams[0]->write(&recvbuf[rdispls[1]], recv_total - rcounts[0]);
+      } else {
+      // copy the data from each receiver into corresponding receiving streams
+        for (int i = 1; i < nprocs; ++i) {
+          // ignore master and yourself
+          if (i != myrank_) {
+            rstreams[i]->write(&recvbuf[rdispls[i]], rcounts[i]);
+          }
+        }
+      }
+
     } else {
       assert(recv_total == 0);
 
@@ -359,9 +435,6 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
 
 }
 
-void MPIHandler::finish_recv_a2a() {
-  finish_recv_a2a(std::cout);
-}
 
 
 /******************************************************

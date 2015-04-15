@@ -767,11 +767,52 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   const StorageManager::FragmentDescriptor* fd_A = ad_A->fd()[0]; 
   const StorageManager::FragmentDescriptor* fd_B = ad_B->fd()[0]; 
  
-  std::cout << "bounding coords size A: " << fd_A->fragment_info()->bounding_coordinates_.size() << "\n";
-  //logger_->log(LOG_INFO, "bounding coords size A: " + util::to_string(fd_A->fragment_info()->bounding_coordinates_.size());
+  // assumes all bounding coordinates fit in memory
+  // N to N sending bounding coordinates for array A
+  BoundingCoordsMsg bcm_A(fd_A->fragment_info()->bounding_coordinates_);
+  
+
+  logger_->log_start(LOG_INFO, "My bounding coords: " + util::to_string(fd_A->fragment_info()->bounding_coordinates_));
+  logger_->log_start(LOG_INFO, "Sending and receiving bounding coords of " + array_name_A + " to everyone");
+  std::vector<std::ostream *> rstreams;
+  for (int i = 0; i < nprocs_; ++i) {
+    std::stringstream *ss = new std::stringstream();
+    rstreams.push_back(ss);
+  }
+
+  mpi_handler_->send_and_receive_a2a(bcm_A, rstreams);
+
+  logger_->log(LOG_INFO, "Flush bounding coordinates");
+  mpi_handler_->flush_send_and_recv_a2a(rstreams);
+
+  logger_->log(LOG_INFO, "Finish receiving bounding coordinates");
+  mpi_handler_->finish_recv_a2a(rstreams);
+  logger_->log_end(LOG_INFO);
+  
+
+  // TODO cleanup
+  std::vector<BoundingCoordsMsg *> bc_msgs;
+  for (int i = 1; i < rstreams.size(); ++i) {
+
+    std::string s = ((std::stringstream *)rstreams[i])->str();
+    BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
+    logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
+  }
+
+  // N to N sending bounding coordinates for array B
+  /*
+  logger_->log_start(LOG_INFO, "Sending and receiving bounding coords of " + array_name_B + " to everyone");
+  BoundingCoordsMsg bcm_B(fd_B->fragment_info()->bounding_coordinates_);
+  mpi_handler_->send_and_receive_a2a(bcm_B);
+  logger_->log_end(LOG_INFO);
+  */
 
 
 
+  // cleanup
+  for (int i = 0; i < nprocs_; ++i) {
+    delete rstreams[i];
+  }
 
 }
 

@@ -74,5 +74,29 @@ namespace util {
     return ss.str();
   }
 
+  std::string to_string(StorageManager::BoundingCoordinates bounding_coords) {
+    std::stringstream ss;
+    ss << "[";
+    for (int i = 0; i < bounding_coords.size(); ++i) {
+      // iterating first coords in pair
+      ss << "{(" << bounding_coords[i].first[0];
+
+      for (int j = 1; j < bounding_coords[i].first.size(); ++j) {
+        ss << "," << bounding_coords[i].first[j];
+      }
+
+      ss << "), (" << bounding_coords[i].second[0];
+      // iteratign second coords in pair
+      for (int j = 1; j < bounding_coords[i].second.size(); ++j) {
+        ss << "," << bounding_coords[i].second[j];
+      }
+
+      ss << ")}\n";
+    }
+    ss << "]";
+
+    return ss.str();
+  }
+
 
 }

@@ -861,7 +861,10 @@ BoundingCoordsMsg* BoundingCoordsMsg::deserialize(char* buffer, int buffer_lengt
         StorageManager::BoundingCoordinatesPair(coords1, coords2));
   }
 
-  assert(pos == buffer_length);
+  // TODO fix when buffer is empty...
+  if (buffer_length > 0) {
+    assert(pos == buffer_length);
+  }
   return new BoundingCoordsMsg(bounding_coords);
 }
 

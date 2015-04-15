@@ -94,22 +94,57 @@ class MPIHandler {
      * Buffers data and calls flush_send_and_recv_a2a  when full.
      * Blocking call
      */
-    void send_and_receive_a2a(const char* in_buf, int length, int receiver, std::ostream& file);
+    void send_and_receive_a2a(const char* in_buf, 
+        int length, 
+        int receiver, 
+        std::vector<std::ostream *> rstreams);
+
+    // Wrapper for the above
+    void send_and_receive_a2a(const char* in_buf, 
+        int length, 
+        int receiver, 
+        std::ostream& rstream);
+
+
+    // if receiver not specified, send to all workers 
+    // data received in the rstreams
+    void send_and_receive_a2a(BoundingCoordsMsg& msg, 
+        std::vector<std::ostream *> rstreams);
+
     /**
      * One round of data shuffling among all nodes in the cluster (including
      * dummy coordinator). Relies on MPI's varies MPI_Alltoall functions.
+     * Data is written to the corresponding receiving streams (rstreams).
      * Blocking call
      */
     void flush_send_and_recv_a2a(const char* in_buf,
         int length,
         int receiver,
-        std::ostream& file);
+        std::vector<std::ostream *> rstreams);
+
+    /**
+     * Wrapper for above. 
+     * Data from all other nodes are written to the single specified
+     * stream.
+     */
+    void flush_send_and_recv_a2a(const char* in_buf,
+        int length,
+        int receiver,
+        std::ostream& stream);
+
+    /**
+     * Flush to network but have nothing to send. 
+     * Wrapper
+     */
+    void flush_send_and_recv_a2a(std::vector<std::ostream *> rstreams);
     void flush_send_and_recv_a2a(std::ostream& file);
+
     /**
      * Finish receiving data from other nodes when you are done sending your
      * data.
      * Blocking call.
      */
+    void finish_recv_a2a(std::vector<std::ostream *> rstreams);
     void finish_recv_a2a(std::ostream& file);
     void finish_recv_a2a();
 
