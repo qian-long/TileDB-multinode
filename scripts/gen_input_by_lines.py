@@ -24,4 +24,4 @@ def skewed(start, end, num_lines, num_cols):
   pass
 
 if __name__ == "__main__":
-  uniform(0, 1000000, 1000000, 4)
+  uniform(0, 1000000, 209503, 4)

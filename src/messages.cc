@@ -776,4 +776,92 @@ SamplesMsg* SamplesMsg::deserialize(char* buffer, int buffer_length) {
   return new SamplesMsg(samples);
 }
 
+/******************************************************
+ *************** Bounding Coords MESSAGE **************
+ ******************************************************/
+BoundingCoordsMsg::BoundingCoordsMsg() : Msg(BOUNDING_COORDS_TAG) {};
+
+BoundingCoordsMsg::BoundingCoordsMsg(
+    StorageManager::BoundingCoordinates bounding_coords) :
+  Msg(BOUNDING_COORDS_TAG)  {
+  bounding_coords_ = bounding_coords;
+}
+
+std::pair<char*, int> BoundingCoordsMsg::serialize() {
+  int buffer_size = 0, pos = 0;
+  char* buffer;
+
+  int num_dim = 0;
+
+  if (bounding_coords_.size() > 0) {
+    num_dim = bounding_coords_[0].first.size();
+  }
+
+  buffer_size = sizeof(int); // number of dimensions
+  buffer_size += 2 * num_dim * bounding_coords_.size() * sizeof(double); // size of bounding coordinates
+
+  buffer = new char[buffer_size];
+
+  // serialize coords size
+  memcpy(&buffer[pos], &num_dim, sizeof(int));
+  pos += sizeof(int);
+
+  // serialize bounding coordinates
+  for (int i = 0; i < bounding_coords_.size(); ++i) {
+    // serialize first coords in pair
+    for (std::vector<double>::iterator it = bounding_coords_[i].first.begin();
+        it != bounding_coords_[i].first.end(); ++it) {
+      double coord = *it;
+      memcpy(&buffer[pos], &coord, sizeof(double));
+      pos += sizeof(double);
+    }
+
+    // serialize second coords in pair
+    for (std::vector<double>::iterator it = bounding_coords_[i].second.begin();
+        it != bounding_coords_[i].second.end(); ++it) {
+      double coord = *it;
+      memcpy(&buffer[pos], &coord, sizeof(double));
+      pos += sizeof(double);
+    }
+
+  }
+
+  assert(pos == buffer_size);
+  return std::pair<char*, int>(buffer, buffer_size);
+}
+
+BoundingCoordsMsg* BoundingCoordsMsg::deserialize(char* buffer, int buffer_length) {
+
+  StorageManager::BoundingCoordinates bounding_coords;
+  int pos;
+
+  // deserialize num_dim
+  int num_dim;
+  memcpy(&num_dim, &buffer[pos], sizeof(int));
+  pos += sizeof(int);
+
+  // deserialize all bounding coords
+  for (; pos < buffer_length; pos += 2 * num_dim * sizeof(double)) {
+    std::vector<double> coords1;
+    std::vector<double> coords2;
+    for (int i = 0; i < num_dim; ++i) {
+      double coord;
+      memcpy(&coord, &buffer[pos + i*sizeof(double)], sizeof(double));
+      coords1.push_back(coord);
+    }
+
+    int offset = num_dim * sizeof(double);
+    for (int i = 0; i < num_dim; ++i) {
+      double coord;
+      memcpy(&coord, &buffer[pos + i*sizeof(double) + offset], sizeof(double));
+      coords2.push_back(coord);
+    }
+
+    bounding_coords.push_back(
+        StorageManager::BoundingCoordinatesPair(coords1, coords2));
+  }
+
+  assert(pos == buffer_length);
+  return new BoundingCoordsMsg(bounding_coords);
+}
 

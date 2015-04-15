@@ -159,7 +159,7 @@ int WorkerNode::handle(GetMsg* msg) {
   logger_->log(LOG_INFO, "exporting to CSV");
   executor_->export_to_csv(msg->array_name(), result_filename);
 
-  int fd = open(result_filename.c_str(), O_RDONLY); 
+  int fd = open(result_filename.c_str(), O_RDONLY);
   if (fd == -1) {
     logger_->log(LOG_INFO, "csv " + result_filename + " not found, telling master to stop receiving from me");
     mpi_handler_->send_keep_receiving(false, MASTER);
@@ -732,9 +732,45 @@ int WorkerNode::handle(JoinMsg* msg) {
 }
 
 // TODO
-int WorkerNode::handle_join_ordered(std::string array_name_A, 
+int WorkerNode::handle_join_ordered(std::string array_name_A,
     std::string array_name_B,
     std::string result_array_name) {
+  logger_->log(LOG_INFO, "In handle join ordered, joining " + array_name_A + " and " + array_name_B + " into " + result_array_name);
+
+  // Check that arrays A and B exist but result doesn't
+  assert(executor_->storage_manager()->array_defined(array_name_A));
+  assert(executor_->storage_manager()->array_defined(array_name_B));
+  assert(!executor_->storage_manager()->array_defined(result_array_name));
+
+
+  // Get fragment names
+  // TODO only single fragment supported now
+  std::vector<std::string> frag_names_A;
+  frag_names_A.push_back("0_0");
+  std::vector<std::string> frag_names_B;
+  frag_names_B.push_back("0_0");
+
+  // Open arrays
+  StorageManager::ArrayDescriptor* ad_A =
+      executor_->storage_manager()->open_array(array_name_A, 
+                                   frag_names_A,
+                                   StorageManager::READ);
+
+  StorageManager::ArrayDescriptor* ad_B =
+      executor_->storage_manager()->open_array(array_name_B, 
+                                   frag_names_B,
+                                   StorageManager::READ);
+  
+  // Get fragments for array A and array B
+  // TODO add error handling
+  assert(frag_names_A.size() == 1 && frag_names_B.size() == 1);
+  const StorageManager::FragmentDescriptor* fd_A = ad_A->fd()[0]; 
+  const StorageManager::FragmentDescriptor* fd_B = ad_B->fd()[0]; 
+ 
+  std::cout << "bounding coords size A: " << fd_A->fragment_info()->bounding_coordinates_.size() << "\n";
+  //logger_->log(LOG_INFO, "bounding coords size A: " + util::to_string(fd_A->fragment_info()->bounding_coordinates_.size());
+
+
 
 
 }

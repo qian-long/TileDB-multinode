@@ -51,7 +51,7 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "test_D";
+  std::string array_name = "test_E";
   std::string filename = array_name + ".csv";
 
   // Set attribute names
@@ -63,7 +63,6 @@ void CoordinatorNode::run() {
   std::vector<const std::type_info*> types;
   types.push_back(&typeid(int));
   types.push_back(&typeid(int));
-
 
   // Set dimension type
   types.push_back(&typeid(int));
@@ -103,7 +102,7 @@ void CoordinatorNode::run() {
   */
 
   DEBUG_MSG("Sending ordered partition load instructions to all workers");
-  LoadMsg lmsg = LoadMsg(filename, array_schema, HASH_PARTITION);
+  LoadMsg lmsg = LoadMsg(filename, array_schema, ORDERED_PARTITION);
   send_and_receive(lmsg);
 
   ArraySchema array_schema_B = array_schema.clone("test_C");
@@ -114,11 +113,11 @@ void CoordinatorNode::run() {
   send_and_receive(damsg2);
 
   DEBUG_MSG("Sending ordered partition load instructions to all workers");
-  LoadMsg lmsg2 = LoadMsg(filename, array_schema_B, HASH_PARTITION);
+  LoadMsg lmsg2 = LoadMsg(filename, array_schema_B, ORDERED_PARTITION);
   send_and_receive(lmsg2);
 
   DEBUG_MSG("Join on test_C and test_D hash partition");
-  JoinMsg jmsg = JoinMsg("test_C", "test_D", "join_test_C_test_D");
+  JoinMsg jmsg = JoinMsg("test_C", "test_E", "join_result");
   send_and_receive(jmsg);
 
   /*
@@ -227,13 +226,6 @@ void CoordinatorNode::run() {
   GetMsg gmsg1 = GetMsg("subarray");
   send_and_receive(gmsg1);
   */
-
-  /*
-  DEBUG_MSG("sending aggregate instruction to all workers");
-  AggregateMsg amsg = AggregateMsg(array_name, 1);
-  send_and_receive(amsg);
-  */
-
 
   quit_all();
 }

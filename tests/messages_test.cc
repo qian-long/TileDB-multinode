@@ -1,5 +1,7 @@
 #include "gtest/gtest.h"
 #include "messages.h"
+#include <cstdlib>
+
 
 namespace {
 
@@ -40,7 +42,6 @@ namespace {
             dim_domains,
             types,
             ArraySchema::ROW_MAJOR);
-
 
       }
 
@@ -238,5 +239,52 @@ namespace {
     EXPECT_EQ(time, new_msg->time());
 
   }
+
+  // BOUNDING COORDINATES MSG TEST
+  TEST_F(MessagesTest, BoundingCoordsMsgTest) {
+
+    std::vector<uint64_t> samples;
+    StorageManager::BoundingCoordinates bounding_coords;
+    int num_dim = 3;
+    int num_pairs = 123;
+
+    for (int i = 0; i < num_pairs; ++i) {
+      std::vector<double> coords1;
+      std::vector<double> coords2;
+      for (int j = 0; j < num_dim; ++j) {
+        coords1.push_back((double) rand());
+        coords2.push_back((double) rand());
+      }
+      bounding_coords.push_back(
+          StorageManager::BoundingCoordinatesPair(coords1, coords2));
+    }
+
+    BoundingCoordsMsg msg = BoundingCoordsMsg(bounding_coords);
+
+    std::pair<char*, int> buf_pair = msg.serialize();
+
+    BoundingCoordsMsg* new_msg = BoundingCoordsMsg::deserialize(buf_pair.first, buf_pair.second);
+
+    // comparing message contents
+    EXPECT_EQ(num_pairs, new_msg->bounding_coordinates().size());
+    for (int i = 0; i < num_pairs; ++i) {
+
+      std::vector<double> new_coords1 = new_msg->bounding_coordinates()[i].first;
+      std::vector<double> new_coords2 = new_msg->bounding_coordinates()[i].second;
+      std::vector<double> old_coords1 = bounding_coords[i].first;
+      std::vector<double> old_coords2 = bounding_coords[i].second;
+
+
+      EXPECT_EQ(num_dim, new_coords1.size());
+      EXPECT_EQ(num_dim, new_coords2.size());
+
+      for (int j = 0; j < num_dim; ++j) {
+        EXPECT_EQ(old_coords1[j], new_coords1[j]);
+        EXPECT_EQ(old_coords2[j], new_coords2[j]);
+      }
+
+    }
+  }
+
 
 }

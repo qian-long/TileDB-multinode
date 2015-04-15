@@ -15,13 +15,12 @@
 #define FILTER_TAG          5
 #define SUBARRAY_TAG        6
 #define AGGREGATE_TAG       7
-#define ERROR_TAG           8
-#define DONE_TAG            9
-#define PARALLEL_LOAD_TAG   10
-#define JOIN_TAG            11
-#define KEEP_RECEIVING_TAG  12
-#define SAMPLES_TAG         13
-#define ACK_TAG             14
+#define PARALLEL_LOAD_TAG   8
+#define JOIN_TAG            9
+#define KEEP_RECEIVING_TAG  10
+#define SAMPLES_TAG         11
+#define ACK_TAG             12
+#define BOUNDING_COORDS_TAG 13 // bounding coordinates
 
 class Msg {
 
@@ -310,7 +309,6 @@ class AckMsg: public Msg {
 /******************************************************
  ******************* Samples MESSAGE ******************
  ******************************************************/
-
 class SamplesMsg : public Msg {
   public:
     // CONSTRUCTOR
@@ -330,6 +328,30 @@ class SamplesMsg : public Msg {
   private:
     std::vector<uint64_t> samples_;
 };
+
+/******************************************************
+ *************** Bounding Coords MESSAGE **************
+ ******************************************************/
+class BoundingCoordsMsg : public Msg {
+  public:
+    // CONSTRUCTOR
+    BoundingCoordsMsg();
+    BoundingCoordsMsg(StorageManager::BoundingCoordinates bounding_coords);
+
+    // DESTRUCTOR
+    ~BoundingCoordsMsg(){};
+
+    // ACCESSORS
+    StorageManager::BoundingCoordinates bounding_coordinates() { return bounding_coords_; }
+
+    // METHODS
+    std::pair<char*, int> serialize();
+    static BoundingCoordsMsg* deserialize(char* buffer, int buffer_length);
+
+  private:
+    StorageManager::BoundingCoordinates bounding_coords_;
+};
+
 
 
 /******************************************************

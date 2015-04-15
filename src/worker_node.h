@@ -66,7 +66,25 @@ class WorkerNode {
     int handle_parallel_load_hash(std::string filename, ArraySchema& array_schema);
 
     // JOIN ALGORITHMS
-    /** See CoordinatorNode::handle_join_ordered */
+    /**
+     * 1. Every worker sends every other worker the bounding ranges of their
+     * partitions (first cell of first tile and last cell). This is easily found
+     * in bounding_coordinates.bkp
+     *
+     * 2. Every worker computes overlapping bounding coordinates of their entire
+     * partition. Each worker also computes the physical area of the overlap and
+     * sends overlapping area info to everyone else
+     *
+     * 3. For every overlap pair, the node with the less overlapping area sends
+     * data to the other node.
+     *
+     * 4. Upon receiving data, each worker merges the new cells into the
+     * existing array.
+     *
+     * 5. Workers can now perform a local merge join.
+     *
+     * See CoordinatorNode::handle_join_ordered
+     */
     int handle_join_ordered(std::string array_name_A, 
         std::string array_name_B,
         std::string result_array_name);
