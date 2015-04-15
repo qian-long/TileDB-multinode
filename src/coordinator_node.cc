@@ -752,15 +752,13 @@ void CoordinatorNode::handle_join(JoinMsg& msg) {
 // TODO
 void CoordinatorNode::handle_join_ordered(JoinMsg& msg) {
 
-  logger_->log_start(LOG_INFO, "Participating in all to all shuffle of array A bounding coordinates");
+  logger_->log_start(LOG_INFO, "All to all shuffle array A bounding coords");
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
 
-  /*
-  logger_->log_start(LOG_INFO, "Participating in all to all shuffle of array B bounding coordinates");
+  logger_->log_start(LOG_INFO, "All to all shuffle of array B bounding coords");
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
-  */
 
 }
 

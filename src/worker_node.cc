@@ -782,6 +782,43 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   mpi_handler_->send_and_receive_a2a(bcm_A, rstreams);
 
+  logger_->log(LOG_INFO, "Flush bounding coordinates of " + array_name_A);
+  mpi_handler_->flush_send_and_recv_a2a(rstreams);
+
+  logger_->log(LOG_INFO, "Finish receiving bounding coordinates " + array_name_A);
+  mpi_handler_->finish_recv_a2a(rstreams);
+  logger_->log_end(LOG_INFO);
+  
+
+  std::map<int, BoundingCoordsMsg *> bc_msgs_A;
+  for (int i = 1; i < rstreams.size(); ++i) {
+    std::string s = ((std::stringstream *)rstreams[i])->str();
+    BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
+    logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
+    //bc_msgs_A.push_back(std::pair<int, BoundingCoordsMsg *>(i, bcm));
+    bc_msgs_A[i] = bcm;
+  }
+
+  // N to N sending bounding coordinates for array B
+  BoundingCoordsMsg bcm_B(fd_B->fragment_info()->bounding_coordinates_);
+  
+
+  logger_->log(LOG_INFO, "My bounding coords: " + util::to_string(fd_B->fragment_info()->bounding_coordinates_));
+  logger_->log_start(LOG_INFO, "Send and recv bounding coords of " + array_name_B);
+  // reuse rstreams b/c memory is copied into the BCMsg
+  for (int i = 0; i < nprocs_; ++i) {
+    delete rstreams[i];
+  }
+  rstreams.clear();
+  assert(rstreams.size() == 0);
+
+  for (int i = 0; i < nprocs_; ++i) {
+    std::stringstream *ss = new std::stringstream();
+    rstreams.push_back(ss);
+  }
+
+  mpi_handler_->send_and_receive_a2a(bcm_B, rstreams);
+
   logger_->log(LOG_INFO, "Flush bounding coordinates");
   mpi_handler_->flush_send_and_recv_a2a(rstreams);
 
@@ -790,16 +827,16 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   logger_->log_end(LOG_INFO);
   
 
-  // TODO cleanup
-  std::vector<BoundingCoordsMsg *> bc_msgs;
+  std::map<int, BoundingCoordsMsg *> bc_msgs_B;
   for (int i = 1; i < rstreams.size(); ++i) {
-
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
     logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
+    //bc_msgs_B.push_back(std::pair<int, BoundingCoordsMsg *>(i, bcm));
+    bc_msgs_B[i] = bcm;
   }
 
-  // N to N sending bounding coordinates for array B
+
   /*
   logger_->log_start(LOG_INFO, "Sending and receiving bounding coords of " + array_name_B + " to everyone");
   BoundingCoordsMsg bcm_B(fd_B->fragment_info()->bounding_coordinates_);
@@ -814,6 +851,14 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     delete rstreams[i];
   }
 
+  for (std::map<int, BoundingCoordsMsg *>::iterator it = bc_msgs_A.begin();
+      it != bc_msgs_A.end(); ++it) {
+    delete it->second;
+  }
+  for (std::map<int, BoundingCoordsMsg *>::iterator it = bc_msgs_B.begin();
+      it != bc_msgs_B.end(); ++it) {
+    delete it->second;
+  }
 }
 
 
