@@ -837,16 +837,22 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   }
 
 
-  /*
-  logger_->log_start(LOG_INFO, "Sending and receiving bounding coords of " + array_name_B + " to everyone");
-  BoundingCoordsMsg bcm_B(fd_B->fragment_info()->bounding_coordinates_);
-  mpi_handler_->send_and_receive_a2a(bcm_B);
-  logger_->log_end(LOG_INFO);
-  */
+  // Compare my bcA to bc_msg_B
+  // compute my estimated area overlap between my array A and other worker's
+  // array B ranges
+  // compute cell id on the fly 
+  
+  
+  // Compare my bcB to bc_msg_A
+  // compute my estimated area overlap between my array B and other worker's
+  // array A ranges
+
+  // compare the two lists from above to determine who should transfer data
+  // where
+ 
 
 
-
-  // cleanup
+  // CLEANUP
   for (int i = 0; i < nprocs_; ++i) {
     delete rstreams[i];
   }
@@ -884,6 +890,61 @@ inline int WorkerNode::get_receiver(std::vector<uint64_t> partitions, uint64_t c
     recv++;
   }
   return recv;
+}
+
+// TODO move to storage manager later probably
+std::pair<int, int> WorkerNode::num_overlapping_tiles(
+    StorageManager::BoundingCoordinates& bounding_coords_A, 
+    StorageManager::BoundingCoordinates& bounding_coords_B,
+    ArraySchema& array_schema_A,
+    ArraySchema& array_schema_B) { 
+
+  int num_bc_A = bounding_coords_A.size();
+  int num_bc_B = bounding_coords_B.size();
+  // check for empty
+  if (num_bc_A == 0 || num_bc_B == 0) {
+    return std::pair<int, int>(0,0);
+  }
+
+  // TODO add other cell_ids later, only supporting hilbert for now
+   std::pair<uint64_t, uint64_t> first_last_pair_A = 
+    std::pair<uint64_t, uint64_t>(
+        array_schema_A.cell_id_hilbert(bounding_coords_A[0].first), 
+        array_schema_A.cell_id_hilbert(bounding_coords_A[num_bc_A-1].second));
+
+  std::pair<uint64_t, uint64_t> first_last_pair_B = 
+    std::pair<uint64_t, uint64_t>(
+        array_schema_B.cell_id_hilbert(bounding_coords_B[0].first), 
+        array_schema_B.cell_id_hilbert(bounding_coords_B[num_bc_A-1].second));
+
+  // partitions do not overlap
+  if (first_last_pair_A.second < first_last_pair_B.first ||
+      first_last_pair_A.first > first_last_pair_B.second) {
+    return std::pair<int, int>(0,0);
+  }
+
+  int num_tiles_A = 0;
+  int num_tiles_B = 0;
+
+  // See how many tiles in my partition of A overlaps with the bounding
+  // partitions of B 
+  for(std::vector<StorageManager::BoundingCoordinatesPair>::iterator it_A = bounding_coords_A.begin(); it_A != bounding_coords_A.end(); ++it_A) {
+    if (!(array_schema_A.cell_id_hilbert(it_A->first) > first_last_pair_B.second || array_schema_A.cell_id_hilbert(it_A->second) < first_last_pair_B.first)) {
+      num_tiles_A++;
+    }
+  }
+  
+  // See how many tiles in my partition of B overlaps with the bounding
+  // partitions of A
+  for(std::vector<StorageManager::BoundingCoordinatesPair>::iterator it_B = bounding_coords_B.begin(); it_B != bounding_coords_B.end(); ++it_B) {
+
+    if (!(array_schema_B.cell_id_hilbert(it_B->first) > first_last_pair_A.second || array_schema_B.cell_id_hilbert(it_B->second) < first_last_pair_A.first)) {
+      num_tiles_B++;
+    }
+
+  }
+  
+  return std::pair<int, int>(num_tiles_A, num_tiles_B);
 }
 
 

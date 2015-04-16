@@ -105,6 +105,13 @@ class WorkerNode {
      */
     int get_receiver(std::vector<uint64_t> partitions, uint64_t cell_id);
 
+
+    std::pair<int, int> num_overlapping_tiles(
+        StorageManager::BoundingCoordinates& bounding_coords_A, 
+        StorageManager::BoundingCoordinates& bounding_coords_B,
+        ArraySchema& array_schema_A,
+        ArraySchema& array_schema_B);
+
   private:
     // PRIVATE ATTRIBUTES
     int myrank_;
