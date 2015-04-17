@@ -950,6 +950,8 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
           it != my_overlap_tiles_A[i].end();
           ++it) {
         // serialize tile into tile msg
+        // Send and receive one tile at a time
+        // TODO support sending multiple tiles
       }
 
     } else if (costs[my_ind][i] > costs[i][my_ind]) { // they send

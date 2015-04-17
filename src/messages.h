@@ -33,12 +33,12 @@ class Msg {
 
     ~Msg(){};
 
-    virtual std::pair<char*, int> serialize();
+    virtual std::pair<char*, uint64_t> serialize();
     //static void deserialize(Msg* msg, const char* buffer, int buffer_length);
 
 };
 
-Msg* deserialize_msg(int MsgType, char* buffer, int buffer_length);
+Msg* deserialize_msg(int MsgType, char* buffer, uint64_t buffer_length);
 
 /******************************************************
  ******************* SUBARRAY MESSAGE *****************
@@ -57,8 +57,8 @@ class SubarrayMsg : public Msg {
     ArraySchema array_schema() { return array_schema_; }
 
     // Methods
-    std::pair<char*, int> serialize();
-    static SubarrayMsg* deserialize(char* buffer, int buffer_length);
+    std::pair<char*, uint64_t> serialize();
+    static SubarrayMsg* deserialize(char* buffer, uint64_t buffer_length);
 
   private:
     std::string result_array_name_;
@@ -81,7 +81,7 @@ class LoadMsg : public Msg {
         ArraySchema& array_schema,
         PartitionType type,
         LoadMethod method = LoadMsg::SAMPLE,
-        int num_samples = 10);
+        uint64_t num_samples = 10);
 
     // DESTRUCTORS
     ~LoadMsg(){};
@@ -91,19 +91,19 @@ class LoadMsg : public Msg {
     ArraySchema& array_schema() { return array_schema_; }
     PartitionType partition_type() { return type_; }
     LoadMethod load_method() { return method_; }
-    int num_samples() { return num_samples_; }
+    uint64_t num_samples() { return num_samples_; }
 
 
     // METHODS
-    std::pair<char*, int> serialize();
-    static LoadMsg* deserialize(char* buffer, int buffer_length);
+    std::pair<char*, uint64_t> serialize();
+    static LoadMsg* deserialize(char* buffer, uint64_t buffer_length);
 
   private:
     std::string filename_;
     ArraySchema array_schema_;
     PartitionType type_;
     LoadMethod method_;
-    int num_samples_;
+    uint64_t num_samples_;
 };
 
 
@@ -124,8 +124,8 @@ class GetMsg : public Msg {
     std::string array_name() { return array_name_; }
 
     // METHODS
-    std::pair<char*, int> serialize();
-    static GetMsg* deserialize(char* buffer, int buffer_length);
+    std::pair<char*, uint64_t> serialize();
+    static GetMsg* deserialize(char* buffer, uint64_t buffer_length);
 
   private:
     std::string array_name_;
@@ -149,8 +149,8 @@ class DefineArrayMsg : public Msg {
     ArraySchema& array_schema() { return array_schema_; }
 
     // METHODS
-    std::pair<char*, int> serialize();
-    static DefineArrayMsg* deserialize(char* buffer, int buffer_length);
+    std::pair<char*, uint64_t> serialize();
+    static DefineArrayMsg* deserialize(char* buffer, uint64_t buffer_length);
 
   private:
     ArraySchema array_schema_;
@@ -175,8 +175,8 @@ class FilterMsg : public Msg {
     std::string expression() { return expr_; }
 
     // METHODS
-    std::pair<char*, int> serialize();
-    static FilterMsg* deserialize(char* buffer, int buf_length);
+    std::pair<char*, uint64_t> serialize();
+    static FilterMsg* deserialize(char* buffer, uint64_t buf_length);
 
   private:
     // MEMBERS
@@ -203,8 +203,8 @@ class AggregateMsg : public Msg {
     int attr_index() { return attr_index_; }
 
     // METHODS
-    std::pair<char*, int> serialize();
-    static AggregateMsg* deserialize(char* buf, int len);
+    std::pair<char*, uint64_t> serialize();
+    static AggregateMsg* deserialize(char* buf, uint64_t len);
 
   private:
     std::string array_name_;
@@ -220,7 +220,7 @@ class ParallelLoadMsg : public Msg {
 
     // CONSTRUCTORS
     ParallelLoadMsg();
-    ParallelLoadMsg(std::string filename, PartitionType type, ArraySchema& array_schema, int num_samples = 10);
+    ParallelLoadMsg(std::string filename, PartitionType type, ArraySchema& array_schema, uint64_t num_samples = 10);
 
     // DESTRUCTORS
     ~ParallelLoadMsg(){};
@@ -229,17 +229,17 @@ class ParallelLoadMsg : public Msg {
     std::string filename() { return filename_; }
     PartitionType partition_type() { return type_; }
     ArraySchema& array_schema() { return array_schema_; }
-    int num_samples() { return num_samples_; }
+    uint64_t num_samples() { return num_samples_; }
 
     // METHODS
-    std::pair<char*, int> serialize();
-    static ParallelLoadMsg* deserialize(char* buffer, int buffer_size);
+    std::pair<char*, uint64_t> serialize();
+    static ParallelLoadMsg* deserialize(char* buffer, uint64_t buffer_size);
 
   private:
     std::string filename_;
     PartitionType type_;
     ArraySchema array_schema_;
-    int num_samples_; // for ordered parallel load, number of samples to pick from each worker
+    uint64_t num_samples_; // for ordered parallel load, number of samples to pick from each worker
 };
 
 /******************************************************
@@ -263,8 +263,8 @@ class JoinMsg : public Msg {
     std::string result_array_name() { return result_array_name_; }
 
     // METHODS
-    std::pair<char*, int> serialize();
-    static JoinMsg* deserialize(char* buffer, int buffer_length);
+    std::pair<char*, uint64_t> serialize();
+    static JoinMsg* deserialize(char* buffer, uint64_t buffer_length);
 
   private:
     std::string array_name_A_;
@@ -295,8 +295,8 @@ class AckMsg: public Msg {
     double time() { return time_; }
     
     // METHODS
-    std::pair<char*, int> serialize();
-    static AckMsg* deserialize(char* buffer, int buffer_length);
+    std::pair<char*, uint64_t> serialize();
+    static AckMsg* deserialize(char* buffer, uint64_t buffer_length);
     std::string to_string();
 
   private:
@@ -323,8 +323,8 @@ class SamplesMsg : public Msg {
     std::vector<uint64_t> samples() { return samples_; }
 
     // METHODS
-    std::pair<char*, int> serialize();
-    static SamplesMsg* deserialize(char* buffer, int buffer_length);
+    std::pair<char*, uint64_t> serialize();
+    static SamplesMsg* deserialize(char* buffer, uint64_t buffer_length);
 
   private:
     std::vector<uint64_t> samples_;
@@ -346,8 +346,8 @@ class BoundingCoordsMsg : public Msg {
     StorageManager::BoundingCoordinates bounding_coordinates() { return bounding_coords_; }
 
     // METHODS
-    std::pair<char*, int> serialize();
-    static BoundingCoordsMsg* deserialize(char* buffer, int buffer_length);
+    std::pair<char*, uint64_t> serialize();
+    static BoundingCoordsMsg* deserialize(char* buffer, uint64_t buffer_length);
 
   private:
     StorageManager::BoundingCoordinates bounding_coords_;
@@ -386,8 +386,8 @@ class TileMsg : public Msg {
     const char* payload() { return payload_; }
     
     // METHODS
-    std::pair<char*, int> serialize();
-    static TileMsg* deserialize(char* buffer, int buffer_length);
+    std::pair<char*, uint64_t> serialize();
+    static TileMsg* deserialize(char* buffer, uint64_t buffer_length);
 
   private:
     std::string array_name_;
