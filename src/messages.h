@@ -21,6 +21,7 @@
 #define SAMPLES_TAG         11
 #define ACK_TAG             12
 #define BOUNDING_COORDS_TAG 13 // bounding coordinates
+#define TILE_TAG            14 // one physical tile
 
 class Msg {
 
@@ -352,6 +353,50 @@ class BoundingCoordsMsg : public Msg {
     StorageManager::BoundingCoordinates bounding_coords_;
 };
 
+/******************************************************
+ ******************** Tile MESSAGE ********************
+ ******************************************************/
+// physical tile
+class TileMsg : public Msg {
+
+  public:
+    // CONSTRUCTOR
+    TileMsg();
+    TileMsg(std::string array_name,
+        int attr_id,
+        const char* payload, 
+        uint64_t num_cells,
+        uint64_t cell_size);
+
+    // DESTRUCTOR
+    ~TileMsg(){
+      delete payload_;
+    };
+
+
+    // ACCESSORS
+    std::string array_name() { return array_name_; }
+    int attr_id() { return attr_id_; }
+    uint64_t num_cells() { return num_cells_; }
+    // in bytes
+    uint64_t cell_size() { return cell_size_; }
+    //StorageManager::BoundingCoordinatesPair bounding_coords_pair() { return pair_; }
+    // in bytes
+    uint64_t payload_size() { return num_cells_ * cell_size_; }
+    const char* payload() { return payload_; }
+    
+    // METHODS
+    std::pair<char*, int> serialize();
+    static TileMsg* deserialize(char* buffer, int buffer_length);
+
+  private:
+    std::string array_name_;
+    int attr_id_;
+    const char* payload_;
+    uint64_t num_cells_;
+    uint64_t cell_size_;
+
+};
 
 
 /******************************************************

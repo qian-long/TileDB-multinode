@@ -286,5 +286,33 @@ namespace {
     }
   }
 
+  // TILE MSG TEST
+  TEST_F(MessagesTest, TileMsgTest) {
+
+    std::string array_name = "test";
+    int attr_id = 8;
+    uint64_t num_cells = 10000;
+    uint64_t cell_size = 8; // bytes
+    uint64_t payload_size = num_cells * cell_size;
+    char *payload = new char[payload_size];
+    for (int i = 0; i < num_cells; ++i) {
+      uint64_t cell = (uint64_t)rand();
+      memcpy(&payload[i * cell_size], &cell, cell_size);
+    }
+
+    TileMsg msg(array_name, attr_id, payload, num_cells, cell_size);
+    
+    std::pair<char*, int> buf_pair = msg.serialize();
+
+    TileMsg* new_msg = TileMsg::deserialize(buf_pair.first, buf_pair.second);
+
+    // comparing message contents
+    EXPECT_STREQ(array_name.c_str(), new_msg->array_name().c_str());
+    EXPECT_EQ(attr_id, new_msg->attr_id());
+    EXPECT_EQ(num_cells, new_msg->num_cells());
+    EXPECT_EQ(cell_size, new_msg->cell_size());
+    EXPECT_EQ(payload_size, new_msg->payload_size());
+    EXPECT_STREQ(std::string(payload, payload_size).c_str(), new_msg->payload());
+  }
 
 }

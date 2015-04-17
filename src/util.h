@@ -11,7 +11,9 @@ namespace util {
   //inline int get_partition_num(std::vector<int64_t> partitions, int64_t cell_id);
 
   // TO STRINGS
+  // TODO template this shit
   std::string to_string(std::vector<uint64_t>);
+  std::string to_string(std::vector<int>);
   std::string to_string(int x);
   std::string to_string(double x);
   std::string to_string(StorageManager::BoundingCoordinates bounding_coords);

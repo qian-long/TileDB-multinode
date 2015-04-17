@@ -106,7 +106,11 @@ class WorkerNode {
     int get_receiver(std::vector<uint64_t> partitions, uint64_t cell_id);
 
 
-    std::pair<int, int> num_overlapping_tiles(
+    /**
+     * tile ranks of the tile bounding coords that overlap with the partition
+     * boundaries of the opposite array
+     */
+    std::pair<std::vector<uint64_t>, std::vector<uint64_t> > get_overlapping_tile_ranks(
         StorageManager::BoundingCoordinates& bounding_coords_A, 
         StorageManager::BoundingCoordinates& bounding_coords_B,
         const ArraySchema& array_schema_A,
