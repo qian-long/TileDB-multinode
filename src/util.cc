@@ -98,5 +98,27 @@ namespace util {
     return ss.str();
   }
 
+  std::string to_string(uint64_t **array, int nrows, int ncols) {
+    std::stringstream ss;
+    ss << "{\n";
+    for (int i = 0; i < nrows; ++i) {
+      ss << "[";
+      if (ncols > 0) {
+        ss << array[i][0];
+        for (int j = 1; j < ncols; ++j) {
+          ss << ", " <<*((array + i * ncols) + j);
+        }
+      }
+      ss << "]\n";
+    }
+    ss << "}";
 
+    return ss.str();
+  }
+
+  std::string to_string(std::pair<uint64_t, uint64_t> p) {
+    std::stringstream ss;
+    ss << "(" << p.first << ", " << p.second << ")";
+    return ss.str();
+  }
 }

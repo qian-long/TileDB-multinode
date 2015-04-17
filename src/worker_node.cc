@@ -22,6 +22,7 @@ WorkerNode::WorkerNode(int rank,
 
   myrank_ = rank;
   nprocs_ = nprocs;
+  nworkers_ = nprocs - 1;
   mpi_buffer_length_ = mpi_buffer_length;
   mpi_handler_total_buf_size_ = mpi_handler_total_buf_size;
 
@@ -772,7 +773,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   BoundingCoordsMsg bcm_A(fd_A->fragment_info()->bounding_coordinates_);
   
 
-  logger_->log_start(LOG_INFO, "My bounding coords: " + util::to_string(fd_A->fragment_info()->bounding_coordinates_));
+  logger_->log(LOG_INFO, "My bounding coords: " + util::to_string(fd_A->fragment_info()->bounding_coordinates_));
   logger_->log_start(LOG_INFO, "Sending and receiving bounding coords of " + array_name_A + " to everyone");
   std::vector<std::ostream *> rstreams;
   for (int i = 0; i < nprocs_; ++i) {
@@ -827,16 +828,71 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   logger_->log_end(LOG_INFO);
   
 
+  // maps worker id to bc_msg ptr
   std::map<int, BoundingCoordsMsg *> bc_msgs_B;
   for (int i = 1; i < rstreams.size(); ++i) {
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
     logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
-    //bc_msgs_B.push_back(std::pair<int, BoundingCoordsMsg *>(i, bcm));
     bc_msgs_B[i] = bcm;
   }
 
 
+  uint64_t costs[nworkers_][nworkers_];
+  // initialize costs matrix
+  for (int i = 0; i < nworkers_; ++i) {
+    for (int j = i; j < nworkers_; ++j) {
+      costs[i][j] = 0;
+      costs[j][i] = 0;
+    }
+  }
+
+  StorageManager::BoundingCoordinates bounding_coords_A;
+  StorageManager::BoundingCoordinates bounding_coords_B;
+ 
+  for (int i = 0; i < nworkers_; ++i) {
+    int node1 = i + 1;
+    for (int j = i + 1; j < nworkers_; ++j) {
+      int node2 = j + 1;
+      logger_->log(LOG_INFO, "Computing overlap array A in node " + util::to_string(node1) + " with array B in node " + util::to_string(node2));
+
+      if (node1 == myrank_) {
+        bounding_coords_A = bcm_A.bounding_coordinates();
+      } else {
+        bounding_coords_A = bc_msgs_A[node1]->bounding_coordinates();
+      }
+
+      if (node2 == myrank_) {
+        bounding_coords_B = bcm_B.bounding_coordinates();
+      } else {
+        bounding_coords_B = bc_msgs_B[node2]->bounding_coordinates();
+      }
+
+      std::pair<int, int> num_overlap_tiles = num_overlapping_tiles(
+          bounding_coords_A,
+          bounding_coords_B,
+          *(fd_A->fragment_info()->array_schema_),
+          *(fd_B->fragment_info()->array_schema_));
+
+      costs[i][j] = (uint64_t)num_overlap_tiles.first;
+      costs[j][i] = (uint64_t)num_overlap_tiles.second;
+
+    }
+  }
+  std::stringstream ssf;
+  ssf << "{\n";
+  for (int i = 0; i < nworkers_; ++i) {
+    ssf << "[";
+    ssf << costs[i][0];
+    for (int j = 1; j < nworkers_; ++j) {
+      ssf << ", " << costs[i][j];
+    }
+    ssf << "]\n";
+  }
+  ssf << "}";
+
+
+  logger_->log(LOG_INFO, "Costs: " + ssf.str());
   // Compare my bcA to bc_msg_B
   // compute my estimated area overlap between my array A and other worker's
   // array B ranges
@@ -896,8 +952,10 @@ inline int WorkerNode::get_receiver(std::vector<uint64_t> partitions, uint64_t c
 std::pair<int, int> WorkerNode::num_overlapping_tiles(
     StorageManager::BoundingCoordinates& bounding_coords_A, 
     StorageManager::BoundingCoordinates& bounding_coords_B,
-    ArraySchema& array_schema_A,
-    ArraySchema& array_schema_B) { 
+    const ArraySchema& array_schema_A,
+    const ArraySchema& array_schema_B) { 
+
+  logger_->log(LOG_INFO, "In num_overlapping_tiles");
 
   int num_bc_A = bounding_coords_A.size();
   int num_bc_B = bounding_coords_B.size();
@@ -907,19 +965,24 @@ std::pair<int, int> WorkerNode::num_overlapping_tiles(
   }
 
   // TODO add other cell_ids later, only supporting hilbert for now
-   std::pair<uint64_t, uint64_t> first_last_pair_A = 
+  std::pair<uint64_t, uint64_t> first_last_pair_A = 
     std::pair<uint64_t, uint64_t>(
         array_schema_A.cell_id_hilbert(bounding_coords_A[0].first), 
         array_schema_A.cell_id_hilbert(bounding_coords_A[num_bc_A-1].second));
+  assert(first_last_pair_A.first <= first_last_pair_A.second);
+  logger_->log(LOG_INFO, "first_last_pair_A: " + util::to_string(first_last_pair_A));
 
   std::pair<uint64_t, uint64_t> first_last_pair_B = 
     std::pair<uint64_t, uint64_t>(
         array_schema_B.cell_id_hilbert(bounding_coords_B[0].first), 
-        array_schema_B.cell_id_hilbert(bounding_coords_B[num_bc_A-1].second));
+        array_schema_B.cell_id_hilbert(bounding_coords_B[num_bc_B-1].second));
+  assert(first_last_pair_B.first <= first_last_pair_B.second);
 
+  logger_->log(LOG_INFO, "first_last_pair_B: " + util::to_string(first_last_pair_B));
   // partitions do not overlap
   if (first_last_pair_A.second < first_last_pair_B.first ||
       first_last_pair_A.first > first_last_pair_B.second) {
+    logger_->log(LOG_INFO, "No overlap");
     return std::pair<int, int>(0,0);
   }
 
@@ -928,6 +991,7 @@ std::pair<int, int> WorkerNode::num_overlapping_tiles(
 
   // See how many tiles in my partition of A overlaps with the bounding
   // partitions of B 
+  logger_->log(LOG_INFO, "Finding num overlap tiles with bounding partitions of B");
   for(std::vector<StorageManager::BoundingCoordinatesPair>::iterator it_A = bounding_coords_A.begin(); it_A != bounding_coords_A.end(); ++it_A) {
     if (!(array_schema_A.cell_id_hilbert(it_A->first) > first_last_pair_B.second || array_schema_A.cell_id_hilbert(it_A->second) < first_last_pair_B.first)) {
       num_tiles_A++;
@@ -936,6 +1000,8 @@ std::pair<int, int> WorkerNode::num_overlapping_tiles(
   
   // See how many tiles in my partition of B overlaps with the bounding
   // partitions of A
+  
+  logger_->log(LOG_INFO, "Finding num overlap tiles with bounding partitions of A");
   for(std::vector<StorageManager::BoundingCoordinatesPair>::iterator it_B = bounding_coords_B.begin(); it_B != bounding_coords_B.end(); ++it_B) {
 
     if (!(array_schema_B.cell_id_hilbert(it_B->first) > first_last_pair_A.second || array_schema_B.cell_id_hilbert(it_B->second) < first_last_pair_A.first)) {

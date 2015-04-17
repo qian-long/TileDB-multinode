@@ -15,6 +15,9 @@ namespace util {
   std::string to_string(int x);
   std::string to_string(double x);
   std::string to_string(StorageManager::BoundingCoordinates bounding_coords);
+  std::string to_string(uint64_t **array, int nrows, int ncols);
+  //std::string to_string(int nrows, int ncols, uint64_t array[nrows][ncols]);
+  std::string to_string(std::pair<uint64_t, uint64_t> p);
 
 
 };

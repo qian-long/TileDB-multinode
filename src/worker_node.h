@@ -109,13 +109,14 @@ class WorkerNode {
     std::pair<int, int> num_overlapping_tiles(
         StorageManager::BoundingCoordinates& bounding_coords_A, 
         StorageManager::BoundingCoordinates& bounding_coords_B,
-        ArraySchema& array_schema_A,
-        ArraySchema& array_schema_B);
+        const ArraySchema& array_schema_A,
+        const ArraySchema& array_schema_B);
 
   private:
     // PRIVATE ATTRIBUTES
     int myrank_;
     int nprocs_;
+    int nworkers_;
     std::string my_workspace_;
     std::string datadir_;
     Executor* executor_;
