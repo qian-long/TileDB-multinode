@@ -966,6 +966,8 @@ TileMsg* TileMsg::deserialize(char* buffer, uint64_t buffer_length) {
   memcpy((char *)payload, &buffer[pos], payload_size);
   pos += payload_size;
 
+  std::cout << "pos: " << pos << "\n";
+  std::cout << "buffer_length: " << buffer_length << "\n";
   assert(pos == buffer_length);
   return new TileMsg(array_name, attr_id, payload, num_cells, cell_size);
 }

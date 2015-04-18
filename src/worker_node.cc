@@ -872,7 +872,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       if (node1 == node2) {
         continue;
       }
-      logger_->log(LOG_INFO, "Computing overlap array A in node " + util::to_string(node1) + " with array B in node " + util::to_string(node2));
+      //logger_->log(LOG_INFO, "Computing overlap array A in node " + util::to_string(node1) + " with array B in node " + util::to_string(node2));
 
       if (node1 == myrank_) {
         bounding_coords_A = bcm_A.bounding_coordinates();
@@ -969,30 +969,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       assert(costs_B_to_A[my_ind][j] == 0);
       // I send array A join fragments to node j + 1
       to_send_tile_ranks_A[receiver] = my_overlap_tiles_A[receiver];
-      /*
-      for(std::vector<uint64_t>::iterator it = my_overlap_tiles_A[j].begin();
-          it != my_overlap_tiles_A[j].end();
-          ++it) {
-        // serialize tile into tile msg
-        // Send and receive one tile at a time
-        // TODO support sending multiple tiles
-        uint64_t rank = *it;
-        int num_attr = fd_A->fragment_info()->array_schema_->attribute_num();
-        const Tile* tile = executor_->storage_manager()->get_tile_by_rank(fd_A, num_attr, rank);
-        // TODO send tile via mpi handler
-        const char *payload = new char[tile->tile_size()];
-        TileMsg msg(array_name_A, num_attr, payload, tile->cell_num(),
-            tile->cell_size());
-        int receiver = j + 1;
-
-        std::stringstream sst;
-        mpi_handler_->send_and_receive_a2a(msg, receiver, sst);
-        mpi_handler_->flush_send_and_recv_a2a(sst);
-        // create a physical tile from sst
-      }
-      */
-
-
+ 
     } else if (costs_A_to_B[my_ind][j] > costs_B_to_A[j][my_ind]) {
       // They send me array B join fragments
 
@@ -1038,6 +1015,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   logger_->log(LOG_INFO, "Finished gathering overlapping tiles for sending");
 
+#ifdef DEBUG
   for (std::map<int, std::vector<uint64_t> >::iterator it = to_send_tile_ranks_A.begin(); it != to_send_tile_ranks_A.end(); ++it) {
     logger_->log(LOG_INFO, "I'm sending these tile ranks from array A that overlap with partition boundaries of array B from node " + util::to_string(it->first) + ": " + util::to_string(it->second));
   }
@@ -1046,7 +1024,94 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
     logger_->log(LOG_INFO, "I'm sending these tile ranks from array B that overlap with partition boundaries of array A from node " + util::to_string(it->first) + ": " + util::to_string(it->second));
   }
- 
+#endif 
+
+  // Create and initialize tile iterators
+  
+  int num_attr_A = fd_A->fragment_info()->array_schema_->attribute_num();
+  // holds one logical tile
+  const Tile** tiles_A = new const Tile*[num_attr_A+1];
+  Tile** received_tiles_A = new Tile*[num_attr_A+1];
+  uint64_t received_tile_id_A = 0; 
+
+  // all payloads
+  std::stringstream ssa;
+  
+  // for each receiver
+  for(std::map<int, std::vector<uint64_t> >::iterator it_rank_A = to_send_tile_ranks_A.begin(); it_rank_A != to_send_tile_ranks_A.end(); ++it_rank_A) {
+
+    int receiver = it_rank_A->first;
+    std::vector<uint64_t> ranks = it_rank_A->second;
+
+    // for each tile rank
+    for (std::vector<uint64_t>::iterator it_r = ranks.begin();
+         it_r != ranks.end(); ++it_r) {
+
+      uint64_t rank = *it_r;
+      // for each physical tile...
+      for (int i = 0; i <= num_attr_A; ++i) {
+        tiles_A[i] = executor_->storage_manager()->get_tile_by_rank(fd_A, i, rank);
+        // construct tile msg
+        char *payload = new char[tiles_A[i]->tile_size()];
+        tiles_A[i]->copy_payload(payload);
+        TileMsg msg(array_name_A, num_attr_A, payload, tiles_A[i]->cell_num(), tiles_A[i]->cell_size());
+        mpi_handler_->send_and_receive_a2a(msg, receiver, ssa);
+        mpi_handler_->flush_send_and_recv_a2a(ssa);
+
+        if (ssa.str().size() > 0) {
+          TileMsg* new_msg = TileMsg::deserialize((char *)ssa.str().c_str(), ssa.str().size());
+          received_tiles_A[i] = executor_->storage_manager()->new_tile(
+              *(fd_A->fragment_info()->array_schema_), i, received_tile_id_A,
+              fd_A->fragment_info()->array_schema_->capacity());
+
+
+          received_tiles_A[i]->set_payload(new_msg->payload(), new_msg->payload_size());
+          ++received_tile_id_A;
+          // reset buf
+
+          received_tiles_A[i]->print();
+          //delete[] payload;
+          ssa.str(std::string());
+        }
+      }
+    }
+  }
+
+  mpi_handler_->finish_recv_a2a(ssa);
+
+  if (ssa.str().size() > 0) {
+    logger_->log(LOG_INFO, "Received tile payloads");
+  } else {
+    logger_->log(LOG_INFO, "DID NOT Received tile payloads");
+  }
+
+  // TODO create join fragments with ssa
+
+
+
+ /*
+  for(std::vector<uint64_t>::iterator it = my_overlap_tiles_A[j].begin();
+      it != my_overlap_tiles_A[j].end();
+      ++it) {
+    // serialize tile into tile msg
+    // Send and receive one tile at a time
+    // TODO support sending multiple tiles
+    uint64_t rank = *it;
+    int num_attr = fd_A->fragment_info()->array_schema_->attribute_num();
+    const Tile* tile = executor_->storage_manager()->get_tile_by_rank(fd_A, num_attr, rank);
+    // TODO send tile via mpi handler
+    const char *payload = new char[tile->tile_size()];
+    TileMsg msg(array_name_A, num_attr, payload, tile->cell_num(),
+        tile->cell_size());
+    int receiver = j + 1;
+
+    std::stringstream sst;
+    mpi_handler_->send_and_receive_a2a(msg, receiver, sst);
+    mpi_handler_->flush_send_and_recv_a2a(sst);
+    // create a physical tile from sst
+  }
+  */
+
 
 
   // CLEANUP
@@ -1123,7 +1188,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
   // partitions do not overlap
   if (first_last_pair_A.second < first_last_pair_B.first ||
       first_last_pair_A.first > first_last_pair_B.second) {
-    logger_->log(LOG_INFO, "No overlap");
+    //logger_->log(LOG_INFO, "No overlap");
     return std::pair<int, int>(0,0);
   }
 
