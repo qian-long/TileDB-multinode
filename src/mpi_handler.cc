@@ -223,6 +223,23 @@ void MPIHandler::send_and_receive_a2a(BoundingCoordsMsg& msg, std::vector<std::o
 
 }
 
+void MPIHandler::send_and_receive_a2a(TileMsg& msg,
+    int receiver,
+    std::ostream& rstream) {
+  std::pair<char*, uint64_t> buf_pair = msg.serialize();
+  send_and_receive_a2a(buf_pair.first, buf_pair.second, receiver, rstream);
+}
+/*
+void MPIHandler::send_and_receive_a2a(const Tile* tile,
+    std::string array_name,
+    int attr_id,
+    int receiver,
+    std::vector<std::ostream *> rstreams) {
+  std::pair<char*, uint64_t> buf_pair = msg.serialize();
+  send_and_receive_a2a(buf_pair.first, buf_pair.second, receiver, rstreams);
+}
+*/
+
 /******************************************************
  **            flush_send_and_recv_a2a               **
  ******************************************************/

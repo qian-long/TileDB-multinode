@@ -111,6 +111,17 @@ class MPIHandler {
     void send_and_receive_a2a(BoundingCoordsMsg& msg, 
         std::vector<std::ostream *> rstreams);
 
+    void send_and_receive_a2a(TileMsg& msg, 
+        int receiver,
+        std::ostream& rstream);
+
+/*
+    void send_and_receive_a2a(const Tile* tile,
+        std::string array_name,
+        int attr_id,
+        int receiver,
+        std::vector<std::ostream *> rstreams);
+        */
     /**
      * One round of data shuffling among all nodes in the cluster (including
      * dummy coordinator). Relies on MPI's varies MPI_Alltoall functions.

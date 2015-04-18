@@ -796,14 +796,11 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
     logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
-    //bc_msgs_A.push_back(std::pair<int, BoundingCoordsMsg *>(i, bcm));
     bc_msgs_A[i] = bcm;
   }
 
   // N to N sending bounding coordinates for array B
   BoundingCoordsMsg bcm_B(fd_B->fragment_info()->bounding_coordinates_);
-  
-
   logger_->log(LOG_INFO, "My bounding coords: " + util::to_string(fd_B->fragment_info()->bounding_coordinates_));
   logger_->log_start(LOG_INFO, "Send and recv bounding coords of " + array_name_B);
   // reuse rstreams b/c memory is copied into the BCMsg
@@ -840,11 +837,13 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   // TODO add multiplying by capacity later
   // TODO maybe use mbrs if there is a tie?
-  // rows = number of tiles in my A partition that overlap with the partition
+  // number of tiles in my A partition that overlap with the partition
   // boundaries of B
-  // cols = number of tiles in my B partition that overlap with the partition
+  uint64_t costs_A_to_B[nworkers_][nworkers_];
+
+  // number of tiles in my B partition that overlap with the partition
   // boundaries of A
-  uint64_t costs[nworkers_][nworkers_];
+  uint64_t costs_B_to_A[nworkers_][nworkers_];
   
   // my tile ranks from array B that overlap with partition boundaries in array B from other workers
   std::map<int, std::vector<uint64_t> > my_overlap_tiles_A;
@@ -854,8 +853,11 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   // initialize costs matrix
   for (int i = 0; i < nworkers_; ++i) {
     for (int j = i; j < nworkers_; ++j) {
-      costs[i][j] = 0;
-      costs[j][i] = 0;
+      costs_A_to_B[i][j] = 0;
+      costs_A_to_B[j][i] = 0;
+      costs_B_to_A[i][j] = 0;
+      costs_B_to_A[j][i] = 0;
+
     }
   }
 
@@ -864,8 +866,12 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
  
   for (int i = 0; i < nworkers_; ++i) {
     int node1 = i + 1;
-    for (int j = i + 1; j < nworkers_; ++j) {
+    for (int j = 0; j < nworkers_; ++j) {
       int node2 = j + 1;
+      // don't compare with yourself
+      if (node1 == node2) {
+        continue;
+      }
       logger_->log(LOG_INFO, "Computing overlap array A in node " + util::to_string(node1) + " with array B in node " + util::to_string(node2));
 
       if (node1 == myrank_) {
@@ -888,8 +894,10 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
       // TODO other cost models, such as multiplying by capacity
       // assumes same tile capacity for now
-      costs[i][j] = (uint64_t)overlap_tiles.first.size(); // ranks from array A
-      costs[j][i] = (uint64_t)overlap_tiles.second.size(); // ranks from array B
+      costs_A_to_B[i][j] = (uint64_t)overlap_tiles.first.size(); // ranks from array A
+
+      costs_B_to_A[j][i] = (uint64_t)overlap_tiles.second.size(); // ranks from array B in node j that overlap with boundaries in node i
+
 
       if (node1 == myrank_) {
         my_overlap_tiles_A[node2] = overlap_tiles.first;
@@ -900,77 +908,145 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   }
 
   // TODO move to helper functions, ugh
-#ifdef NDEBUG
+#ifdef DEBUG
   std::stringstream ssf;
+  std::stringstream ssb;
   ssf << "{\n";
+  ssb << "{\n";
   for (int i = 0; i < nworkers_; ++i) {
     ssf << "[";
-    ssf << costs[i][0];
+    ssb << "[";
+    ssf << costs_A_to_B[i][0];
+    ssb << costs_B_to_A[i][0];
     for (int j = 1; j < nworkers_; ++j) {
-      ssf << ", " << costs[i][j];
+      ssf << ", " << costs_A_to_B[i][j];
+      ssb << ", " << costs_B_to_A[i][j];
     }
     ssf << "]\n";
+    ssb << "]\n";
   }
   ssf << "}";
+  ssb << "}";
 
-  logger_->log(LOG_INFO, "Costs: " + ssf.str());
+  logger_->log(LOG_INFO, "Costs_A_to_B (num of tiles in array A that overlap with partition boundaries in array B): " + ssf.str());
+  logger_->log(LOG_INFO, "Costs_B_to_A (num of tiles in array B that overlap with partition boundaries in array A): " + ssb.str());
 
-  for (std::map<int, std::vector<uint64_t> >::iterator it = my_overlap_tiles_A.begin(); it != my_overlap_tiles_A.end(); ++it) {
-    logger_->log(LOG_INFO, "My tile ranks from array A that overlap with partition boundaries in array B in node " + util::to_string(it->first) + ": " + util::to_string(it->second));
-  }
-  for (std::map<int, std::vector<uint64_t> >::iterator it = my_overlap_tiles_B.begin(); it != my_overlap_tiles_B.end(); ++it) {
-
-    logger_->log(LOG_INFO, "My tile ranks from array A that overlap with partition boundaries in array B in node " + util::to_string(it->first) + ": " + util::to_string(it->second));
-  }
 #endif
 
   // map[nodeid] = Tile**
-  std::map<int, Tile**> to_send_tiles;
-  std::map<int, Tile**>::iterator it;
+  // TODO initialize iterators for arrays A and B, iterate over the tiles un
+  /*
+  std::map<int, Tile**> to_send_tiles_A;
+  std::map<int, Tile**> to_send_tiles_B;
+  const Tile** received_A_tiles;
+  const Tile** received_B_tiles;
+  */
+  std::map<int, std::vector<uint64_t> > to_send_tile_ranks_A;
+  std::map<int, std::vector<uint64_t> > to_send_tile_ranks_B;
+
   // compare cost matrix, lower cost sends,
   // use myrank_ as tie breaker
-  int my_ind = myrank_ - 1; // my index in costs matrix
-  for (int i = 0; i < nworkers_; ++i) {
-    int other_node = i + 1;
-    // don't compare with myself
-    if (i == my_ind) {
+  // filter my_overlap_tiles_A and B to the ones that I actually have to send
+  int my_ind = myrank_ - 1;
+  for (int j = 0; j < nworkers_; ++j) {
+    // don't send to myself
+    if (my_ind == j) {
+      continue;
+    }
+    // don't send if no overlap
+    if ((costs_A_to_B[my_ind][j] == 0 &&
+        costs_B_to_A[j][my_ind] == 0) &&
+        (costs_A_to_B[j][my_ind] == 0 &&
+        costs_B_to_A[my_ind][j] == 0)) {
+
       continue;
     }
 
-    // don't send anything if no overlap
-    if (costs[my_ind][i] == 0) {
-      assert(costs[i][my_ind] == 0);
-      continue;
-    }
-    // I have less tiles in array A that overlap with node i's array B partition
-    // boundaries, so I should send
-    if (costs[my_ind][i] < costs[i][my_ind]) {
-      // TODO collect tiles to send
-      for(std::vector<uint64_t>::iterator it = my_overlap_tiles_A[i].begin();
-          it != my_overlap_tiles_A[i].end();
+    int receiver = j + 1;
+    // comparing my tile A overlap with their B boundary, so if overlap, might
+    // send array A over
+    if (costs_A_to_B[my_ind][j] < costs_B_to_A[j][my_ind]) {
+      assert(costs_B_to_A[my_ind][j] == 0);
+      // I send array A join fragments to node j + 1
+      to_send_tile_ranks_A[receiver] = my_overlap_tiles_A[receiver];
+      /*
+      for(std::vector<uint64_t>::iterator it = my_overlap_tiles_A[j].begin();
+          it != my_overlap_tiles_A[j].end();
           ++it) {
         // serialize tile into tile msg
         // Send and receive one tile at a time
         // TODO support sending multiple tiles
-      }
+        uint64_t rank = *it;
+        int num_attr = fd_A->fragment_info()->array_schema_->attribute_num();
+        const Tile* tile = executor_->storage_manager()->get_tile_by_rank(fd_A, num_attr, rank);
+        // TODO send tile via mpi handler
+        const char *payload = new char[tile->tile_size()];
+        TileMsg msg(array_name_A, num_attr, payload, tile->cell_num(),
+            tile->cell_size());
+        int receiver = j + 1;
 
-    } else if (costs[my_ind][i] > costs[i][my_ind]) { // they send
+        std::stringstream sst;
+        mpi_handler_->send_and_receive_a2a(msg, receiver, sst);
+        mpi_handler_->flush_send_and_recv_a2a(sst);
+        // create a physical tile from sst
+      }
+      */
+
+
+    } else if (costs_A_to_B[my_ind][j] > costs_B_to_A[j][my_ind]) {
+      // They send me array B join fragments
 
     } else {
-      assert(costs[my_ind][i] == costs[i][my_ind]);
-      // i send
-      if (my_ind < i) {
-        // TODO collect tiles to send
+      // equal, if there is overlap and equal cost, use myrank as tiebreaker
+      if (costs_A_to_B[my_ind][j] > 0) {
+        assert(costs_B_to_A[my_ind][j] == 0);
+        if (my_ind < j) { // I send A join fragments to node j + 1
 
-      } else if(my_ind > i) { // they send
+          to_send_tile_ranks_A[receiver] = my_overlap_tiles_A[receiver];
+        } else {
+          // They send me array B join fragments
+        }
+      }
 
-      } else {
-        // shouldn't get here
+    }
+
+
+    // comparing my tile B overlap with their A boundary, should be mutually
+    // exclusive from the above one, so if one is positive, the other is 0
+    // if overlap, send array B
+    if (costs_B_to_A[my_ind][j] < costs_A_to_B[j][my_ind]) {
+      // I send array B join fragments to node j + 1
+      assert(costs_A_to_B[my_ind][j] == 0);
+      to_send_tile_ranks_B[receiver] = my_overlap_tiles_B[receiver];
+    } else if (costs_B_to_A[my_ind][j] > costs_A_to_B[j][my_ind]) {
+      // They send me array A join fragments
+
+    } else {
+      // equal, if there is overlap and equal cost, use myrank as tiebreaker
+      if (costs_B_to_A[my_ind][j] > 0 ) {
+
+        assert(costs_A_to_B[my_ind][j] == 0);
+        if (my_ind < j) { // I send B join fragments to node j + 1
+          to_send_tile_ranks_B[receiver] = my_overlap_tiles_B[receiver];
+        } else {
+          // They send me array A join fragments
+        }
       }
     }
+
+  }
+
+  logger_->log(LOG_INFO, "Finished gathering overlapping tiles for sending");
+
+  for (std::map<int, std::vector<uint64_t> >::iterator it = to_send_tile_ranks_A.begin(); it != to_send_tile_ranks_A.end(); ++it) {
+    logger_->log(LOG_INFO, "I'm sending these tile ranks from array A that overlap with partition boundaries of array B from node " + util::to_string(it->first) + ": " + util::to_string(it->second));
+  }
+
+  for (std::map<int, std::vector<uint64_t> >::iterator it = to_send_tile_ranks_B.begin(); it != to_send_tile_ranks_B.end(); ++it) {
+
+    logger_->log(LOG_INFO, "I'm sending these tile ranks from array B that overlap with partition boundaries of array A from node " + util::to_string(it->first) + ": " + util::to_string(it->second));
   }
  
-  
 
 
   // CLEANUP
@@ -1020,7 +1096,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
     const ArraySchema& array_schema_A,
     const ArraySchema& array_schema_B) { 
 
-  logger_->log(LOG_INFO, "In num_overlapping_tiles");
+  //logger_->log(LOG_INFO, "In num_overlapping_tiles");
 
   int num_bc_A = bounding_coords_A.size();
   int num_bc_B = bounding_coords_B.size();
@@ -1035,7 +1111,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
         array_schema_A.cell_id_hilbert(bounding_coords_A[0].first), 
         array_schema_A.cell_id_hilbert(bounding_coords_A[num_bc_A-1].second));
   assert(first_last_pair_A.first <= first_last_pair_A.second);
-  logger_->log(LOG_INFO, "first_last_pair_A: " + util::to_string(first_last_pair_A));
+  //logger_->log(LOG_INFO, "first_last_pair_A: " + util::to_string(first_last_pair_A));
 
   std::pair<uint64_t, uint64_t> first_last_pair_B = 
     std::pair<uint64_t, uint64_t>(
@@ -1043,7 +1119,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
         array_schema_B.cell_id_hilbert(bounding_coords_B[num_bc_B-1].second));
   assert(first_last_pair_B.first <= first_last_pair_B.second);
 
-  logger_->log(LOG_INFO, "first_last_pair_B: " + util::to_string(first_last_pair_B));
+  //logger_->log(LOG_INFO, "first_last_pair_B: " + util::to_string(first_last_pair_B));
   // partitions do not overlap
   if (first_last_pair_A.second < first_last_pair_B.first ||
       first_last_pair_A.first > first_last_pair_B.second) {
@@ -1061,20 +1137,21 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
 
   // See how many tiles in my partition of A overlaps with the bounding
   // partitions of B 
-  logger_->log(LOG_INFO, "Finding num overlap tiles with bounding partitions of B");
+  //logger_->log(LOG_INFO, "Finding num overlap tiles with bounding partitions of B");
   for(std::vector<StorageManager::BoundingCoordinatesPair>::iterator it_A = bounding_coords_A.begin(); 
       it_A != bounding_coords_A.end(); 
       ++it_A, ++tile_rank_A) {
+
     if (!(array_schema_A.cell_id_hilbert(it_A->first) > first_last_pair_B.second || array_schema_A.cell_id_hilbert(it_A->second) < first_last_pair_B.first)) {
       num_tiles_A++;
       overlap_tile_ranks_A.push_back(tile_rank_A);
     }
+
   }
   
   // See how many tiles in my partition of B overlaps with the bounding
   // partitions of A
-  
-  logger_->log(LOG_INFO, "Finding num overlap tiles with bounding partitions of A");
+  //logger_->log(LOG_INFO, "Finding num overlap tiles with bounding partitions of A");
   for(std::vector<StorageManager::BoundingCoordinatesPair>::iterator it_B = bounding_coords_B.begin(); 
       it_B != bounding_coords_B.end(); 
       ++it_B, ++tile_rank_B) {
