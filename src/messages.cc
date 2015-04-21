@@ -895,7 +895,7 @@ std::pair<char*, uint64_t> TileMsg::serialize() {
   uint64_t buffer_size = 0, pos = 0;
   char* buffer;
 
-  buffer_size = sizeof(size_t); // array_name length
+  buffer_size = sizeof(int); // array_name length
   buffer_size += array_name_.size(); // array_name
   buffer_size += sizeof(int); // attr_id
   buffer_size += sizeof(uint64_t); // num_cells
@@ -905,21 +905,27 @@ std::pair<char*, uint64_t> TileMsg::serialize() {
   buffer = new char[buffer_size];
 
   // serialize array name
-  size_t length = array_name_.size();
-  memcpy(&buffer[pos], &length, sizeof(size_t));
-  pos += sizeof(size_t);
+  int length = array_name_.size();
+  std::cout << "Serialize array name length: " << length << "\n";
+  memcpy(&buffer[pos], &length, sizeof(int));
+  pos += sizeof(int);
+
+  std::cout << "Serialize array name: " << array_name_ << "\n";
   memcpy(&buffer[pos], array_name_.c_str(), length);
   pos += length;
 
   // serialize attr id
+  std::cout << "Serialize attr_id: " << attr_id_ << "\n";
   memcpy(&buffer[pos], &attr_id_, sizeof(int));
   pos += sizeof(int);
 
   // serialize num cells
+  std::cout << "Serialize num_cells: " << num_cells_ << "\n";
   memcpy(&buffer[pos], &num_cells_, sizeof(uint64_t));
   pos += sizeof(uint64_t);
 
   // serialize cell size
+  std::cout << "Serialize cell_size: " << cell_size_ << "\n";
   memcpy(&buffer[pos], &cell_size_, sizeof(uint64_t));
   pos += sizeof(uint64_t);
 
@@ -935,13 +941,19 @@ TileMsg* TileMsg::deserialize(char* buffer, uint64_t buffer_length) {
   std::stringstream ss;
   uint64_t pos = 0;
 
-
   // deserialize array name
-  size_t length;
-  memcpy(&length, &buffer[pos], sizeof(size_t));
-  pos += sizeof(size_t);
-  ss.write(&buffer[pos], length);
-  std::string array_name = ss.str(); // first arg
+  int length;
+
+  memcpy(&length, &buffer[pos], sizeof(int));
+  pos += sizeof(int);
+  std::cout << "Deserialize array name length: " << length << "\n";
+
+  char *array_name_buf = new char[length];
+  memcpy(array_name_buf, &buffer[pos], length);
+  //ss.write(&buffer[pos], length);
+  std::string array_name = std::string(array_name_buf, length); // first arg
+
+  std::cout << "Deserialize array name: " << array_name << "\n";
   pos += length;
   ss.str(std::string());
 
@@ -949,25 +961,31 @@ TileMsg* TileMsg::deserialize(char* buffer, uint64_t buffer_length) {
   int attr_id;
   memcpy(&attr_id, &buffer[pos], sizeof(int));
   pos += sizeof(int);
+  std::cout << "Deserialize attr id: " << attr_id << "\n";
 
   // deserialize num cells
   uint64_t num_cells;
   memcpy(&num_cells, &buffer[pos], sizeof(uint64_t));
   pos += sizeof(uint64_t);
+  std::cout << "Deserialize num cells: " << num_cells << "\n";
 
   // deserialize cell size
+  //
   uint64_t cell_size;
   memcpy(&cell_size, &buffer[pos], sizeof(uint64_t));
   pos += sizeof(uint64_t);
+  std::cout << "Deserialize cell size: " << cell_size << "\n";
 
   // deserialize payload
   uint64_t payload_size = cell_size * num_cells;
+
+  std::cout << "Deserialized payload_size: " << payload_size << " buffer_length: " << buffer_length << "\n";
+  assert(payload_size < buffer_length);
   const char *payload = new char[payload_size];
   memcpy((char *)payload, &buffer[pos], payload_size);
   pos += payload_size;
 
-  std::cout << "pos: " << pos << "\n";
-  std::cout << "buffer_length: " << buffer_length << "\n";
+  std::cout << "pos: " << pos << " buffer_length: " << buffer_length << "\n";
   assert(pos == buffer_length);
   return new TileMsg(array_name, attr_id, payload, num_cells, cell_size);
 }

@@ -92,6 +92,13 @@ namespace util {
     return ss.str();
   }
 
+  std::string to_string(uint64_t x) {
+    std::stringstream ss;
+    ss << x;
+    return ss.str();
+  }
+
+
   std::string to_string(StorageManager::BoundingCoordinates bounding_coords) {
     std::stringstream ss;
     ss << "[";

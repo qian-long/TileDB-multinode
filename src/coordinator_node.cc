@@ -32,7 +32,7 @@ CoordinatorNode::CoordinatorNode(int rank, int nprocs, std::string datadir) {
     workers.push_back(i);
   }
 
-  mpi_handler_ = new MPIHandler(0, workers);
+  mpi_handler_ = new MPIHandler(0, workers, logger_);
   datadir_ = datadir;
   md_manager_ = new MetaDataManager(my_workspace_);
 }
@@ -764,9 +764,11 @@ void CoordinatorNode::handle_join_ordered(JoinMsg& msg) {
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
 
+  /*
   logger_->log_start(LOG_INFO, "All to all shuffle of array B join fragments");
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
+  */
 
 }
 

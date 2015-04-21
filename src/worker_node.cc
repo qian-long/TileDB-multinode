@@ -45,6 +45,7 @@ WorkerNode::WorkerNode(int rank,
 
   mpi_handler_ = new MPIHandler(myrank_, 
       other_nodes, 
+      logger_,
       mpi_buffer_length_,
       mpi_handler_total_buf_size_);
 
@@ -789,19 +790,19 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   logger_->log(LOG_INFO, "Finish receiving bounding coordinates " + array_name_A);
   mpi_handler_->finish_recv_a2a(rstreams);
   logger_->log_end(LOG_INFO);
-  
+
 
   std::map<int, BoundingCoordsMsg *> bc_msgs_A;
   for (int i = 1; i < rstreams.size(); ++i) {
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
-    logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
+    //logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
     bc_msgs_A[i] = bcm;
   }
 
   // N to N sending bounding coordinates for array B
   BoundingCoordsMsg bcm_B(fd_B->fragment_info()->bounding_coordinates_);
-  logger_->log(LOG_INFO, "My bounding coords: " + util::to_string(fd_B->fragment_info()->bounding_coordinates_));
+  //logger_->log(LOG_INFO, "My bounding coords: " + util::to_string(fd_B->fragment_info()->bounding_coordinates_));
   logger_->log_start(LOG_INFO, "Send and recv bounding coords of " + array_name_B);
   // reuse rstreams b/c memory is copied into the BCMsg
   for (int i = 0; i < nprocs_; ++i) {
@@ -816,21 +817,16 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   }
 
   mpi_handler_->send_and_receive_a2a(bcm_B, rstreams);
-
-  logger_->log(LOG_INFO, "Flush bounding coordinates");
   mpi_handler_->flush_send_and_recv_a2a(rstreams);
-
-  logger_->log(LOG_INFO, "Finish receiving bounding coordinates");
   mpi_handler_->finish_recv_a2a(rstreams);
   logger_->log_end(LOG_INFO);
-  
 
   // maps worker id to bc_msg ptr
   std::map<int, BoundingCoordsMsg *> bc_msgs_B;
   for (int i = 1; i < rstreams.size(); ++i) {
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
-    logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
+    //logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
     bc_msgs_B[i] = bcm;
   }
 
@@ -839,12 +835,14 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   // TODO maybe use mbrs if there is a tie?
   // number of tiles in my A partition that overlap with the partition
   // boundaries of B
+  // rows: my array A partition, col: the partition boundary i'm comparing with
   uint64_t costs_A_to_B[nworkers_][nworkers_];
 
   // number of tiles in my B partition that overlap with the partition
   // boundaries of A
+  // rows: my array B partitions, col: the partition boundary i'm comparing with
   uint64_t costs_B_to_A[nworkers_][nworkers_];
-  
+
   // my tile ranks from array B that overlap with partition boundaries in array B from other workers
   std::map<int, std::vector<uint64_t> > my_overlap_tiles_A;
   // my tile ranks from array B that overlap with partition boundaries in array A from other workers
@@ -857,13 +855,12 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       costs_A_to_B[j][i] = 0;
       costs_B_to_A[i][j] = 0;
       costs_B_to_A[j][i] = 0;
-
     }
   }
 
   StorageManager::BoundingCoordinates bounding_coords_A;
   StorageManager::BoundingCoordinates bounding_coords_B;
- 
+
   for (int i = 0; i < nworkers_; ++i) {
     int node1 = i + 1;
     for (int j = 0; j < nworkers_; ++j) {
@@ -933,14 +930,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
 #endif
 
-  // map[nodeid] = Tile**
-  // TODO initialize iterators for arrays A and B, iterate over the tiles un
-  /*
-  std::map<int, Tile**> to_send_tiles_A;
-  std::map<int, Tile**> to_send_tiles_B;
-  const Tile** received_A_tiles;
-  const Tile** received_B_tiles;
-  */
   std::map<int, std::vector<uint64_t> > to_send_tile_ranks_A;
   std::map<int, std::vector<uint64_t> > to_send_tile_ranks_B;
 
@@ -969,7 +958,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       assert(costs_B_to_A[my_ind][j] == 0);
       // I send array A join fragments to node j + 1
       to_send_tile_ranks_A[receiver] = my_overlap_tiles_A[receiver];
- 
+
     } else if (costs_A_to_B[my_ind][j] > costs_B_to_A[j][my_ind]) {
       // They send me array B join fragments
 
@@ -1015,24 +1004,47 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   logger_->log(LOG_INFO, "Finished gathering overlapping tiles for sending");
 
-#ifdef DEBUG
   for (std::map<int, std::vector<uint64_t> >::iterator it = to_send_tile_ranks_A.begin(); it != to_send_tile_ranks_A.end(); ++it) {
-    logger_->log(LOG_INFO, "I'm sending these tile ranks from array A that overlap with partition boundaries of array B from node " + util::to_string(it->first) + ": " + util::to_string(it->second));
+    assert(it->first != myrank_);
+    logger_->log(LOG_INFO, "I'm sending these tile ranks from array A that overlap with partition boundaries of array B to node " + util::to_string(it->first) + ": " + util::to_string(it->second));
+  }
+
+  if (to_send_tile_ranks_A.size() == 0) {
+    logger_->log(LOG_INFO, "No array A join fragments to send");
   }
 
   for (std::map<int, std::vector<uint64_t> >::iterator it = to_send_tile_ranks_B.begin(); it != to_send_tile_ranks_B.end(); ++it) {
-
-    logger_->log(LOG_INFO, "I'm sending these tile ranks from array B that overlap with partition boundaries of array A from node " + util::to_string(it->first) + ": " + util::to_string(it->second));
+    assert(it->first != myrank_);
+    logger_->log(LOG_INFO, "I'm sending these tile ranks from array B that overlap with partition boundaries of array A to node " + util::to_string(it->first) + ": " + util::to_string(it->second));
   }
-#endif 
+
+  if (to_send_tile_ranks_B.size() == 0) {
+    logger_->log(LOG_INFO, "No array B join fragments to send");
+  }
 
 
   // Sending array A fragments over the network
   int num_attr_A = fd_A->fragment_info()->array_schema_->attribute_num();
-  // holds one logical tile
+
+  // holds one logical tile when reading from local array A
   const Tile** tiles_A = new const Tile*[num_attr_A+1];
-  Tile** received_tiles_A = new Tile*[num_attr_A+1];
-  uint64_t received_tile_id_A = 0; 
+
+  // holds one logical tile per sender, populated by mpi_handler function
+  Tile*** received_tiles_A = new Tile**[nprocs_];
+  bool *init_received_tiles_A = new bool[nprocs_];
+
+
+  // TODO clean up to avoid memory leak
+  std::vector<Tile** > *all_received_tiles_A = new std::vector<Tile**>();
+
+  // holds current rank of received tile
+  uint64_t *start_ranks_A = new uint64_t[nprocs_];
+  for (int i = 0; i < nprocs_; ++i) {
+    start_ranks_A[i] = 0;
+    init_received_tiles_A[i] = false;
+  }
+
+  //uint64_t rtile_rank_A = 0;
 
   // all payloads
   std::stringstream ssa;
@@ -1041,111 +1053,127 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   for(std::map<int, std::vector<uint64_t> >::iterator it_rank_A = to_send_tile_ranks_A.begin(); it_rank_A != to_send_tile_ranks_A.end(); ++it_rank_A) {
 
     int receiver = it_rank_A->first;
-    std::vector<uint64_t> ranks = it_rank_A->second;
 
-    // for each tile rank
-    for (std::vector<uint64_t>::iterator it_r = ranks.begin();
-         it_r != ranks.end(); ++it_r) {
+    logger_->log(LOG_INFO, "Sending tiles to receiver: " + util::to_string(receiver));
+    // for each logical tile rank
+    for (std::vector<uint64_t>::iterator it_r = it_rank_A->second.begin();
+         it_r != it_rank_A->second.end(); ++it_r) {
 
       uint64_t rank = *it_r;
-      // for each physical tile...
+
+      Tile** r_tile;
+      bool tile_initialized = false;
+
+      // sending (and possibly receiving) one physical tile
+      // All sending and receiving should be happening in lock step for every
+      // physical tile.
       for (int i = 0; i <= num_attr_A; ++i) {
+        // read one physical tile from
         tiles_A[i] = executor_->storage_manager()->get_tile_by_rank(fd_A, i, rank);
         // construct tile msg
+        // TODO differentiate from multiple senders
+        logger_->log(LOG_INFO, "Sending payload of size " + util::to_string(tiles_A[i]->tile_size()) + " to receiver " + util::to_string(receiver));
         char *payload = new char[tiles_A[i]->tile_size()];
         tiles_A[i]->copy_payload(payload);
-        TileMsg msg(array_name_A, num_attr_A, payload, tiles_A[i]->cell_num(), tiles_A[i]->cell_size());
-        mpi_handler_->send_and_receive_a2a(msg, receiver, ssa);
-        mpi_handler_->flush_send_and_recv_a2a(ssa);
+        TileMsg msg(array_name_A, i, payload, tiles_A[i]->cell_num(), tiles_A[i]->cell_size());
+        std::pair<char *, uint64_t> buf_pair = msg.serialize();
 
+        assert(msg.attr_id() == i);
+
+        
+        /*
+        logger_->log(LOG_INFO, "test_msg deserialize");
+        TileMsg* test_msg = TileMsg::deserialize(buf_pair.first, buf_pair.second);
+        assert(test_msg->payload_size() == msg.payload_size());
+        assert(test_msg->array_name().size() == msg.array_name().size());
+        delete test_msg;
+        logger_->log(LOG_INFO, "Deleted test tile msg");
+        */
+        //logger_->log(LOG_INFO, "Sending tilemsg size " + util::to_string(buf_pair.second) + " to receiver " + util::to_string(receiver));
+        // send and flush to network
+
+        mpi_handler_->send_and_recv_tiles_a2a(buf_pair.first, buf_pair.second,
+            receiver,
+            received_tiles_A,
+            num_attr_A,
+            executor_,
+            *(fd_A->fragment_info()->array_schema_),
+            start_ranks_A,
+            init_received_tiles_A);
+
+        /*
         if (ssa.str().size() > 0) {
           TileMsg* new_msg = TileMsg::deserialize((char *)ssa.str().c_str(), ssa.str().size());
-          received_tiles_A[i] = executor_->storage_manager()->new_tile(
-              *(fd_A->fragment_info()->array_schema_), i, received_tile_id_A,
+
+          if (new_msg->attr_id() == 0) {
+            r_tile = new Tile*[num_attr_A+1]; // initialize logical tile
+            tile_initialized = true;
+          }
+
+          r_tile[i] = executor_->storage_manager()->new_tile(
+              *(fd_A->fragment_info()->array_schema_), i, rtile_rank_A,
               fd_A->fragment_info()->array_schema_->capacity());
 
 
-          received_tiles_A[i]->set_payload(new_msg->payload(), new_msg->payload_size());
-          ++received_tile_id_A;
-          // reset buf
-
-          received_tiles_A[i]->print();
-          //delete[] payload;
+          r_tile[i]->set_payload(new_msg->payload(), new_msg->payload_size());
+          // When new_msg is created, it copies the memory, so safe to reset and
+          // reuse stringstream ssa
           ssa.str(std::string());
+
+        }
+        */
+
+      }
+
+
+      logger_->log(LOG_INFO, "Finished sending one logical tile to receiver: " + util::to_string(receiver));
+      // push receivied tiles into all_received_tiles_A
+      for (int sender = 1; sender < nprocs_; ++sender) {
+        if (sender == myrank_) {
+          continue;
+        }
+
+        if (init_received_tiles_A[sender]) {
+          logger_->log(LOG_INFO, "Appending full logical tile this round from sender " + util::to_string(sender));
+          all_received_tiles_A->push_back(received_tiles_A[sender]);
+          start_ranks_A[sender] = start_ranks_A[sender] + 1;
+        } else {
+          logger_->log(LOG_INFO, "Did not receive full logical tile this round from sender " + util::to_string(sender));
         }
       }
+
+      // reset for next round
+      for (int i = 0; i < nprocs_; ++i) {
+        init_received_tiles_A[i] = false;
+      }
+
+
     }
+
   }
 
-  mpi_handler_->finish_recv_a2a(ssa);
+  logger_->log(LOG_INFO, "Finish receiving tiles");
+  mpi_handler_->finish_recv_a2a(all_received_tiles_A, num_attr_A, executor_,
+      *(fd_A->fragment_info()->array_schema_),
+      fd_A->fragment_info()->array_schema_->capacity(),
+      start_ranks_A);
 
-  if (ssa.str().size() > 0) {
-    logger_->log(LOG_INFO, "Received tile payloads for array A");
+  if (all_received_tiles_A->size() > 0) {
+    logger_->log(LOG_INFO, "DID Received " + util::to_string(all_received_tiles_A->size()) + " logical tiles for array A");
   } else {
     logger_->log(LOG_INFO, "DID NOT Received tile payloads for array A");
   }
 
-  // TODO create join fragments with ssa
-
-  // Sending array B fragments over the network
-  int num_attr_B = fd_B->fragment_info()->array_schema_->attribute_num();
-  // holds one logical tile
-  const Tile** tiles_B = new const Tile*[num_attr_B+1];
-  Tile** received_tiles_B = new Tile*[num_attr_B+1];
-  uint64_t received_tile_id_B = 0;
-
-  // all payloads
-  std::stringstream ssb;
-
-  // for each receiver
-  for(std::map<int, std::vector<uint64_t> >::iterator it_rank_B = to_send_tile_ranks_B.begin(); it_rank_B != to_send_tile_ranks_B.end(); ++it_rank_B) {
-
-    int receiver = it_rank_B->first;
-    std::vector<uint64_t> ranks = it_rank_B->second;
-
-    // for each tile rank
-    for (std::vector<uint64_t>::iterator it_r = ranks.begin();
-         it_r != ranks.end(); ++it_r) {
-
-      uint64_t rank = *it_r;
-      // for each physical tile...
-      for (int i = 0; i <= num_attr_B; ++i) {
-        tiles_A[i] = executor_->storage_manager()->get_tile_by_rank(fd_B, i, rank);
-        // construct tile msg
-        char *payload = new char[tiles_B[i]->tile_size()];
-        tiles_A[i]->copy_payload(payload);
-        TileMsg msg(array_name_B, num_attr_B, payload, tiles_B[i]->cell_num(), tiles_B[i]->cell_size());
-        mpi_handler_->send_and_receive_a2a(msg, receiver, ssb);
-        mpi_handler_->flush_send_and_recv_a2a(ssb);
-
-        if (ssa.str().size() > 0) {
-          TileMsg* new_msg = TileMsg::deserialize((char *)ssb.str().c_str(), ssb.str().size());
-          received_tiles_B[i] = executor_->storage_manager()->new_tile(
-              *(fd_B->fragment_info()->array_schema_), i, received_tile_id_B,
-              fd_B->fragment_info()->array_schema_->capacity());
-
-          received_tiles_B[i]->set_payload(new_msg->payload(), new_msg->payload_size());
-          ++received_tile_id_B;
-          // reset buf
-
-          received_tiles_B[i]->print();
-          //delete[] payload;
-          ssa.str(std::string());
-        }
-      }
+  for (std::vector<Tile** >::iterator it = all_received_tiles_A->begin();
+      it != all_received_tiles_A->end(); ++it) {
+    for (int i = 0; i <= num_attr_A; ++i) {
+      //((*it)[i])->print();
+      logger_->log(LOG_INFO, "Received tile id: " + util::to_string(((*it)[i])->tile_id()));
     }
   }
 
-  mpi_handler_->finish_recv_a2a(ssb);
 
-  if (ssb.str().size() > 0) {
-    logger_->log(LOG_INFO, "Received tile payloads for array B");
-  } else {
-    logger_->log(LOG_INFO, "DID NOT Received tile payloads for array B");
-  }
-
-
-
+  // TODO receive array B join fragments
 
 
   // CLEANUP

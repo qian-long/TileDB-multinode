@@ -497,6 +497,7 @@ Tile* StorageManager::new_tile(
     unsigned int attribute_id, 
     uint64_t tile_id, 
     uint64_t cell_num) const {
+  //std::cout << "[StorageManater]::new_tile START\n";
   // For easy reference
   unsigned int attribute_num = array_schema.attribute_num();
   assert(attribute_id <= attribute_num);
@@ -529,6 +530,7 @@ Tile* StorageManager::new_tile(
       tile = new CoordinateTile<double>(tile_id, dim_num, cell_num);
   }
 
+  //std::cout << "[StorageManater]::new_tile END\n";
   return tile; 
 }
 

@@ -13,6 +13,8 @@
 #include <mpi.h>
 #include "messages.h"
 #include "constants.h"
+#include "executor.h"
+#include "logger.h"
 
 class MPIHandler {
 
@@ -24,6 +26,7 @@ class MPIHandler {
     /** Constructor initializes how many buffers to maintain */
     MPIHandler(int rank,
         std::vector<int>& node_ids,
+        Logger* logger,
         int64_t mpi_buffer_length = MPI_BUFFER_LENGTH,
         int64_t total_buf_size = MH_TOTAL_BUF_SIZE);
 
@@ -115,13 +118,14 @@ class MPIHandler {
         int receiver,
         std::ostream& rstream);
 
-/*
-    void send_and_receive_a2a(const Tile* tile,
-        std::string array_name,
-        int attr_id,
-        int receiver,
-        std::vector<std::ostream *> rstreams);
-        */
+    void send_and_receive_a2a(const char* in_buf, int length, int receiver, 
+      std::vector<Tile** > *rtiles, // created tiles are appended here
+      int num_attr,
+      Executor* executor,
+      const ArraySchema& array_schema,
+      uint64_t capacity,
+      uint64_t start_rank);
+
     /**
      * One round of data shuffling among all nodes in the cluster (including
      * dummy coordinator). Relies on MPI's varies MPI_Alltoall functions.
@@ -150,6 +154,18 @@ class MPIHandler {
     void flush_send_and_recv_a2a(std::vector<std::ostream *> rstreams);
     void flush_send_and_recv_a2a(std::ostream& file);
 
+    // bypass the internal bufferpool
+    // send and receive one physical tile in the all to all shuffle
+    // Assume you receive data in order, should be taken care of by MPI
+    void send_and_recv_tiles_a2a(const char* in_buf, int length, int receiver, 
+      //std::vector<Tile** > *rtiles, // created tiles are appended here
+      Tile*** received_tiles, // holds one logical tile (array of physical tiles) per sender, use attr_id in tilemsg to determine which attribute (or cordinate)
+      int num_attr,
+      Executor* executor,
+      const ArraySchema& array_schema,
+      uint64_t *start_ranks,
+      bool *init_received_tiles);
+
     /**
      * Finish receiving data from other nodes when you are done sending your
      * data.
@@ -158,6 +174,13 @@ class MPIHandler {
     void finish_recv_a2a(std::vector<std::ostream *> rstreams);
     void finish_recv_a2a(std::ostream& file);
     void finish_recv_a2a();
+    // Same as first one, but form tiles and append to rtiles
+    void finish_recv_a2a(std::vector<Tile** > *rtiles,
+        int num_attr,
+        Executor* executor,
+        const ArraySchema& array_schema,
+        uint64_t capacity,
+        uint64_t *start_ranks);
 
     // HELPER METHODS
     /** Check if buffer for nodeid is empty */
@@ -187,5 +210,8 @@ class MPIHandler {
 
     /** total memory size allocated for all the buffers for all nodes */
     int64_t total_buf_size_;
+
+
+    Logger* logger_;
 };
 #endif

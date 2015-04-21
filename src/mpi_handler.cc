@@ -11,7 +11,8 @@
 
 MPIHandler::MPIHandler() {}
 
-MPIHandler::MPIHandler(int myrank, std::vector<int>& node_ids, int64_t mpi_buffer_length, int64_t total_buf_size) {
+MPIHandler::MPIHandler(int myrank, std::vector<int>& node_ids,
+    Logger* logger, int64_t mpi_buffer_length, int64_t total_buf_size) {
 
   int buf_id = 0;
   int64_t buf_size_per_node = total_buf_size / node_ids.size();
@@ -28,6 +29,7 @@ MPIHandler::MPIHandler(int myrank, std::vector<int>& node_ids, int64_t mpi_buffe
   myrank_ = myrank;
   mpi_buffer_length_ = mpi_buffer_length;
   total_buf_size_ = total_buf_size;
+  logger_ = logger;
 }
 
 MPIHandler::~MPIHandler() {}
@@ -258,6 +260,7 @@ void MPIHandler::flush_send_and_recv_a2a(std::ostream& file) {
   flush_send_and_recv_a2a(NULL, 0, myrank_, file);
 }
 
+// TODO fix segfault when called without send_and_receive
 void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int receiver, std::vector<std::ostream *> rstreams) {
   assert(rstreams.size() == 1 || rstreams.size() == node_ids_.size() + 1);
 
@@ -317,7 +320,7 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
   }
 
   // receive content from all nodes
-  char recvbuf[recv_total];
+  char *recvbuf = new char[recv_total];
 
 
   MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
@@ -344,7 +347,140 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
     pos_[i] = 0;
   }
 
+  delete [] recvbuf;
 }
+
+void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
+    int length, int receiver,
+    Tile*** received_tiles,
+    int num_attr,
+    Executor* executor,
+    const ArraySchema& array_schema,
+    uint64_t *start_ranks,
+    bool *init_received_tiles) {
+
+  logger_->log(LOG_INFO, "In send_and_recv_tiles_a2a receiver: " + util::to_string(receiver));
+
+  // blocking
+  int nprocs = node_ids_.size() + 1;
+  int nworkers = node_ids_.size();
+  int scounts[nprocs];
+  int rcounts[nprocs];
+  int sdispls[nprocs];
+  int rdispls[nprocs];
+
+  int send_total = 0;
+  std::stringstream ss;
+
+  for (int i = 0; i < nprocs; ++i) {
+    scounts[i] = 0;
+    sdispls[i] = 0;
+    rcounts[i] = 0;
+    rdispls[i] = 0;
+  }
+
+  uint64_t capacity = array_schema.capacity();
+
+  std::string dummy("blob");
+  // coordinator node has no data so send dummy data
+  scounts[0] = dummy.size();
+  ss << dummy;
+  send_total = scounts[0];
+
+  for (int nodeid = 1; nodeid < nprocs; ++nodeid) {
+    if (length > 0 && receiver == nodeid) {
+      scounts[nodeid] = length;
+      ss.write(in_buf, length);
+    }
+    sdispls[nodeid] = sdispls[nodeid - 1] + scounts[nodeid - 1];
+    send_total += scounts[nodeid];
+  }
+
+  /* tell the other processors how much data is coming */
+  //logger_->log(LOG_INFO, "tell the other processors how much data is coming");
+
+#ifdef DEBUG
+  std::stringstream sss;
+  sss << "[send_and_recv_tiles]:: before scounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    sss << scounts[i] << " ";
+  }
+  sss << "], rcounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    sss << rcounts[i] << " ";
+  }
+  sss << "]";
+  logger_->log(LOG_INFO, sss.str());
+#endif
+
+  MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
+
+  //logger_->log(LOG_INFO, "FINISHED tell the other processors how much data is coming");
+#ifdef DEBUG
+  std::stringstream ssss;
+  ssss << "[send_and_recv_tiles]:: after scounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    ssss << scounts[i] << " ";
+  }
+  ssss << "], rcounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    ssss << rcounts[i] << " ";
+  }
+  ssss << "]";
+  //logger_->log(LOG_INFO, ssss.str());
+#endif
+
+
+  int recv_total = rcounts[0];
+  rdispls[0] = 0;
+  for (int i = 1; i < nprocs; ++i) {
+    recv_total += rcounts[i];
+    rdispls[i] = rcounts[i-1] + rdispls[i-1];
+  }
+
+  // receive content from all nodes
+  char recvbuf[recv_total];
+
+  //logger_->log(LOG_INFO, "MPI_Alltoallv");
+  MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
+
+  //logger_->log(LOG_INFO, "MPI_Alltoallv FINISHED");
+  // start after rcounts[0] offset
+  assert(rcounts[0] == rdispls[1]);
+
+  // length of actual contents (minus blob from coordinator)
+  uint64_t buf_len = recv_total - rcounts[0];
+
+  if (buf_len > 0) {
+    for (int sender = 1; sender < nprocs; ++sender) {
+      if (sender == myrank_) {
+        assert(rcounts[sender] == 0);
+        continue;
+      }
+
+      if (rcounts[sender] > 0) {
+        logger_->log(LOG_INFO, "Received physical tile from sender " + util::to_string(sender));
+        TileMsg* new_msg = TileMsg::deserialize(&recvbuf[rdispls[sender]], rcounts[sender]);
+
+        logger_->log(LOG_INFO, "Deserialized physical tile from sender " + util::to_string(sender) + " with attr_id: " + util::to_string(new_msg->attr_id()));
+        if (new_msg->attr_id() == 0) {
+          logger_->log(LOG_INFO, "Attr id is 0, creating new logical tile from sender " + util::to_string(sender));
+          received_tiles[sender] = new Tile*[num_attr + 1];
+          init_received_tiles[sender] = false;
+        }
+
+        received_tiles[sender][new_msg->attr_id()] = executor->storage_manager()->new_tile(array_schema, new_msg->attr_id(), start_ranks[sender], capacity);
+
+        // TODO make sure this is ok
+        delete new_msg;
+      }
+
+    }
+
+  }
+
+}
+
 
 
 /******************************************************
@@ -362,7 +498,8 @@ void MPIHandler::finish_recv_a2a(std::ostream& file) {
 
 // keep receiving from other nodes
 void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
-  int recv_total;
+  uint64_t recv_total = 0;
+  uint64_t send_total = 0;
   int nprocs = node_ids_.size() + 1;
   int scounts[nprocs];
   int rcounts[nprocs];
@@ -375,6 +512,7 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
   do {
 
     // initialize every round
+    char *sendbuf;
     std::stringstream ss;
     for (int i = 0; i < nprocs; ++i) {
       scounts[i] = 0;
@@ -396,12 +534,44 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
         scounts[nodeid] = dummy.size();
         ss << dummy;
         sdispls[nodeid] = sdispls[nodeid-1] + scounts[nodeid-1];
+        send_total += dummy.size();
       }
     }
 
+    sendbuf = new char[send_total];
+    memcpy(sendbuf, ss.str().c_str(), send_total);
 
     /* tell the other processors how much data is coming */
+#ifdef DEBUG
+  std::stringstream sss;
+  sss << "BEFORE scounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    sss << scounts[i] << " ";
+  }
+  sss << "], rcounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    sss << rcounts[i] << " ";
+  }
+  sss << "]";
+  logger_->log(LOG_INFO, sss.str());
+#endif
+
     MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
+
+#ifdef DEBUG
+  std::stringstream ssss;
+  ssss << "AFTER scounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    ssss << scounts[i] << " ";
+  }
+  ssss << "], rcounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    ssss << rcounts[i] << " ";
+  }
+  ssss << "]";
+  logger_->log(LOG_INFO, ssss.str());
+#endif
+
 
     // how much data I am expecting from everyone else
     recv_total = rcounts[0];
@@ -412,9 +582,10 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
     }
 
     // receive content from all nodes
-    char recvbuf[recv_total];
+    char *recvbuf = new char[recv_total];
 
-    MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
+    //MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
+    MPI_Alltoallv(sendbuf, scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
     if (recv_total > 0) {
       // start after rcounts[0] offset
@@ -448,8 +619,199 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
       }
     }
 
+    delete [] recvbuf;
   } while (keep_receiving);
 
+}
+
+// keep receiving from other nodes
+void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles, 
+    int num_attr,
+    Executor* executor,
+    const ArraySchema& array_schema,
+    uint64_t capacity,
+    uint64_t *start_ranks) {
+
+  uint64_t recv_total;
+  int nprocs = node_ids_.size() + 1;
+  int nworkers = node_ids_.size();
+  int scounts[nprocs];
+  int rcounts[nprocs];
+  int sdispls[nprocs];
+  int rdispls[nprocs];
+
+  bool keep_receiving = true;
+  bool coordinator_last_round = false;
+
+
+  //uint64_t rank = start_rank;
+
+  // keep track of tile ranks from all nodes
+  //int ranks[nprocs]; 
+
+  // holds one logical tile per sender, append to rtiles when finish receiving
+  // all physical tiles of same rank from sender
+  // TODO cleanup
+  Tile*** received_tiles = new Tile**[nprocs];
+  /*
+  for (int i = 0; i < nprocs; ++i) {
+    ranks[i] = 0; // ignore ranks[0]
+  }
+  */
+
+  do {
+
+    // initialize every round
+    std::stringstream ss;
+    for (int i = 0; i < nprocs; ++i) {
+      scounts[i] = 0;
+      sdispls[i] = 0;
+      rcounts[i] = 0;
+      rdispls[i] = 0;
+    }
+
+    if (myrank_ == MASTER && !coordinator_last_round) {
+      /*
+       * Whenever a worker node sends data, they send a blob to the coordinator (in
+       * flush_send_and_recv_a2a).
+       * Here, coordinator will send "blob" out to all workers as long as at least one
+       * worker is still sending data. When Coordinator sends nothing, that is a
+       * signal to everyone else that they can stop receiving. Maybe this is hacky?
+       */
+      std::string dummy("blob");
+      for (int nodeid = 1; nodeid < nprocs; ++nodeid) {
+        scounts[nodeid] = dummy.size();
+        ss << dummy;
+        sdispls[nodeid] = sdispls[nodeid-1] + scounts[nodeid-1];
+      }
+    }
+
+
+    /* tell the other processors how much data is coming */
+
+    //logger_->log(LOG_INFO, "[finish_receive_tiles]: tell the other processors how much data is coming");
+#ifdef DEBUG
+  std::stringstream sss;
+  sss << "finish_recv_a2a before scounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    sss << scounts[i] << " ";
+  }
+  sss << "], rcounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    sss << rcounts[i] << " ";
+  }
+  sss << "]";
+  //logger_->log(LOG_INFO, sss.str());
+#endif
+
+
+    MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
+
+    //logger_->log(LOG_INFO, "[finish_receive_tiles]: FINISHED tell the other processors how much data is coming");
+    //
+
+    // how much data I am expecting from everyone else
+    recv_total = rcounts[0];
+    rdispls[0] = 0;
+    for (int i = 1; i < nprocs; ++i) {
+      recv_total += rcounts[i];
+      rdispls[i] = rcounts[i-1] + rdispls[i-1];
+    }
+
+#ifdef DEBUG
+  std::stringstream ssss;
+  ssss << "finish_recv_a2a after mpi_alltoall rdispls[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    ssss << rdispls[i] << " ";
+  }
+  ssss << "], rcounts[ ";
+  for (int i = 0; i < nprocs; ++i) {
+    ssss << rcounts[i] << " ";
+  }
+  ssss << "]";
+  logger_->log(LOG_INFO, ssss.str());
+#endif
+
+
+    // receive content from all nodes
+    //char recvbuf[recv_total];
+    char *recvbuf = new char[recv_total];
+
+    // received one round of physical tiles (one attr or coord tile)
+    MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
+
+    if (recv_total > 0) {
+      // start after rcounts[0] offset
+      assert(rcounts[0] == rdispls[1]);
+
+      // ignore "blob" msg from coordinator
+      logger_->log(LOG_INFO, "rcounts[0]: " + util::to_string(rcounts[0]));
+      //logger_->log(LOG_INFO, "Blob from coordinator: " + std::string(&recvbuf[0], rcounts[0]));
+
+      // TODO form tiles for each sender
+      uint64_t buf_len = recv_total - rcounts[0];
+      if (buf_len > 0) {
+        for (int sender = 1; sender < nprocs; ++sender) {
+          if (sender == myrank_) {
+            assert(rcounts[sender] == 0);
+            continue;
+          }
+
+          logger_->log(LOG_INFO, "Received physical tile from sender: " + util::to_string(sender));
+          // received a physical tile from sender
+          if (rcounts[sender] > 0) {
+            logger_->log(LOG_INFO, "Received physical tile from sender " + util::to_string(sender) + " rdispls[sender]: " + util::to_string(rdispls[sender]) + " rcounts[sender]: " + util::to_string(rcounts[sender]));
+
+            TileMsg* new_msg = TileMsg::deserialize(&recvbuf[rdispls[sender]], rcounts[sender]);
+
+            logger_->log(LOG_INFO, "Deserialized physical tile from sender " + util::to_string(sender) + " with attr_id: " + util::to_string(new_msg->attr_id()));
+
+            if (new_msg->attr_id() == 0) {
+              logger_->log(LOG_INFO, "Attr id is 0, creating new logical tile from sender " + util::to_string(sender));
+              received_tiles[sender] = new Tile*[num_attr + 1];
+            }
+
+            logger_->log(LOG_INFO, "Create tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
+
+            received_tiles[sender][new_msg->attr_id()] = executor->storage_manager()->new_tile(array_schema, new_msg->attr_id(), start_ranks[sender], capacity);
+
+            logger_->log(LOG_INFO, "Set payload tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
+
+            received_tiles[sender][new_msg->attr_id()]->set_payload(new_msg->payload(), new_msg->payload_size());
+            if (new_msg->attr_id() == num_attr) {
+
+            logger_->log(LOG_INFO, "rtiles push_back tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
+              rtiles->push_back(received_tiles[sender]);
+              start_ranks[sender] = start_ranks[sender] + 1;
+            }
+
+            //delete new_msg;
+          }
+
+        }
+      }
+    } else {
+      assert(recv_total == 0);
+
+      if (myrank_ == MASTER) {
+        if (!coordinator_last_round) {
+          coordinator_last_round = true;
+        } else {
+          keep_receiving = false;
+        }
+
+      } else {
+        keep_receiving = false;
+      }
+    }
+
+    //delete[] recvbuf;
+  } while (keep_receiving);
+
+
+  logger_->log(LOG_INFO, "[MPIHandler::finish_recv_a2a] ENDED");
+  // cleanup
+  //delete [] received_tiles;
 }
 
 

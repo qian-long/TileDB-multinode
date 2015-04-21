@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <sstream>
 
 /* ----------------- Tile functions ---------------- */
 
@@ -518,6 +519,36 @@ void AttributeTile<T>::print() const {
   std::cout << "========== End of Tile info ========== \n\n";
 }
 
+template<class T> 
+std::string AttributeTile<T>::to_string() const {
+  std::stringstream ss;
+  ss << "=========== Tile info ==========\n";
+  ss << "Cell num: " << cell_num_ << "\n";
+  ss << "Cell size: " << cell_size_ << "\n";
+  ss << "Cell type: ";
+  if(*cell_type_ == typeid(char))
+    ss << "char\n";
+  else if(*cell_type_ == typeid(int))
+    ss << "int\n";
+  else if(*cell_type_ == typeid(int64_t))
+    ss << "int64_t\n";
+  else if(*cell_type_ == typeid(float))
+    ss << "float\n";
+  else if(*cell_type_ == typeid(double))
+    ss << "double\n";
+  ss << "Tile id: " << tile_id_ << "\n";
+  ss << "Tile type: "
+            << (tile_type_ == ATTRIBUTE ? "ATTRIBUTE" : "COORDINATE") << "\n";
+  ss << "Tile size: " << tile_size() << "\n";
+  ss << "Payload contents:\n";
+  for(uint64_t i=0; i < cell_num_; i++)
+    ss << "\t" << payload_[i] << "\n";
+  ss << "========== End of Tile info ========== \n\n";
+
+  return ss.str();
+}
+
+
 /******************************************************
 ******************** PRIVATE METHODS ******************
 ******************************************************/
@@ -766,7 +797,7 @@ void CoordinateTile<T>::print() const {
   std::cout << "Tile type: "
             << (tile_type_ == ATTRIBUTE ? "ATTRIBUTE" : "COORDINATE") << "\n";
   std::cout << "Tile size: " << tile_size() << "\n";
-  std:: cout << "Dim num: " << dim_num_ << "\n";
+  std::cout << "Dim num: " << dim_num_ << "\n";
   std::cout << "MBR: \n";
   if(cell_num_ != 0) {
     for(unsigned int i=0; i<dim_num_; i++)
@@ -792,6 +823,56 @@ void CoordinateTile<T>::print() const {
   }
   std::cout << "========== End of Tile info ========== \n\n";
 }
+
+template<class T>
+std::string CoordinateTile<T>::to_string() const {
+  std::stringstream ss;
+  ss << "=========== Tile info ==========\n";
+  ss << "Cell num: " << cell_num_ << "\n";
+  ss << "Cell size: " << cell_size_ << "\n";
+  ss << "Cell type: ";
+  if(*cell_type_ == typeid(int))
+    ss << "int\n";
+  else if(*cell_type_ == typeid(int64_t))
+    ss << "int64_t\n";
+  else if(*cell_type_ == typeid(float))
+    ss << "float\n";
+  else if(*cell_type_ == typeid(double))
+    ss << "double\n";
+
+  ss << "Tile id: " << tile_id_ << "\n";
+  ss << "Tile type: "
+            << (tile_type_ == ATTRIBUTE ? "ATTRIBUTE" : "COORDINATE") << "\n";
+  ss << "Tile size: " << tile_size() << "\n";
+  ss << "Dim num: " << dim_num_ << "\n";
+  ss << "MBR: \n";
+  if(cell_num_ != 0) {
+    for(unsigned int i=0; i<dim_num_; i++)
+      ss << "\t dim " << i << ": [" << mbr_[2*i] << "," << mbr_[2*i+1] 
+                << "]\n";
+  }
+  ss << "Bounding coordinates: \n";
+  if(cell_num_ != 0) {
+    ss << "\t";
+    for(unsigned int j=0; j<dim_num_; j++)
+      ss << payload_[0][j] << "\t";
+    ss << "\n\t";
+    for(unsigned int j=0; j<dim_num_; j++)
+      ss << payload_[cell_num_-1][j] << "\t";
+    ss << "\n";
+  }
+  ss << "Payload contents:\n";
+  for(uint64_t i=0; i < cell_num_; i++) {
+    ss << "\t";
+    for(unsigned int j=0; j<dim_num_; j++)
+      ss << payload_[i][j] << "\t";
+    ss << "\n";
+  }
+  ss << "========== End of Tile info ========== \n\n";
+
+  return ss.str();
+}
+
 
 /******************************************************
 ****************** PRIVATE METHODS ********************

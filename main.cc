@@ -5,6 +5,8 @@
 #include <sys/time.h>
 #include <cstdlib>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include "debug.h"
 #include "coordinator_node.h"
 #include "worker_node.h"
@@ -165,6 +167,18 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+
+#ifdef DEBUG
+  // For debugging with gdb
+  pid_t pid = getpid();
+  pid_t ppid = getppid();
+  std::stringstream ssd;
+  ssd << "Pid: " << pid << " Parent pid: " << ppid << "\n";
+  std::cout << ssd.str();
+  //int DebugWait = 1;
+  //while (DebugWait);
+
+#endif
 
   // seed srand
   srand(time(NULL));

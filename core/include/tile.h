@@ -284,6 +284,7 @@ class Tile {
   virtual bool cell_inside_range(uint64_t pos, const Range& range) const =0;
   /** Prints the details of the tile on the standard output. */
   virtual void print() const =0;
+  virtual std::string to_string() const =0;
  
  protected:
   // PROTECTED ATTRIBUTES
@@ -504,6 +505,7 @@ class AttributeTile : public Tile {
   virtual bool cell_inside_range(uint64_t pos, const Range& range) const;
   /** Prints the details of the tile on the standard output. */
   virtual void print() const;
+  virtual std::string to_string() const;
 
  private:
   // PRIVATE ATTRIBUTES
@@ -693,6 +695,7 @@ class CoordinateTile : public Tile {
   virtual bool cell_inside_range(uint64_t pos, const Range& range) const;
   /** Prints the details of the tile on the standard output. */
   virtual void print() const;
+  virtual std::string to_string() const;
 
  private:
   // PRIVATE ATTRIBUTES
