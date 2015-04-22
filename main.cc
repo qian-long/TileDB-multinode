@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
 #endif
 
   // seed srand
-  srand(time(NULL));
+  srand(0);
 
   std::string datadir = "./data";
   if (myrank == MASTER) {

@@ -764,11 +764,9 @@ void CoordinatorNode::handle_join_ordered(JoinMsg& msg) {
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
 
-  /*
   logger_->log_start(LOG_INFO, "All to all shuffle of array B join fragments");
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
-  */
 
 }
 

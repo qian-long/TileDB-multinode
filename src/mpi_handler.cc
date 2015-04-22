@@ -231,16 +231,6 @@ void MPIHandler::send_and_receive_a2a(TileMsg& msg,
   std::pair<char*, uint64_t> buf_pair = msg.serialize();
   send_and_receive_a2a(buf_pair.first, buf_pair.second, receiver, rstream);
 }
-/*
-void MPIHandler::send_and_receive_a2a(const Tile* tile,
-    std::string array_name,
-    int attr_id,
-    int receiver,
-    std::vector<std::ostream *> rstreams) {
-  std::pair<char*, uint64_t> buf_pair = msg.serialize();
-  send_and_receive_a2a(buf_pair.first, buf_pair.second, receiver, rstreams);
-}
-*/
 
 /******************************************************
  **            flush_send_and_recv_a2a               **
@@ -300,10 +290,10 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
 
       buf_ind = search->second;
       scounts[nodeid] = pos_[buf_ind];
-      ss << std::string(buffers_[buf_ind], pos_[buf_ind]);
+      ss.write(buffers_[buf_ind], pos_[buf_ind]);
       if (length > 0 && nodeid == receiver && in_buf != NULL) {
         scounts[nodeid] += length;
-        ss << in_buf;
+        ss.write(in_buf, length);
       }
     }
     sdispls[nodeid] = sdispls[nodeid - 1] + scounts[nodeid - 1];
@@ -320,8 +310,7 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
   }
 
   // receive content from all nodes
-  char *recvbuf = new char[recv_total];
-
+  char recvbuf[recv_total];
 
   MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
@@ -346,8 +335,6 @@ void MPIHandler::flush_send_and_recv_a2a(const char* in_buf, int length, int rec
   for (int i = 0; i < pos_.size(); ++i) {
     pos_[i] = 0;
   }
-
-  delete [] recvbuf;
 }
 
 void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
@@ -359,7 +346,7 @@ void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
     uint64_t *start_ranks,
     bool *init_received_tiles) {
 
-  logger_->log(LOG_INFO, "In send_and_recv_tiles_a2a receiver: " + util::to_string(receiver));
+  //logger_->log(LOG_INFO, "In send_and_recv_tiles_a2a receiver: " + util::to_string(receiver));
 
   // blocking
   int nprocs = node_ids_.size() + 1;
@@ -390,7 +377,7 @@ void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
   for (int nodeid = 1; nodeid < nprocs; ++nodeid) {
     if (length > 0 && receiver == nodeid) {
       scounts[nodeid] = length;
-      ss.write(in_buf, length);
+      ss.write(in_buf, length); // don't use <<
     }
     sdispls[nodeid] = sdispls[nodeid - 1] + scounts[nodeid - 1];
     send_total += scounts[nodeid];
@@ -410,12 +397,11 @@ void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
     sss << rcounts[i] << " ";
   }
   sss << "]";
-  logger_->log(LOG_INFO, sss.str());
+  //logger_->log(LOG_INFO, sss.str());
 #endif
 
   MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
 
-  //logger_->log(LOG_INFO, "FINISHED tell the other processors how much data is coming");
 #ifdef DEBUG
   std::stringstream ssss;
   ssss << "[send_and_recv_tiles]:: after scounts[ ";
@@ -459,12 +445,12 @@ void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
       }
 
       if (rcounts[sender] > 0) {
-        logger_->log(LOG_INFO, "Received physical tile from sender " + util::to_string(sender));
+        //logger_->log(LOG_INFO, "Received physical tile from sender " + util::to_string(sender));
         TileMsg* new_msg = TileMsg::deserialize(&recvbuf[rdispls[sender]], rcounts[sender]);
 
-        logger_->log(LOG_INFO, "Deserialized physical tile from sender " + util::to_string(sender) + " with attr_id: " + util::to_string(new_msg->attr_id()));
+        //logger_->log(LOG_INFO, "Deserialized physical tile from sender " + util::to_string(sender) + " with attr_id: " + util::to_string(new_msg->attr_id()));
         if (new_msg->attr_id() == 0) {
-          logger_->log(LOG_INFO, "Attr id is 0, creating new logical tile from sender " + util::to_string(sender));
+          //logger_->log(LOG_INFO, "Attr id is 0, creating new logical tile from sender " + util::to_string(sender));
           received_tiles[sender] = new Tile*[num_attr + 1];
           init_received_tiles[sender] = false;
         }
@@ -512,7 +498,6 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
   do {
 
     // initialize every round
-    char *sendbuf;
     std::stringstream ss;
     for (int i = 0; i < nprocs; ++i) {
       scounts[i] = 0;
@@ -538,8 +523,6 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
       }
     }
 
-    sendbuf = new char[send_total];
-    memcpy(sendbuf, ss.str().c_str(), send_total);
 
     /* tell the other processors how much data is coming */
 #ifdef DEBUG
@@ -553,7 +536,7 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
     sss << rcounts[i] << " ";
   }
   sss << "]";
-  logger_->log(LOG_INFO, sss.str());
+  //logger_->log(LOG_INFO, sss.str());
 #endif
 
     MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
@@ -569,7 +552,7 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
     ssss << rcounts[i] << " ";
   }
   ssss << "]";
-  logger_->log(LOG_INFO, ssss.str());
+  //logger_->log(LOG_INFO, ssss.str());
 #endif
 
 
@@ -582,10 +565,10 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
     }
 
     // receive content from all nodes
-    char *recvbuf = new char[recv_total];
+    char recvbuf[recv_total];
 
-    //MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
-    MPI_Alltoallv(sendbuf, scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
+    MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
+    //MPI_Alltoallv(sendbuf, scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
     if (recv_total > 0) {
       // start after rcounts[0] offset
@@ -619,7 +602,6 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
       }
     }
 
-    delete [] recvbuf;
   } while (keep_receiving);
 
 }
@@ -644,21 +626,11 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
   bool coordinator_last_round = false;
 
 
-  //uint64_t rank = start_rank;
-
-  // keep track of tile ranks from all nodes
-  //int ranks[nprocs]; 
 
   // holds one logical tile per sender, append to rtiles when finish receiving
   // all physical tiles of same rank from sender
   // TODO cleanup
   Tile*** received_tiles = new Tile**[nprocs];
-  /*
-  for (int i = 0; i < nprocs; ++i) {
-    ranks[i] = 0; // ignore ranks[0]
-  }
-  */
-
   do {
 
     // initialize every round
@@ -729,13 +701,12 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
     ssss << rcounts[i] << " ";
   }
   ssss << "]";
-  logger_->log(LOG_INFO, ssss.str());
+  //logger_->log(LOG_INFO, ssss.str());
 #endif
 
 
     // receive content from all nodes
-    //char recvbuf[recv_total];
-    char *recvbuf = new char[recv_total];
+    char recvbuf[recv_total];
 
     // received one round of physical tiles (one attr or coord tile)
     MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
@@ -745,7 +716,7 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
       assert(rcounts[0] == rdispls[1]);
 
       // ignore "blob" msg from coordinator
-      logger_->log(LOG_INFO, "rcounts[0]: " + util::to_string(rcounts[0]));
+      //logger_->log(LOG_INFO, "rcounts[0]: " + util::to_string(rcounts[0]));
       //logger_->log(LOG_INFO, "Blob from coordinator: " + std::string(&recvbuf[0], rcounts[0]));
 
       // TODO form tiles for each sender
@@ -757,30 +728,30 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
             continue;
           }
 
-          logger_->log(LOG_INFO, "Received physical tile from sender: " + util::to_string(sender));
+          //logger_->log(LOG_INFO, "Received physical tile from sender: " + util::to_string(sender));
           // received a physical tile from sender
           if (rcounts[sender] > 0) {
-            logger_->log(LOG_INFO, "Received physical tile from sender " + util::to_string(sender) + " rdispls[sender]: " + util::to_string(rdispls[sender]) + " rcounts[sender]: " + util::to_string(rcounts[sender]));
+            //logger_->log(LOG_INFO, "Received physical tile from sender " + util::to_string(sender) + " rdispls[sender]: " + util::to_string(rdispls[sender]) + " rcounts[sender]: " + util::to_string(rcounts[sender]));
 
             TileMsg* new_msg = TileMsg::deserialize(&recvbuf[rdispls[sender]], rcounts[sender]);
 
-            logger_->log(LOG_INFO, "Deserialized physical tile from sender " + util::to_string(sender) + " with attr_id: " + util::to_string(new_msg->attr_id()));
+            //logger_->log(LOG_INFO, "Deserialized physical tile from sender " + util::to_string(sender) + " with attr_id: " + util::to_string(new_msg->attr_id()));
 
             if (new_msg->attr_id() == 0) {
-              logger_->log(LOG_INFO, "Attr id is 0, creating new logical tile from sender " + util::to_string(sender));
+              //logger_->log(LOG_INFO, "Attr id is 0, creating new logical tile from sender " + util::to_string(sender));
               received_tiles[sender] = new Tile*[num_attr + 1];
             }
 
-            logger_->log(LOG_INFO, "Create tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
+            //logger_->log(LOG_INFO, "Create tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
 
             received_tiles[sender][new_msg->attr_id()] = executor->storage_manager()->new_tile(array_schema, new_msg->attr_id(), start_ranks[sender], capacity);
 
-            logger_->log(LOG_INFO, "Set payload tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
+            //logger_->log(LOG_INFO, "Set payload tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
 
             received_tiles[sender][new_msg->attr_id()]->set_payload(new_msg->payload(), new_msg->payload_size());
-            if (new_msg->attr_id() == num_attr) {
 
-            logger_->log(LOG_INFO, "rtiles push_back tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
+            if (new_msg->attr_id() == num_attr) {
+            //logger_->log(LOG_INFO, "rtiles push_back tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
               rtiles->push_back(received_tiles[sender]);
               start_ranks[sender] = start_ranks[sender] + 1;
             }
@@ -805,11 +776,9 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
       }
     }
 
-    //delete[] recvbuf;
   } while (keep_receiving);
 
-
-  logger_->log(LOG_INFO, "[MPIHandler::finish_recv_a2a] ENDED");
+  //logger_->log(LOG_INFO, "[MPIHandler::finish_recv_a2a] ENDED");
   // cleanup
   //delete [] received_tiles;
 }

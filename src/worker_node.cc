@@ -774,7 +774,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   BoundingCoordsMsg bcm_A(fd_A->fragment_info()->bounding_coordinates_);
   
 
-  logger_->log(LOG_INFO, "My bounding coords: " + util::to_string(fd_A->fragment_info()->bounding_coordinates_));
+  logger_->log(LOG_INFO, "My bounding coords A: " + util::to_string(fd_A->fragment_info()->bounding_coordinates_));
   logger_->log_start(LOG_INFO, "Sending and receiving bounding coords of " + array_name_A + " to everyone");
   std::vector<std::ostream *> rstreams;
   for (int i = 0; i < nprocs_; ++i) {
@@ -802,7 +802,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   // N to N sending bounding coordinates for array B
   BoundingCoordsMsg bcm_B(fd_B->fragment_info()->bounding_coordinates_);
-  //logger_->log(LOG_INFO, "My bounding coords: " + util::to_string(fd_B->fragment_info()->bounding_coordinates_));
+  logger_->log(LOG_INFO, "My bounding coords B: " + util::to_string(fd_B->fragment_info()->bounding_coordinates_));
   logger_->log_start(LOG_INFO, "Send and recv bounding coords of " + array_name_B);
   // reuse rstreams b/c memory is copied into the BCMsg
   for (int i = 0; i < nprocs_; ++i) {
@@ -869,7 +869,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       if (node1 == node2) {
         continue;
       }
-      //logger_->log(LOG_INFO, "Computing overlap array A in node " + util::to_string(node1) + " with array B in node " + util::to_string(node2));
+      logger_->log(LOG_INFO, "Computing overlap array A in node " + util::to_string(node1) + " with array B in node " + util::to_string(node2));
 
       if (node1 == myrank_) {
         bounding_coords_A = bcm_A.bounding_coordinates();
@@ -889,6 +889,9 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
           *(fd_A->fragment_info()->array_schema_),
           *(fd_B->fragment_info()->array_schema_));
 
+      logger_->log(LOG_INFO, "overlap_tiles_ranks.first: " + util::to_string(overlap_tiles.first));
+
+      logger_->log(LOG_INFO, "overlap_tiles_ranks.second: " + util::to_string(overlap_tiles.second));
       // TODO other cost models, such as multiplying by capacity
       // assumes same tile capacity for now
       costs_A_to_B[i][j] = (uint64_t)overlap_tiles.first.size(); // ranks from array A
@@ -898,7 +901,10 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
       if (node1 == myrank_) {
         my_overlap_tiles_A[node2] = overlap_tiles.first;
-        my_overlap_tiles_B[node2] = overlap_tiles.second;
+      }
+      
+      if (node2 == myrank_) {
+        my_overlap_tiles_B[node1] = overlap_tiles.second;
       }
 
     }
@@ -927,6 +933,17 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   logger_->log(LOG_INFO, "Costs_A_to_B (num of tiles in array A that overlap with partition boundaries in array B): " + ssf.str());
   logger_->log(LOG_INFO, "Costs_B_to_A (num of tiles in array B that overlap with partition boundaries in array A): " + ssh.str());
+
+
+  for (std::map<int, std::vector<uint64_t> >::iterator it = my_overlap_tiles_A.begin(); it != my_overlap_tiles_A.end(); ++it) {
+    assert(it->first != myrank_);
+    logger_->log(LOG_INFO, "Overlaps from my array A that overlap with partition boundaries of array B to node " + util::to_string(it->first) + ": " + util::to_string(it->second));
+  }
+
+  for (std::map<int, std::vector<uint64_t> >::iterator it = my_overlap_tiles_B.begin(); it != my_overlap_tiles_B.end(); ++it) {
+    assert(it->first != myrank_);
+    logger_->log(LOG_INFO, "Overlaps from my array B that overlap with partition boundaries of array A to node " + util::to_string(it->first) + ": " + util::to_string(it->second));
+  }
 
 #endif
 
@@ -1004,6 +1021,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   logger_->log(LOG_INFO, "Finished gathering overlapping tiles for sending");
 
+#ifdef DEBUG
   for (std::map<int, std::vector<uint64_t> >::iterator it = to_send_tile_ranks_A.begin(); it != to_send_tile_ranks_A.end(); ++it) {
     assert(it->first != myrank_);
     logger_->log(LOG_INFO, "I'm sending these tile ranks from array A that overlap with partition boundaries of array B to node " + util::to_string(it->first) + ": " + util::to_string(it->second));
@@ -1013,6 +1031,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     logger_->log(LOG_INFO, "No array A join fragments to send");
   }
 
+  // TODO fix this
   for (std::map<int, std::vector<uint64_t> >::iterator it = to_send_tile_ranks_B.begin(); it != to_send_tile_ranks_B.end(); ++it) {
     assert(it->first != myrank_);
     logger_->log(LOG_INFO, "I'm sending these tile ranks from array B that overlap with partition boundaries of array A to node " + util::to_string(it->first) + ": " + util::to_string(it->second));
@@ -1021,6 +1040,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   if (to_send_tile_ranks_B.size() == 0) {
     logger_->log(LOG_INFO, "No array B join fragments to send");
   }
+#endif
 
 
   // Sending array A fragments over the network
@@ -1044,13 +1064,9 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     init_received_tiles_A[i] = false;
   }
 
-  //uint64_t rtile_rank_A = 0;
-
-  // all payloads
-  std::stringstream ssa;
-
   // for each receiver
-  for(std::map<int, std::vector<uint64_t> >::iterator it_rank_A = to_send_tile_ranks_A.begin(); it_rank_A != to_send_tile_ranks_A.end(); ++it_rank_A) {
+  for(std::map<int, std::vector<uint64_t> >::iterator it_rank_A = to_send_tile_ranks_A.begin(); 
+      it_rank_A != to_send_tile_ranks_A.end(); ++it_rank_A) {
 
     int receiver = it_rank_A->first;
 
@@ -1071,7 +1087,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
         // read one physical tile from
         tiles_A[i] = executor_->storage_manager()->get_tile_by_rank(fd_A, i, rank);
         // construct tile msg
-        // TODO differentiate from multiple senders
         logger_->log(LOG_INFO, "Sending payload of size " + util::to_string(tiles_A[i]->tile_size()) + " to receiver " + util::to_string(receiver));
         char *payload = new char[tiles_A[i]->tile_size()];
         tiles_A[i]->copy_payload(payload);
@@ -1080,18 +1095,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
         assert(msg.attr_id() == i);
 
-        
-        /*
-        logger_->log(LOG_INFO, "test_msg deserialize");
-        TileMsg* test_msg = TileMsg::deserialize(buf_pair.first, buf_pair.second);
-        assert(test_msg->payload_size() == msg.payload_size());
-        assert(test_msg->array_name().size() == msg.array_name().size());
-        delete test_msg;
-        logger_->log(LOG_INFO, "Deleted test tile msg");
-        */
-        //logger_->log(LOG_INFO, "Sending tilemsg size " + util::to_string(buf_pair.second) + " to receiver " + util::to_string(receiver));
         // send and flush to network
-
         mpi_handler_->send_and_recv_tiles_a2a(buf_pair.first, buf_pair.second,
             receiver,
             received_tiles_A,
@@ -1100,28 +1104,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
             *(fd_A->fragment_info()->array_schema_),
             start_ranks_A,
             init_received_tiles_A);
-
-        /*
-        if (ssa.str().size() > 0) {
-          TileMsg* new_msg = TileMsg::deserialize((char *)ssa.str().c_str(), ssa.str().size());
-
-          if (new_msg->attr_id() == 0) {
-            r_tile = new Tile*[num_attr_A+1]; // initialize logical tile
-            tile_initialized = true;
-          }
-
-          r_tile[i] = executor_->storage_manager()->new_tile(
-              *(fd_A->fragment_info()->array_schema_), i, rtile_rank_A,
-              fd_A->fragment_info()->array_schema_->capacity());
-
-
-          r_tile[i]->set_payload(new_msg->payload(), new_msg->payload_size());
-          // When new_msg is created, it copies the memory, so safe to reset and
-          // reuse stringstream ssa
-          ssa.str(std::string());
-
-        }
-        */
 
       }
 
@@ -1137,16 +1119,14 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
           logger_->log(LOG_INFO, "Appending full logical tile this round from sender " + util::to_string(sender));
           all_received_tiles_A->push_back(received_tiles_A[sender]);
           start_ranks_A[sender] = start_ranks_A[sender] + 1;
-        } else {
-          logger_->log(LOG_INFO, "Did not receive full logical tile this round from sender " + util::to_string(sender));
         }
+
       }
 
       // reset for next round
       for (int i = 0; i < nprocs_; ++i) {
         init_received_tiles_A[i] = false;
       }
-
 
     }
 
@@ -1158,27 +1138,141 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       fd_A->fragment_info()->array_schema_->capacity(),
       start_ranks_A);
 
-  if (all_received_tiles_A->size() > 0) {
-    logger_->log(LOG_INFO, "DID Received " + util::to_string(all_received_tiles_A->size()) + " logical tiles for array A");
-  } else {
+  if (all_received_tiles_A->size() == 0) {
     logger_->log(LOG_INFO, "DID NOT Received tile payloads for array A");
+  } else {
+
+    logger_->log(LOG_INFO, "DID Received tile payloads for array A");
   }
 
   for (std::vector<Tile** >::iterator it = all_received_tiles_A->begin();
       it != all_received_tiles_A->end(); ++it) {
     for (int i = 0; i <= num_attr_A; ++i) {
-      //((*it)[i])->print();
       logger_->log(LOG_INFO, "Received tile id: " + util::to_string(((*it)[i])->tile_id()));
+      //((*it)[i])->print();
     }
   }
 
 
   // TODO receive array B join fragments
+  
+  // Sending array B fragments over the network
+  int num_attr_B = fd_B->fragment_info()->array_schema_->attribute_num();
+
+  // holds one logical tile when reading from local array A
+  const Tile** tiles_B = new const Tile*[num_attr_B+1];
+
+  // holds one logical tile per sender, populated by mpi_handler function
+  // TODO cleanup
+  Tile*** received_tiles_B = new Tile**[nprocs_];
+  // TODO cleanup
+  bool *init_received_tiles_B = new bool[nprocs_];
 
 
-  // CLEANUP
-  // TODO clean up ssa
-  // TODO clean up ssb
+  // TODO clean up to avoid memory leak
+  std::vector<Tile** > *all_received_tiles_B = new std::vector<Tile**>();
+
+  // holds current rank of received tile
+  uint64_t *start_ranks_B = new uint64_t[nprocs_];
+  for (int i = 0; i < nprocs_; ++i) {
+    start_ranks_B[i] = 0;
+    init_received_tiles_B[i] = false;
+  }
+
+  // for each receiver
+  for(std::map<int, std::vector<uint64_t> >::iterator it_rank_B = to_send_tile_ranks_B.begin(); 
+      it_rank_B != to_send_tile_ranks_B.end(); ++it_rank_B) {
+
+    int receiver = it_rank_B->first;
+
+    logger_->log(LOG_INFO, "Sending tiles to receiver: " + util::to_string(receiver));
+    // for each logical tile rank
+    for (std::vector<uint64_t>::iterator it_r = it_rank_B->second.begin();
+         it_r != it_rank_B->second.end(); ++it_r) {
+
+      uint64_t rank = *it_r;
+
+      Tile** r_tile;
+      bool tile_initialized = false;
+
+      // sending (and possibly receiving) one physical tile
+      // All sending and receiving should be happening in lock step for every
+      // physical tile.
+      for (int i = 0; i <= num_attr_B; ++i) {
+        // read one physical tile from
+        tiles_B[i] = executor_->storage_manager()->get_tile_by_rank(fd_B, i, rank);
+        // construct tile msg
+        logger_->log(LOG_INFO, "Sending payload of size " + util::to_string(tiles_B[i]->tile_size()) + " to receiver " + util::to_string(receiver));
+        char *payload = new char[tiles_B[i]->tile_size()];
+        tiles_B[i]->copy_payload(payload);
+        TileMsg msg(array_name_B, i, payload, tiles_B[i]->cell_num(), tiles_B[i]->cell_size());
+        std::pair<char *, uint64_t> buf_pair = msg.serialize();
+
+        assert(msg.attr_id() == i);
+
+        // send and flush to network
+        mpi_handler_->send_and_recv_tiles_a2a(buf_pair.first, buf_pair.second,
+            receiver,
+            received_tiles_B,
+            num_attr_B,
+            executor_,
+            *(fd_B->fragment_info()->array_schema_),
+            start_ranks_B,
+            init_received_tiles_B);
+
+      }
+
+
+      logger_->log(LOG_INFO, "Finished sending one logical tile to receiver: " + util::to_string(receiver));
+      // push receivied tiles into all_received_tiles_B
+      for (int sender = 1; sender < nprocs_; ++sender) {
+        if (sender == myrank_) {
+          continue;
+        }
+
+        if (init_received_tiles_B[sender]) {
+          logger_->log(LOG_INFO, "Appending full logical tile this round from sender " + util::to_string(sender));
+          all_received_tiles_B->push_back(received_tiles_B[sender]);
+          start_ranks_B[sender] = start_ranks_B[sender] + 1;
+        }
+
+      }
+
+      // reset for next round
+      for (int i = 0; i < nprocs_; ++i) {
+        init_received_tiles_B[i] = false;
+      }
+
+    }
+
+  }
+
+  logger_->log(LOG_INFO, "Finish receiving tiles");
+  mpi_handler_->finish_recv_a2a(all_received_tiles_B, num_attr_B, executor_,
+      *(fd_B->fragment_info()->array_schema_),
+      fd_B->fragment_info()->array_schema_->capacity(),
+      start_ranks_B);
+
+  if (all_received_tiles_B->size() == 0) {
+    logger_->log(LOG_INFO, "DID NOT Received tile payloads for array B");
+  } else {
+    logger_->log(LOG_INFO, "DID Received tile payloads for array B");
+  }
+
+  for (std::vector<Tile** >::iterator it = all_received_tiles_B->begin();
+      it != all_received_tiles_B->end(); ++it) {
+    for (int i = 0; i <= num_attr_B; ++i) {
+      logger_->log(LOG_INFO, "Received tile id: " + util::to_string(((*it)[i])->tile_id()));
+      //((*it)[i])->print();
+    }
+  }
+
+
+
+
+  // TODO perform the join with all_received_tiles_A and all_received_tiles_B
+  
+  // TODO CLEANUP
   for (int i = 0; i < nprocs_; ++i) {
     delete rstreams[i];
   }
@@ -1191,6 +1285,9 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       it != bc_msgs_B.end(); ++it) {
     delete it->second;
   }
+
+
+  delete all_received_tiles_A;
 }
 
 
@@ -1225,7 +1322,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
     const ArraySchema& array_schema_A,
     const ArraySchema& array_schema_B) { 
 
-  //logger_->log(LOG_INFO, "In num_overlapping_tiles");
+  logger_->log(LOG_INFO, "In num_overlapping_tiles");
 
   int num_bc_A = bounding_coords_A.size();
   int num_bc_B = bounding_coords_B.size();
@@ -1240,7 +1337,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
         array_schema_A.cell_id_hilbert(bounding_coords_A[0].first), 
         array_schema_A.cell_id_hilbert(bounding_coords_A[num_bc_A-1].second));
   assert(first_last_pair_A.first <= first_last_pair_A.second);
-  //logger_->log(LOG_INFO, "first_last_pair_A: " + util::to_string(first_last_pair_A));
+  logger_->log(LOG_INFO, "first_last_pair_A: " + util::to_string(first_last_pair_A));
 
   std::pair<uint64_t, uint64_t> first_last_pair_B = 
     std::pair<uint64_t, uint64_t>(
@@ -1248,16 +1345,16 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
         array_schema_B.cell_id_hilbert(bounding_coords_B[num_bc_B-1].second));
   assert(first_last_pair_B.first <= first_last_pair_B.second);
 
-  //logger_->log(LOG_INFO, "first_last_pair_B: " + util::to_string(first_last_pair_B));
+  logger_->log(LOG_INFO, "first_last_pair_B: " + util::to_string(first_last_pair_B));
   // partitions do not overlap
   if (first_last_pair_A.second < first_last_pair_B.first ||
       first_last_pair_A.first > first_last_pair_B.second) {
-    //logger_->log(LOG_INFO, "No overlap");
+    logger_->log(LOG_INFO, "No overlap");
     return std::pair<int, int>(0,0);
   }
 
-  int num_tiles_A = 0;
-  int num_tiles_B = 0;
+  //int num_tiles_A = 0;
+  //int num_tiles_B = 0;
   int tile_rank_A = 0;
   int tile_rank_B = 0;
 
@@ -1272,7 +1369,8 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
       ++it_A, ++tile_rank_A) {
 
     if (!(array_schema_A.cell_id_hilbert(it_A->first) > first_last_pair_B.second || array_schema_A.cell_id_hilbert(it_A->second) < first_last_pair_B.first)) {
-      num_tiles_A++;
+      //num_tiles_A++;
+      logger_->log(LOG_INFO, "Found overlap between my bounding partition B and the bounding coords of partition A");
       overlap_tile_ranks_A.push_back(tile_rank_A);
     }
 
@@ -1286,13 +1384,13 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
       ++it_B, ++tile_rank_B) {
 
     if (!(array_schema_B.cell_id_hilbert(it_B->first) > first_last_pair_A.second || array_schema_B.cell_id_hilbert(it_B->second) < first_last_pair_A.first)) {
-      num_tiles_B++;
+      //num_tiles_B++;
+      logger_->log(LOG_INFO, "Found overlap between my bounding partition A and the bounding coords of partition B");
       overlap_tile_ranks_B.push_back(tile_rank_B);
     }
 
   }
   
-  //return std::pair<int, int>(num_tiles_A, num_tiles_B);
   return std::pair<std::vector<uint64_t>, std::vector<uint64_t> >(
       overlap_tile_ranks_A, overlap_tile_ranks_B);
 }

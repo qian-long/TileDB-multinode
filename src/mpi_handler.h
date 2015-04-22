@@ -158,7 +158,6 @@ class MPIHandler {
     // send and receive one physical tile in the all to all shuffle
     // Assume you receive data in order, should be taken care of by MPI
     void send_and_recv_tiles_a2a(const char* in_buf, int length, int receiver, 
-      //std::vector<Tile** > *rtiles, // created tiles are appended here
       Tile*** received_tiles, // holds one logical tile (array of physical tiles) per sender, use attr_id in tilemsg to determine which attribute (or cordinate)
       int num_attr,
       Executor* executor,
