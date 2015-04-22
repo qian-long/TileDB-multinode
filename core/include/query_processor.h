@@ -131,6 +131,16 @@ class QueryProcessor {
   void join(const StorageManager::FragmentDescriptor* fd_A,
             const StorageManager::FragmentDescriptor* fd_B,
             const StorageManager::FragmentDescriptor* result_fd) const;
+
+  void join_irregular_with_extra_tiles(
+      std::vector<Tile** > *extra_tiles_A,
+      std::vector<Tile** > *extra_tiles_B,
+      const StorageManager::FragmentDescriptor* fd_A,
+      const StorageManager::FragmentDescriptor* fd_B,
+      const StorageManager::FragmentDescriptor* result_fd) const;
+
+
+
   /** 
    * Joins the two input arrays (say, A and B). The result contains a cell only
    * if both the corresponding cells in A and B are non-empty. The input arrays

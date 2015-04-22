@@ -200,6 +200,16 @@ void QueryProcessor::join(
     join_irregular(fd_A, fd_B, result_fd);
 } 
 
+// TODO
+void QueryProcessor::join_irregular_with_extra_tiles(
+    std::vector<Tile** > *extra_tiles_A,
+    std::vector<Tile** > *extra_tiles_B,
+    const StorageManager::FragmentDescriptor* fd_A, 
+    const StorageManager::FragmentDescriptor* fd_B,
+    const StorageManager::FragmentDescriptor* result_fd) const {
+} 
+
+
 void QueryProcessor::join(
     const std::vector<const StorageManager::FragmentDescriptor*>& fd_A, 
     const std::vector<const StorageManager::FragmentDescriptor*>& fd_B, 

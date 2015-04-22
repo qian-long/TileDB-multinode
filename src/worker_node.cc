@@ -869,7 +869,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       if (node1 == node2) {
         continue;
       }
-      logger_->log(LOG_INFO, "Computing overlap array A in node " + util::to_string(node1) + " with array B in node " + util::to_string(node2));
+      //logger_->log(LOG_INFO, "Computing overlap array A in node " + util::to_string(node1) + " with array B in node " + util::to_string(node2));
 
       if (node1 == myrank_) {
         bounding_coords_A = bcm_A.bounding_coordinates();
@@ -889,9 +889,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
           *(fd_A->fragment_info()->array_schema_),
           *(fd_B->fragment_info()->array_schema_));
 
-      logger_->log(LOG_INFO, "overlap_tiles_ranks.first: " + util::to_string(overlap_tiles.first));
 
-      logger_->log(LOG_INFO, "overlap_tiles_ranks.second: " + util::to_string(overlap_tiles.second));
       // TODO other cost models, such as multiplying by capacity
       // assumes same tile capacity for now
       costs_A_to_B[i][j] = (uint64_t)overlap_tiles.first.size(); // ranks from array A
@@ -1132,7 +1130,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   }
 
-  logger_->log(LOG_INFO, "Finish receiving tiles");
   mpi_handler_->finish_recv_a2a(all_received_tiles_A, num_attr_A, executor_,
       *(fd_A->fragment_info()->array_schema_),
       fd_A->fragment_info()->array_schema_->capacity(),
@@ -1262,7 +1259,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   for (std::vector<Tile** >::iterator it = all_received_tiles_B->begin();
       it != all_received_tiles_B->end(); ++it) {
     for (int i = 0; i <= num_attr_B; ++i) {
-      logger_->log(LOG_INFO, "Received tile id: " + util::to_string(((*it)[i])->tile_id()));
+      logger_->log(LOG_INFO, "Received tile id: " + util::to_string(((*it)[i])->tile_id()) + " attr id: " + util::to_string(i) + " tile size: " + util::to_string(((*it)[i])->tile_size()));
       //((*it)[i])->print();
     }
   }
@@ -1271,7 +1268,43 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
 
   // TODO perform the join with all_received_tiles_A and all_received_tiles_B
+  // all_received_tiles_A will either precede local array A partition
+  // executor->join_with_extra_tiles(all_received_tiles_A, all_received_tiles_B,
+  // array_name_A, array_name_B, result_array_name);
+
+  // all_received_tiles_B will either precede local array B partition
   
+
+  // Define the result array
+  ArraySchema result_array_schema = 
+      ArraySchema::create_join_result_schema(*(fd_A->fragment_info()->array_schema_), // array_schema_A
+                                             *(fd_B->fragment_info()->array_schema_), // array_schema_B
+                                             result_array_name);
+
+  executor_->storage_manager()->define_array(result_array_schema);
+
+  // Create the result array
+  const StorageManager::FragmentDescriptor* result_fd = 
+      executor_->storage_manager()->open_fragment(&result_array_schema,  "0_0", 
+                                      StorageManager::CREATE);
+
+
+  executor_->query_processor()->join_irregular_with_extra_tiles(
+          all_received_tiles_A,
+          all_received_tiles_B,
+          fd_A, fd_B, result_fd);
+
+  /*
+  // Clean up
+  storage_manager_->close_array(ad_A);
+  storage_manager_->close_array(ad_B);
+  storage_manager_->close_fragment(result_fd);
+
+  // Update the fragment information of result array at the consolidator
+  update_fragment_info(result_array_name);
+  */
+
+
   // TODO CLEANUP
   for (int i = 0; i < nprocs_; ++i) {
     delete rstreams[i];
@@ -1288,6 +1321,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
 
   delete all_received_tiles_A;
+  delete all_received_tiles_B;
 }
 
 
@@ -1322,7 +1356,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
     const ArraySchema& array_schema_A,
     const ArraySchema& array_schema_B) { 
 
-  logger_->log(LOG_INFO, "In num_overlapping_tiles");
+  //logger_->log(LOG_INFO, "In num_overlapping_tiles");
 
   int num_bc_A = bounding_coords_A.size();
   int num_bc_B = bounding_coords_B.size();
@@ -1337,7 +1371,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
         array_schema_A.cell_id_hilbert(bounding_coords_A[0].first), 
         array_schema_A.cell_id_hilbert(bounding_coords_A[num_bc_A-1].second));
   assert(first_last_pair_A.first <= first_last_pair_A.second);
-  logger_->log(LOG_INFO, "first_last_pair_A: " + util::to_string(first_last_pair_A));
+  //logger_->log(LOG_INFO, "first_last_pair_A: " + util::to_string(first_last_pair_A));
 
   std::pair<uint64_t, uint64_t> first_last_pair_B = 
     std::pair<uint64_t, uint64_t>(
@@ -1345,7 +1379,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
         array_schema_B.cell_id_hilbert(bounding_coords_B[num_bc_B-1].second));
   assert(first_last_pair_B.first <= first_last_pair_B.second);
 
-  logger_->log(LOG_INFO, "first_last_pair_B: " + util::to_string(first_last_pair_B));
+  //logger_->log(LOG_INFO, "first_last_pair_B: " + util::to_string(first_last_pair_B));
   // partitions do not overlap
   if (first_last_pair_A.second < first_last_pair_B.first ||
       first_last_pair_A.first > first_last_pair_B.second) {
@@ -1353,8 +1387,6 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
     return std::pair<int, int>(0,0);
   }
 
-  //int num_tiles_A = 0;
-  //int num_tiles_B = 0;
   int tile_rank_A = 0;
   int tile_rank_B = 0;
 
@@ -1363,29 +1395,25 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
 
   // See how many tiles in my partition of A overlaps with the bounding
   // partitions of B 
-  //logger_->log(LOG_INFO, "Finding num overlap tiles with bounding partitions of B");
   for(std::vector<StorageManager::BoundingCoordinatesPair>::iterator it_A = bounding_coords_A.begin(); 
       it_A != bounding_coords_A.end(); 
       ++it_A, ++tile_rank_A) {
 
     if (!(array_schema_A.cell_id_hilbert(it_A->first) > first_last_pair_B.second || array_schema_A.cell_id_hilbert(it_A->second) < first_last_pair_B.first)) {
-      //num_tiles_A++;
-      logger_->log(LOG_INFO, "Found overlap between my bounding partition B and the bounding coords of partition A");
+      //logger_->log(LOG_INFO, "Found overlap between my bounding partition B and the bounding coords of partition A");
       overlap_tile_ranks_A.push_back(tile_rank_A);
     }
 
   }
   
-  // See how many tiles in my partition of B overlaps with the bounding
+  // See how many tiles in partition of B overlaps with the bounding
   // partitions of A
-  //logger_->log(LOG_INFO, "Finding num overlap tiles with bounding partitions of A");
   for(std::vector<StorageManager::BoundingCoordinatesPair>::iterator it_B = bounding_coords_B.begin(); 
       it_B != bounding_coords_B.end(); 
       ++it_B, ++tile_rank_B) {
 
     if (!(array_schema_B.cell_id_hilbert(it_B->first) > first_last_pair_A.second || array_schema_B.cell_id_hilbert(it_B->second) < first_last_pair_A.first)) {
-      //num_tiles_B++;
-      logger_->log(LOG_INFO, "Found overlap between my bounding partition A and the bounding coords of partition B");
+      //logger_->log(LOG_INFO, "Found overlap between my bounding partition A and the bounding coords of partition B");
       overlap_tile_ranks_B.push_back(tile_rank_B);
     }
 
