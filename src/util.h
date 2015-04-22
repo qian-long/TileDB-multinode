@@ -13,6 +13,7 @@ namespace util {
   // TO STRINGS
   // TODO template this shit
   std::string to_string(std::vector<uint64_t>);
+  std::string to_string(std::vector<double>);
   std::string to_string(std::vector<int>);
   //std::string to_string(int x);
   //std::string to_string(double x);

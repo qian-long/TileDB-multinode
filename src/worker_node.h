@@ -116,6 +116,15 @@ class WorkerNode {
         const ArraySchema& array_schema_A,
         const ArraySchema& array_schema_B);
 
+    /**
+     * Returns true if extra tiles precede local array partition and false if they succeed
+     */
+    bool get_precedence(std::vector<Tile** > *extra_tiles,
+      int num_attr,
+      StorageManager::BoundingCoordinates local_bounding_coords, 
+      const ArraySchema& array_schema);
+
+
   private:
     // PRIVATE ATTRIBUTES
     int myrank_;

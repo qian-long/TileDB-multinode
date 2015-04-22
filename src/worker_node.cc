@@ -1260,11 +1260,20 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       it != all_received_tiles_B->end(); ++it) {
     for (int i = 0; i <= num_attr_B; ++i) {
       logger_->log(LOG_INFO, "Received tile id: " + util::to_string(((*it)[i])->tile_id()) + " attr id: " + util::to_string(i) + " tile size: " + util::to_string(((*it)[i])->tile_size()));
-      //((*it)[i])->print();
     }
+
+    logger_->log(LOG_INFO, "bounding coordinates: " + util::to_string(((*it)[num_attr_B])->bounding_coordinates().first));
+
   }
 
 
+  const ArraySchema& array_schema_A = *(fd_A->fragment_info()->array_schema_);
+  const ArraySchema& array_schema_B = *(fd_B->fragment_info()->array_schema_);
+
+  bool precedes_local_A = false;
+  bool succeeds_local_A = false;
+  bool precedes_local_B = false;
+  bool succeeds_local_B = false;
 
 
   // TODO perform the join with all_received_tiles_A and all_received_tiles_B
@@ -1272,13 +1281,47 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   // executor->join_with_extra_tiles(all_received_tiles_A, all_received_tiles_B,
   // array_name_A, array_name_B, result_array_name);
 
+  // check received tiles A either precede or succeed local array A partition
+  if (all_received_tiles_A->size() > 0) {
+    bool precedence = get_precedence(all_received_tiles_A,
+        num_attr_A,
+        bcm_A.bounding_coordinates(),
+        array_schema_A);
+    if (precedence) {
+      precedes_local_A = true; 
+    } else {
+      succeeds_local_A = true;
+    }
+
+  }
+
+  if (all_received_tiles_B->size() > 0) {
+    bool precedence = get_precedence(all_received_tiles_B,
+        num_attr_B,
+        bcm_B.bounding_coordinates(),
+        array_schema_B);
+    if (precedence) {
+      precedes_local_B = true; 
+    } else {
+      succeeds_local_B = true;
+    }
+  }
+
+  // TODO add assertions
+
+#ifdef DEBUG
+  logger_->log(LOG_INFO, "precedes_local_A: " + util::to_string((int) precedes_local_A));
+  logger_->log(LOG_INFO, "succeeds_local_A: " + util::to_string((int) succeeds_local_A));
+  logger_->log(LOG_INFO, "precedes_local_B: " + util::to_string((int) precedes_local_B));
+  logger_->log(LOG_INFO, "succeeds_local_B: " + util::to_string((int) succeeds_local_B));
+#endif 
   // all_received_tiles_B will either precede local array B partition
   
 
   // Define the result array
   ArraySchema result_array_schema = 
-      ArraySchema::create_join_result_schema(*(fd_A->fragment_info()->array_schema_), // array_schema_A
-                                             *(fd_B->fragment_info()->array_schema_), // array_schema_B
+      ArraySchema::create_join_result_schema(array_schema_A, // array_schema_A
+                                             array_schema_B, // array_schema_B
                                              result_array_name);
 
   executor_->storage_manager()->define_array(result_array_schema);
@@ -1292,7 +1335,9 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   executor_->query_processor()->join_irregular_with_extra_tiles(
           all_received_tiles_A,
           all_received_tiles_B,
-          fd_A, fd_B, result_fd);
+          fd_A, fd_B, result_fd,
+          precedes_local_A, succeeds_local_A,
+          precedes_local_B, succeeds_local_B);
 
   /*
   // Clean up
@@ -1421,6 +1466,49 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
   
   return std::pair<std::vector<uint64_t>, std::vector<uint64_t> >(
       overlap_tile_ranks_A, overlap_tile_ranks_B);
+}
+
+
+bool WorkerNode::get_precedence(
+    std::vector<Tile** > *extra_tiles,
+    int num_attr,
+    StorageManager::BoundingCoordinates local_bounding_coords, 
+    const ArraySchema& array_schema) {
+
+    assert(extra_tiles->size() > 0);
+
+    int num_bcp = local_bounding_coords.size();
+    int num_extra_tiles = extra_tiles->size();
+
+    assert(num_bcp > 0);
+
+    // TODO add other cell_ids later, only supporting hilbert for now
+    // first_last_pair
+    std::pair<uint64_t, uint64_t> fl_pair_local = 
+      std::pair<uint64_t, uint64_t>(
+        array_schema.cell_id_hilbert(local_bounding_coords[0].first), 
+        array_schema.cell_id_hilbert(local_bounding_coords[num_bcp-1].second));
+
+    assert(fl_pair_local.first <= fl_pair_local.second);
+
+    std::pair<uint64_t, uint64_t> fl_pair_extra = 
+      std::pair<uint64_t, uint64_t>(
+        array_schema.cell_id_hilbert(
+          ((extra_tiles->at(0))[num_attr])->bounding_coordinates().first), 
+        array_schema.cell_id_hilbert(
+          ((extra_tiles->at(num_extra_tiles-1))[num_attr])->bounding_coordinates().second));
+
+    assert(fl_pair_extra.first <= fl_pair_extra.second);
+    assert(fl_pair_local.first >= fl_pair_extra.second || fl_pair_local.second <= fl_pair_extra.first);
+
+    if (fl_pair_local.first >= fl_pair_extra.second) {
+      return true; // extra tiles precede local partition
+    } else if (fl_pair_local.second <= fl_pair_extra.first) {
+      return false;
+    }
+
+  // shouldn't get here
+  return false;
 }
 
 

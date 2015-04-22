@@ -206,7 +206,134 @@ void QueryProcessor::join_irregular_with_extra_tiles(
     std::vector<Tile** > *extra_tiles_B,
     const StorageManager::FragmentDescriptor* fd_A, 
     const StorageManager::FragmentDescriptor* fd_B,
-    const StorageManager::FragmentDescriptor* result_fd) const {
+    const StorageManager::FragmentDescriptor* fd_C,
+    bool precedes_local_A, bool succeeds_local_A,
+    bool precedes_local_B, bool succeeds_local_B) const {
+
+  // For easy reference
+  const ArraySchema& array_schema_A = *(fd_A->array_schema());
+  const ArraySchema& array_schema_B = *(fd_B->array_schema());
+  const ArraySchema& array_schema_C = *(fd_C->array_schema());
+  unsigned int attribute_num_A = array_schema_A.attribute_num();
+  unsigned int attribute_num_B = array_schema_B.attribute_num();
+  unsigned int attribute_num_C = array_schema_C.attribute_num();
+
+  // Create tiles 
+  const Tile** tiles_A = new const Tile*[attribute_num_A+1];
+  const Tile** tiles_B = new const Tile*[attribute_num_B+1];
+  Tile** tiles_C = new Tile*[attribute_num_C+1];
+  
+  // Create and initialize tile iterators
+  StorageManager::const_iterator *tile_its_A = 
+      new StorageManager::const_iterator[attribute_num_A+1];
+  StorageManager::const_iterator *tile_its_B = 
+      new StorageManager::const_iterator[attribute_num_B+1];
+  StorageManager::const_iterator tile_it_end_A;
+  StorageManager::const_iterator tile_it_end_B;
+  initialize_tile_its(fd_A, tile_its_A, tile_it_end_A);
+  initialize_tile_its(fd_B, tile_its_B, tile_it_end_B);
+  
+  // Create cell iterators
+  Tile::const_iterator* cell_its_A = 
+      new Tile::const_iterator[attribute_num_A+1];
+  Tile::const_iterator* cell_its_B = 
+      new Tile::const_iterator[attribute_num_B+1];
+  Tile::const_iterator cell_it_end_A, cell_it_end_B;
+
+  // Auxiliary variables storing the number of skipped tiles when joining.
+  // It is used to advance only the coordinates iterator when a tile is
+  // finished/skipped, and then efficiently advance the attribute iterators only
+  // when a tile joins.
+  int64_t skipped_tiles_A = 0;
+  int64_t skipped_tiles_B = 0;
+  
+  // Note that attribute cell iterators are initialized and advanced only
+  // after the first join result is discovered. 
+  bool attribute_cell_its_initialized_A = false;
+  bool attribute_cell_its_initialized_B = false;
+
+  // To capture the edge case where the first tiles from A and B may join
+  bool coordinate_cell_its_initialized_A = false;
+  bool coordinate_cell_its_initialized_B = false;
+
+  // Initialize tiles with id 0 for C (result array)
+  new_tiles(array_schema_C, 0, tiles_C); 
+
+  // TODO check where extra tiles go
+  // should be either array A or array B and should either precede or succeed
+  // the corresponding array
+
+
+
+
+
+  // Join algorithm
+  while(tile_its_A[attribute_num_A] != tile_it_end_A &&
+        tile_its_B[attribute_num_B] != tile_it_end_B) {
+    // Potential join result generation
+    if(may_join(tile_its_A[attribute_num_A], tile_its_B[attribute_num_B])) { 
+      // Update iterators in A
+      if(skipped_tiles_A) {
+        advance_tile_its(attribute_num_A, tile_its_A, skipped_tiles_A);
+        skipped_tiles_A = 0;
+        cell_its_A[attribute_num_A] = (*tile_its_A[attribute_num_A]).begin();
+        cell_it_end_A = (*tile_its_A[attribute_num_A]).end();
+        coordinate_cell_its_initialized_A = true;
+        attribute_cell_its_initialized_A = false;
+      } else if(!coordinate_cell_its_initialized_A) {
+        cell_its_A[attribute_num_A] = (*tile_its_A[attribute_num_A]).begin();
+        cell_it_end_A = (*tile_its_A[attribute_num_A]).end();
+        coordinate_cell_its_initialized_A = true;
+      }
+      // Update iterators in B
+      if(skipped_tiles_B) {
+        advance_tile_its(attribute_num_B, tile_its_B, skipped_tiles_B);
+        skipped_tiles_B = 0;
+        cell_its_B[attribute_num_B] = (*tile_its_B[attribute_num_B]).begin();
+        cell_it_end_B = (*tile_its_B[attribute_num_B]).end();
+        coordinate_cell_its_initialized_B = true;
+        attribute_cell_its_initialized_B = false;
+      } else if(!coordinate_cell_its_initialized_B) {
+        cell_its_B[attribute_num_B] = (*tile_its_B[attribute_num_B]).begin();
+        cell_it_end_B = (*tile_its_B[attribute_num_B]).end();
+        coordinate_cell_its_initialized_B = true;
+      }
+      // Join the tiles
+      join_tiles_irregular(attribute_num_A, tile_its_A, 
+                           cell_its_A, cell_it_end_A, 
+                           attribute_num_B, tile_its_B, 
+                           cell_its_B, cell_it_end_B,
+                           fd_C, tiles_C,
+                           attribute_cell_its_initialized_A, 
+                           attribute_cell_its_initialized_B);
+    }
+
+    // Check which tile precedes the other in the global order
+    // Note that operator '<', when the operands are from different
+    // arrays, returns true if the first tile precedes the second
+    // in the global order by checking their bounding coordinates.
+    if(tile_its_A[attribute_num_A] < tile_its_B[attribute_num_B]) {
+      ++tile_its_A[attribute_num_A];
+      ++skipped_tiles_A;
+    }
+    else {
+      ++tile_its_B[attribute_num_B];
+      ++skipped_tiles_B;
+    }
+  }
+  
+  // Send the lastly created tiles to storage manager
+  store_tiles(fd_C, tiles_C);
+
+  // Clean up
+  delete [] tiles_A;
+  delete [] tiles_B;
+  delete [] tiles_C;
+  delete [] tile_its_A;
+  delete [] tile_its_B;
+  delete [] cell_its_A;
+  delete [] cell_its_B;
+
 } 
 
 

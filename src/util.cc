@@ -62,6 +62,25 @@ namespace util {
     return ss.str();
   }
 
+  std::string to_string(std::vector<double> array) {
+
+    if (array.size() == 0) {
+      return "[]";
+    }
+
+    std::stringstream ss;
+    std::vector<double>::iterator it = array.begin();
+    ss << "[";
+    ss << *(it++);
+    for (; it != array.end(); ++it) {
+      ss << ", " << *it;
+    }
+    ss << "]";
+
+    return ss.str();
+  }
+
+
   std::string to_string(std::vector<int> array) {
     if (array.size() == 0) {
       return "[]";

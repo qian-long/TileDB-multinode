@@ -137,7 +137,9 @@ class QueryProcessor {
       std::vector<Tile** > *extra_tiles_B,
       const StorageManager::FragmentDescriptor* fd_A,
       const StorageManager::FragmentDescriptor* fd_B,
-      const StorageManager::FragmentDescriptor* result_fd) const;
+      const StorageManager::FragmentDescriptor* result_fd,
+      bool precedes_local_A, bool succeeds_local_A,
+      bool precedes_local_B, bool succeeds_local_B) const;
 
 
 
