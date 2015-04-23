@@ -716,9 +716,6 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
       assert(rcounts[0] == rdispls[1]);
 
       // ignore "blob" msg from coordinator
-      //logger_->log(LOG_INFO, "rcounts[0]: " + util::to_string(rcounts[0]));
-      //logger_->log(LOG_INFO, "Blob from coordinator: " + std::string(&recvbuf[0], rcounts[0]));
-
       // TODO form tiles for each sender
       uint64_t buf_len = recv_total - rcounts[0];
       if (buf_len > 0) {
@@ -729,34 +726,25 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
           }
 
           //logger_->log(LOG_INFO, "Received physical tile from sender: " + util::to_string(sender));
-          // received a physical tile from sender
           if (rcounts[sender] > 0) {
-            //logger_->log(LOG_INFO, "Received physical tile from sender " + util::to_string(sender) + " rdispls[sender]: " + util::to_string(rdispls[sender]) + " rcounts[sender]: " + util::to_string(rcounts[sender]));
 
             TileMsg* new_msg = TileMsg::deserialize(&recvbuf[rdispls[sender]], rcounts[sender]);
 
-            //logger_->log(LOG_INFO, "Deserialized physical tile from sender " + util::to_string(sender) + " with attr_id: " + util::to_string(new_msg->attr_id()));
-
             if (new_msg->attr_id() == 0) {
-              //logger_->log(LOG_INFO, "Attr id is 0, creating new logical tile from sender " + util::to_string(sender));
               received_tiles[sender] = new Tile*[num_attr + 1];
             }
 
-            //logger_->log(LOG_INFO, "Create tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
 
             received_tiles[sender][new_msg->attr_id()] = executor->storage_manager()->new_tile(array_schema, new_msg->attr_id(), start_ranks[sender], capacity);
-
-            //logger_->log(LOG_INFO, "Set payload tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
-
             received_tiles[sender][new_msg->attr_id()]->set_payload(new_msg->payload(), new_msg->payload_size());
 
             if (new_msg->attr_id() == num_attr) {
-            //logger_->log(LOG_INFO, "rtiles push_back tile with attr_id " + util::to_string(new_msg->attr_id()) + " from sender " + util::to_string(sender));
               rtiles->push_back(received_tiles[sender]);
               start_ranks[sender] = start_ranks[sender] + 1;
             }
 
-            //delete new_msg;
+            // Safe to do b/c set_payload does memcpy
+            delete new_msg;
           }
 
         }

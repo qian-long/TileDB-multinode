@@ -592,6 +592,12 @@ class QueryProcessor {
                            unsigned int attribute_num,
                            Tile::const_iterator* cell_its, 
                            Tile::const_iterator& cell_it_end) const; 
+
+  void initialize_cell_its(Tile** tiles,
+                           unsigned int attribute_num,
+                           Tile::const_iterator* cell_its, 
+                           Tile::const_iterator& cell_it_end) const; 
+
   /** Initializes only the attribute cell iterators. */
   void initialize_cell_its(const Tile** tiles,
                            unsigned int attribute_num,
@@ -675,6 +681,16 @@ class QueryProcessor {
       const StorageManager::FragmentDescriptor* fd_C, Tile** tiles_C,
       bool& attribute_cell_its_initialized_A,
       bool& attribute_cell_its_initialized_B) const;
+
+  void join_tiles_extra_irregular(
+      unsigned int attr_num_A,
+      Tile::const_iterator* cell_its_A,
+      Tile::const_iterator& cell_it_end_A,
+      unsigned int attr_num_B,
+      Tile::const_iterator* cell_its_B,
+      Tile::const_iterator& cell_it_end_B,
+      const StorageManager::FragmentDescriptor* fd_C, Tile** tiles_C) const;
+
   /** 
    * Joins two regular tiles (from A and B respectively) and stores 
    * the result in the tiles of C. 

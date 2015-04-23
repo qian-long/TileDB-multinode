@@ -601,6 +601,11 @@ bool StorageManager::const_iterator::operator!=(
 }
 
 const Tile& StorageManager::const_iterator::operator*() const {
+
+  //std::cout << "[StorageManager::operator*] rank_: " << rank_ << "\n";
+
+  //std::cout << "[StorageManager::operator*] tile_ids: " << fd_->fragment_info_->tile_ids_.size() << "\n";
+
   assert(rank_ < fd_->fragment_info_->tile_ids_.size());
   assert(storage_manager_->check_on_get_tile( 
              *fd_, attribute_id_, fd_->fragment_info_->tile_ids_[rank_]));

@@ -1260,6 +1260,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       it != all_received_tiles_B->end(); ++it) {
     for (int i = 0; i <= num_attr_B; ++i) {
       logger_->log(LOG_INFO, "Received tile id: " + util::to_string(((*it)[i])->tile_id()) + " attr id: " + util::to_string(i) + " tile size: " + util::to_string(((*it)[i])->tile_size()));
+      //logger_->log(LOG_INFO, ((*it)[i])->to_string());
     }
 
     logger_->log(LOG_INFO, "bounding coordinates: " + util::to_string(((*it)[num_attr_B])->bounding_coordinates().first));
@@ -1339,15 +1340,13 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
           precedes_local_A, succeeds_local_A,
           precedes_local_B, succeeds_local_B);
 
-  /*
   // Clean up
-  storage_manager_->close_array(ad_A);
-  storage_manager_->close_array(ad_B);
-  storage_manager_->close_fragment(result_fd);
+  executor_->storage_manager()->close_array(ad_A);
+  executor_->storage_manager()->close_array(ad_B);
+  executor_->storage_manager()->close_fragment(result_fd);
 
   // Update the fragment information of result array at the consolidator
-  update_fragment_info(result_array_name);
-  */
+  executor_->update_fragment_info(result_array_name);
 
 
   // TODO CLEANUP

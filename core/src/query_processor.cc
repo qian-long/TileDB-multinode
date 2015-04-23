@@ -262,6 +262,13 @@ void QueryProcessor::join_irregular_with_extra_tiles(
   // TODO check where extra tiles go
   // should be either array A or array B and should either precede or succeed
   // the corresponding array
+  if (precedes_local_A) {
+
+  }
+
+  if (precedes_local_B) {
+
+  }
 
 
 
@@ -315,15 +322,104 @@ void QueryProcessor::join_irregular_with_extra_tiles(
     if(tile_its_A[attribute_num_A] < tile_its_B[attribute_num_B]) {
       ++tile_its_A[attribute_num_A];
       ++skipped_tiles_A;
-    }
-    else {
+    } else {
       ++tile_its_B[attribute_num_B];
       ++skipped_tiles_B;
     }
   }
-  
+
+
+ 
+  // TODO
+  if (succeeds_local_A) {
+
+  }
+
+  int64_t skipped_cells_A;
+  int64_t skipped_cells_B;
+  if (succeeds_local_B) {
+    std::cout << "skipped_tiles_A: " << skipped_tiles_A << "\n";
+    std::cout << "skipped_tiles_B: " << skipped_tiles_B << "\n";
+
+    std::cout << "[QueryProcessor] In succeeds_local_B\n";
+    std::cout << "tile_its_A[attribute_num_A].pos(): " << tile_its_A[attribute_num_A].rank() << "\n";
+
+    std::cout << "tile_its_A[0].pos(): " << tile_its_A[0].rank() << "\n";
+    // end of local B, A should not have run out of cells
+    assert(tile_its_B[attribute_num_B] == tile_it_end_B);
+    assert(tile_its_A[attribute_num_A] != tile_it_end_A);
+    
+    std::vector<Tile** >::iterator extra_tiles_B_it = extra_tiles_B->begin();
+
+    if (!attribute_cell_its_initialized_A) {
+      std::cout << "Attribute cells not initialized\n";
+      skipped_cells_A = cell_its_A[attribute_num_A].pos();
+      initialize_cell_its(tile_its_A, attribute_num_A, cell_its_A, cell_it_end_A);
+    } else {
+
+      std::cout << "Attribute cells initialized\n";
+      skipped_cells_A = cell_its_A[attribute_num_A].pos() - cell_its_A[0].pos();
+      for (int i = 0; i < skipped_cells_A; ++i) {
+        for (int j = 0; j < attribute_num_A; ++j) {
+          ++cell_its_A[j];
+        }
+      }
+    }
+    std::cout << "skipped_cells_A: " << skipped_cells_A << "\n";
+
+    
+
+    initialize_cell_its(*extra_tiles_B_it, attribute_num_B, cell_its_B, cell_it_end_B);
+
+    // Make sure cell iterators are initialized every iteration
+    while ((extra_tiles_B_it != extra_tiles_B->end()) &&
+           (tile_its_A[attribute_num_A] != tile_it_end_A)) {
+
+      join_tiles_extra_irregular(
+          attribute_num_A, cell_its_A, cell_it_end_A,
+          attribute_num_B, cell_its_B, cell_it_end_B,
+          fd_C, tiles_C);
+
+
+      std::cout << "[QueryProcessor] Checking tile precedes\n";
+      // check precedes with bounding coordinates
+      if (array_schema_C.precedes(
+            tile_its_A[attribute_num_A].bounding_coordinates().second, 
+            (*extra_tiles_B_it)[attribute_num_B]->bounding_coordinates().second)) {
+
+        assert(cell_its_A[attribute_num_A] == cell_it_end_A);
+
+        std::cout << "[QueryProcessor] Advancing all tile_its_A\n";
+        for (int i = 0; i <= attribute_num_A; ++i) {
+          ++tile_its_A[i];
+        }
+        if (tile_its_A[attribute_num_A] != tile_it_end_A) {
+          initialize_cell_its(tile_its_A, attribute_num_A, cell_its_A, cell_it_end_A);
+        }
+
+        std::cout << "[QueryProcessor] Finished Advancing tile_its_A\n";
+      } else {
+
+        assert(cell_its_B[attribute_num_B] == cell_it_end_B);
+
+        std::cout << "[QueryProcessor] Advancing extra_tiles_B_it\n";
+        ++extra_tiles_B_it;
+
+        if (extra_tiles_B_it != extra_tiles_B->end()) {
+          initialize_cell_its(*extra_tiles_B_it, attribute_num_B, cell_its_B, cell_it_end_B);
+        }
+
+        std::cout << "[QueryProcessor] Finished Advancing extra_tiles_B_it\n";
+      }
+      
+
+    }
+
+  }
+
   // Send the lastly created tiles to storage manager
   store_tiles(fd_C, tiles_C);
+
 
   // Clean up
   delete [] tiles_A;
@@ -2080,6 +2176,15 @@ void QueryProcessor::initialize_cell_its(
 
 inline
 void QueryProcessor::initialize_cell_its(
+    Tile** tiles, unsigned int attribute_num,
+    Tile::const_iterator* cell_its, Tile::const_iterator& cell_it_end) const {
+  for(unsigned int i=0; i<=attribute_num; i++)
+    cell_its[i] = tiles[i]->begin();
+  cell_it_end = tiles[attribute_num]->end();
+}
+
+inline
+void QueryProcessor::initialize_cell_its(
     const Tile** tiles, unsigned int attribute_num,
     Tile::const_iterator* cell_its) const {
   for(unsigned int i=0; i<attribute_num; i++)
@@ -2816,6 +2921,65 @@ void QueryProcessor::join_regular(
   delete [] attribute_cell_its_initialized_B;
   delete [] coordinate_cell_its_initialized_B;
 
+}
+
+// TODO
+// Joins two tiles, does not have optimizations. Very basic.
+void QueryProcessor::join_tiles_extra_irregular(
+    unsigned int attribute_num_A,
+    Tile::const_iterator* cell_its_A,
+    Tile::const_iterator& cell_it_end_A,
+    unsigned int attribute_num_B,
+    Tile::const_iterator* cell_its_B,
+    Tile::const_iterator& cell_it_end_B,
+    const StorageManager::FragmentDescriptor* fd_C, Tile** tiles_C) const {
+
+  std::cout << "[QueryProcessor::join_tiles_extra_irregular] start\n";
+  // assume attribute cells its are all initialized
+    
+  // For easy reference
+  const ArraySchema& array_schema_C = *(fd_C->array_schema());
+  uint64_t capacity = array_schema_C.capacity();
+  unsigned int attribute_num_C = array_schema_C.attribute_num();
+
+  while(cell_its_A[attribute_num_A] != cell_it_end_A &&
+        cell_its_B[attribute_num_B] != cell_it_end_B) {
+
+    if(cell_its_A[attribute_num_A] == cell_its_B[attribute_num_B]) {      
+
+      //std::cout << "[QueryProcessor::join_tiles_extra_irregular] found match\n";
+      if(tiles_C[attribute_num_C]->cell_num() == capacity) {
+        uint64_t new_tile_id = tiles_C[attribute_num_C]->tile_id() + 1;
+        store_tiles(fd_C, tiles_C);
+        new_tiles(array_schema_C, new_tile_id, tiles_C); 
+      }
+
+      //std::cout << "[QueryProcessor::join_tiles_extra_irregular] appending cell\n";
+      append_cell(cell_its_A, cell_its_B, tiles_C, 
+                  attribute_num_A, attribute_num_B);
+
+      //std::cout << "[QueryProcessor::join_tiles_extra_irregular] advancing cell_its_A\n";
+      advance_cell_its(attribute_num_A, cell_its_A);
+
+      //std::cout << "[QueryProcessor::join_tiles_extra_irregular] advancing cell_its_B\n";
+      advance_cell_its(attribute_num_B, cell_its_B);
+
+    } else { 
+      // Check which cell iterator to advance
+      //std::cout << "[QueryProcessor::join_tiles_extra_irregular] Check which cell iterator to advance\n";
+      if(array_schema_C.precedes(cell_its_A[attribute_num_A],
+                                 cell_its_B[attribute_num_B])) {
+        ++cell_its_A[attribute_num_A];
+      } else {
+        ++cell_its_B[attribute_num_B];
+      }
+
+    }
+
+  }
+
+
+  std::cout << "[QueryProcessor::join_tiles_extra_irregular] end\n";
 }
 
 void QueryProcessor::join_tiles_irregular(

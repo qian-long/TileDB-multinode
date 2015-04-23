@@ -542,7 +542,7 @@ std::string AttributeTile<T>::to_string() const {
   ss << "Tile size: " << tile_size() << "\n";
   ss << "Payload contents:\n";
   for(uint64_t i=0; i < cell_num_; i++)
-    ss << "\t" << payload_[i] << "\n";
+    ss << i << ":\t" << payload_[i] << "\n";
   ss << "========== End of Tile info ========== \n\n";
 
   return ss.str();
@@ -863,7 +863,7 @@ std::string CoordinateTile<T>::to_string() const {
   }
   ss << "Payload contents:\n";
   for(uint64_t i=0; i < cell_num_; i++) {
-    ss << "\t";
+    ss << i << ":\t";
     for(unsigned int j=0; j<dim_num_; j++)
       ss << payload_[i][j] << "\t";
     ss << "\n";

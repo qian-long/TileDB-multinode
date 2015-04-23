@@ -85,7 +85,7 @@ void CoordinatorNode::run() {
       types,
       ArraySchema::HILBERT);
 
-  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_C");
+  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_E");
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
@@ -105,10 +105,11 @@ void CoordinatorNode::run() {
   LoadMsg lmsg = LoadMsg(filename, array_schema, ORDERED_PARTITION);
   send_and_receive(lmsg);
 
-  ArraySchema array_schema_B = array_schema.clone("test_C");
+  ArraySchema array_schema_B = array_schema.clone("test_E_copy");
+  std::string filename_B = array_schema_B.array_name() + ".csv";
 
 
-  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_C");
+  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_E_copy");
   DefineArrayMsg damsg2 = DefineArrayMsg(array_schema_B);
   send_and_receive(damsg2);
 
@@ -116,15 +117,15 @@ void CoordinatorNode::run() {
   LoadMsg lmsg2 = LoadMsg(filename, array_schema_B, ORDERED_PARTITION);
   send_and_receive(lmsg2);
 
-  DEBUG_MSG("Join on test_C and test_D hash partition");
-  JoinMsg jmsg = JoinMsg("test_C", "test_E", "join_result");
+  std::string join_hash_result = "join_test_C_test_E_hash";
+  DEBUG_MSG("Join on test_E and test_E hash partition");
+  std::string join_ordered_result = "join_test_E_test_E_ordered";
+  JoinMsg jmsg = JoinMsg("test_E_copy", "test_E", join_ordered_result);
   send_and_receive(jmsg);
 
-  /*
-  DEBUG_MSG("Sending GET test_C to all workers");
-  GetMsg gmsg1 = GetMsg(array_name);
+  DEBUG_MSG("Sending GET result to all workers");
+  GetMsg gmsg1 = GetMsg(join_ordered_result);
   send_and_receive(gmsg1);
-  */
 
 
   /*
@@ -713,6 +714,29 @@ void CoordinatorNode::handle_join(JoinMsg& msg) {
   switch (md_A->partition_type()) {
     case ORDERED_PARTITION:
       handle_join_ordered(msg);
+      // after data shuffle
+      // write metadata if all successful acks
+      for (int nodeid = 1; nodeid <= nworkers_; ++nodeid) {
+        AckMsg* ack = mpi_handler_->receive_ack(nodeid);
+        if (ack->result() == AckMsg::ERROR) {
+          all_success = false;
+        }
+
+        // no memory leak
+        delete ack;
+      }
+
+      // write metadata for new data
+      if (all_success) {
+        logger_->log_start(LOG_INFO, "Query successful, writing new metadata");
+        md_C = MetaData(HASH_PARTITION);
+        md_manager_->store_metadata(msg.result_array_name(), md_C);
+
+        logger_->log_end(LOG_INFO);
+      } else {
+        logger_->log(LOG_INFO, "Query failed, no new array created");
+      }
+
       break;
     case HASH_PARTITION:
       // workers all do local join with no need for data shuffling
