@@ -1146,7 +1146,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       it != all_received_tiles_A->end(); ++it) {
     for (int i = 0; i <= num_attr_A; ++i) {
       logger_->log(LOG_INFO, "Received tile id: " + util::to_string(((*it)[i])->tile_id()));
-      //((*it)[i])->print();
+      //logger_->log(LOG_INFO, ((*it)[i])->to_string());
     }
   }
 
@@ -1259,7 +1259,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   for (std::vector<Tile** >::iterator it = all_received_tiles_B->begin();
       it != all_received_tiles_B->end(); ++it) {
     for (int i = 0; i <= num_attr_B; ++i) {
-      logger_->log(LOG_INFO, "Received tile id: " + util::to_string(((*it)[i])->tile_id()) + " attr id: " + util::to_string(i) + " tile size: " + util::to_string(((*it)[i])->tile_size()));
+      logger_->log(LOG_INFO, "Received tile id: " + util::to_string(((*it)[i])->tile_id()) + " attr id: " + util::to_string(i) + " tile size: " + util::to_string(((*it)[i])->tile_size()) + " cell num: " + util::to_string(((*it)[i])->cell_num()));
       //logger_->log(LOG_INFO, ((*it)[i])->to_string());
     }
 
@@ -1333,6 +1333,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
                                       StorageManager::CREATE);
 
 
+  logger_->log(LOG_INFO, "executor_->query_processor()->join_irregular_with_extra_tiles");
   executor_->query_processor()->join_irregular_with_extra_tiles(
           all_received_tiles_A,
           all_received_tiles_B,

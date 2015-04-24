@@ -435,6 +435,8 @@ StorageManager::FragmentDescriptor* StorageManager::open_fragment(
 void StorageManager::append_tile(const Tile* tile, 
                                  const FragmentDescriptor* fd,
                                  unsigned int attribute_id) {
+
+  //std::cout << "[StorageManager::append_tile]\n";
   // If tile is empty, delete it and exit
   if(tile->cell_num() == 0) {
     delete tile;
@@ -449,8 +451,9 @@ void StorageManager::append_tile(const Tile* tile,
   // Update indices
   // For both attribute and coordinate tiles
   if(fragment_empty(fd) || 
-     fragment_info.tile_ids_.back() != tile->tile_id())
+     fragment_info.tile_ids_.back() != tile->tile_id()) {
     fragment_info.tile_ids_.push_back(tile->tile_id());
+  }
   fragment_info.tiles_[attribute_id].push_back(tile);
   fragment_info.payload_sizes_[attribute_id] += tile->tile_size();
   // Only for coordinate tiles
@@ -1355,6 +1358,7 @@ void StorageManager::flush_tiles(
 void StorageManager::flush_tiles(
     FragmentInfo& fragment_info,
     unsigned int attribute_id) const {
+  //std::cout <<"[StorageManager::flush_tiles]\n";
   // For easy reference
   const ArraySchema& array_schema = *(fragment_info.array_schema_);
   uint64_t segment_size = fragment_info.payload_sizes_[attribute_id];

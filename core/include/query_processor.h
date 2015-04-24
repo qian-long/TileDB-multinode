@@ -142,7 +142,6 @@ class QueryProcessor {
       bool precedes_local_B, bool succeeds_local_B) const;
 
 
-
   /** 
    * Joins the two input arrays (say, A and B). The result contains a cell only
    * if both the corresponding cells in A and B are non-empty. The input arrays
@@ -690,6 +689,20 @@ class QueryProcessor {
       Tile::const_iterator* cell_its_B,
       Tile::const_iterator& cell_it_end_B,
       const StorageManager::FragmentDescriptor* fd_C, Tile** tiles_C) const;
+
+  void join_irregular_partial(
+      unsigned int attribute_num_extra,
+      std::vector<Tile** > *tiles_extra,
+      Tile::const_iterator* cell_its_extra,
+      Tile::const_iterator& cell_it_end_extra,
+      unsigned int attribute_num_local,
+      StorageManager::const_iterator *tile_its_local,
+      StorageManager::const_iterator& tile_it_end_local,
+      Tile::const_iterator* cell_its_local,
+      Tile::const_iterator& cell_it_end_local,
+      const StorageManager::FragmentDescriptor* fd_C, Tile** tiles_C) const;
+
+
 
   /** 
    * Joins two regular tiles (from A and B respectively) and stores 

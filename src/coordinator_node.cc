@@ -117,9 +117,8 @@ void CoordinatorNode::run() {
   LoadMsg lmsg2 = LoadMsg(filename, array_schema_B, ORDERED_PARTITION);
   send_and_receive(lmsg2);
 
-  std::string join_hash_result = "join_test_C_test_E_hash";
   DEBUG_MSG("Join on test_E and test_E hash partition");
-  std::string join_ordered_result = "join_test_E_test_E_ordered";
+  std::string join_ordered_result = "join_ordered";
   JoinMsg jmsg = JoinMsg("test_E_copy", "test_E", join_ordered_result);
   send_and_receive(jmsg);
 

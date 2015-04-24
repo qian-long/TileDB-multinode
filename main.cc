@@ -181,7 +181,11 @@ int main(int argc, char** argv) {
 #endif
 
   // seed srand
-  srand(0);
+  // 0 -> succeeds_local_B
+  // 2 -> precedes_local_B
+  // 4 -> precedes_local_A
+  // 6 -> succeeds_local_A
+  srand(2);
 
   std::string datadir = "./data";
   if (myrank == MASTER) {
