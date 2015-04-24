@@ -733,7 +733,6 @@ int WorkerNode::handle(JoinMsg* msg) {
 
 }
 
-// TODO
 int WorkerNode::handle_join_ordered(std::string array_name_A,
     std::string array_name_B,
     std::string result_array_name) {
@@ -773,8 +772,9 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   // N to N sending bounding coordinates for array A
   BoundingCoordsMsg bcm_A(fd_A->fragment_info()->bounding_coordinates_);
   
-
+#ifdef DEBUG
   logger_->log(LOG_INFO, "My bounding coords A: " + util::to_string(fd_A->fragment_info()->bounding_coordinates_));
+#endif
   logger_->log_start(LOG_INFO, "Sending and receiving bounding coords of " + array_name_A + " to everyone");
   std::vector<std::ostream *> rstreams;
   for (int i = 0; i < nprocs_; ++i) {
@@ -783,11 +783,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   }
 
   mpi_handler_->send_and_receive_a2a(bcm_A, rstreams);
-
-  logger_->log(LOG_INFO, "Flush bounding coordinates of " + array_name_A);
   mpi_handler_->flush_send_and_recv_a2a(rstreams);
-
-  logger_->log(LOG_INFO, "Finish receiving bounding coordinates " + array_name_A);
   mpi_handler_->finish_recv_a2a(rstreams);
   logger_->log_end(LOG_INFO);
 
@@ -796,14 +792,15 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   for (int i = 1; i < rstreams.size(); ++i) {
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
-    //logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
     bc_msgs_A[i] = bcm;
   }
 
   // N to N sending bounding coordinates for array B
   BoundingCoordsMsg bcm_B(fd_B->fragment_info()->bounding_coordinates_);
+#ifdef DEBUG
   logger_->log(LOG_INFO, "My bounding coords B: " + util::to_string(fd_B->fragment_info()->bounding_coordinates_));
   logger_->log_start(LOG_INFO, "Send and recv bounding coords of " + array_name_B);
+#endif
   // reuse rstreams b/c memory is copied into the BCMsg
   for (int i = 0; i < nprocs_; ++i) {
     delete rstreams[i];
@@ -826,7 +823,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   for (int i = 1; i < rstreams.size(); ++i) {
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
-    //logger_->log(LOG_INFO, "Bounding coords from " + util::to_string(i) + ": " + util::to_string(bcm->bounding_coordinates()));
     bc_msgs_B[i] = bcm;
   }
 
@@ -869,7 +865,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       if (node1 == node2) {
         continue;
       }
-      //logger_->log(LOG_INFO, "Computing overlap array A in node " + util::to_string(node1) + " with array B in node " + util::to_string(node2));
 
       if (node1 == myrank_) {
         bounding_coords_A = bcm_A.bounding_coordinates();
@@ -1029,7 +1024,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     logger_->log(LOG_INFO, "No array A join fragments to send");
   }
 
-  // TODO fix this
   for (std::map<int, std::vector<uint64_t> >::iterator it = to_send_tile_ranks_B.begin(); it != to_send_tile_ranks_B.end(); ++it) {
     assert(it->first != myrank_);
     logger_->log(LOG_INFO, "I'm sending these tile ranks from array B that overlap with partition boundaries of array A to node " + util::to_string(it->first) + ": " + util::to_string(it->second));
@@ -1086,6 +1080,8 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
         tiles_A[i] = executor_->storage_manager()->get_tile_by_rank(fd_A, i, rank);
         // construct tile msg
         logger_->log(LOG_INFO, "Sending payload of size " + util::to_string(tiles_A[i]->tile_size()) + " to receiver " + util::to_string(receiver));
+
+        // deleted inside TileMsg destructor
         char *payload = new char[tiles_A[i]->tile_size()];
         tiles_A[i]->copy_payload(payload);
         TileMsg msg(array_name_A, i, payload, tiles_A[i]->cell_num(), tiles_A[i]->cell_size());
@@ -1135,6 +1131,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       fd_A->fragment_info()->array_schema_->capacity(),
       start_ranks_A);
 
+#ifdef DEBUG
   if (all_received_tiles_A->size() == 0) {
     logger_->log(LOG_INFO, "DID NOT Received tile payloads for array A");
   } else {
@@ -1149,9 +1146,10 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       //logger_->log(LOG_INFO, ((*it)[i])->to_string());
     }
   }
+#endif
 
 
-  // TODO receive array B join fragments
+  // receive array B join fragments
   
   // Sending array B fragments over the network
   int num_attr_B = fd_B->fragment_info()->array_schema_->attribute_num();
@@ -1160,13 +1158,8 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   const Tile** tiles_B = new const Tile*[num_attr_B+1];
 
   // holds one logical tile per sender, populated by mpi_handler function
-  // TODO cleanup
   Tile*** received_tiles_B = new Tile**[nprocs_];
-  // TODO cleanup
   bool *init_received_tiles_B = new bool[nprocs_];
-
-
-  // TODO clean up to avoid memory leak
   std::vector<Tile** > *all_received_tiles_B = new std::vector<Tile**>();
 
   // holds current rank of received tile
@@ -1199,7 +1192,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
         // read one physical tile from
         tiles_B[i] = executor_->storage_manager()->get_tile_by_rank(fd_B, i, rank);
         // construct tile msg
-        logger_->log(LOG_INFO, "Sending payload of size " + util::to_string(tiles_B[i]->tile_size()) + " to receiver " + util::to_string(receiver));
         char *payload = new char[tiles_B[i]->tile_size()];
         tiles_B[i]->copy_payload(payload);
         TileMsg msg(array_name_B, i, payload, tiles_B[i]->cell_num(), tiles_B[i]->cell_size());
@@ -1219,8 +1211,9 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
       }
 
-
+#ifdef DEBUG
       logger_->log(LOG_INFO, "Finished sending one logical tile to receiver: " + util::to_string(receiver));
+#endif
       // push receivied tiles into all_received_tiles_B
       for (int sender = 1; sender < nprocs_; ++sender) {
         if (sender == myrank_) {
@@ -1228,7 +1221,9 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
         }
 
         if (init_received_tiles_B[sender]) {
+#ifdef DEBUG
           logger_->log(LOG_INFO, "Appending full logical tile this round from sender " + util::to_string(sender));
+#endif
           all_received_tiles_B->push_back(received_tiles_B[sender]);
           start_ranks_B[sender] = start_ranks_B[sender] + 1;
         }
@@ -1250,6 +1245,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       fd_B->fragment_info()->array_schema_->capacity(),
       start_ranks_B);
 
+#ifdef DEBUG
   if (all_received_tiles_B->size() == 0) {
     logger_->log(LOG_INFO, "DID NOT Received tile payloads for array B");
   } else {
@@ -1266,7 +1262,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     logger_->log(LOG_INFO, "bounding coordinates: " + util::to_string(((*it)[num_attr_B])->bounding_coordinates().first));
 
   }
-
+#endif
 
   const ArraySchema& array_schema_A = *(fd_A->fragment_info()->array_schema_);
   const ArraySchema& array_schema_B = *(fd_B->fragment_info()->array_schema_);
@@ -1276,11 +1272,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   bool precedes_local_B = false;
   bool succeeds_local_B = false;
 
-
-  // TODO perform the join with all_received_tiles_A and all_received_tiles_B
-  // all_received_tiles_A will either precede local array A partition
-  // executor->join_with_extra_tiles(all_received_tiles_A, all_received_tiles_B,
-  // array_name_A, array_name_B, result_array_name);
 
   // check received tiles A either precede or succeed local array A partition
   if (all_received_tiles_A->size() > 0) {
@@ -1333,13 +1324,14 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
                                       StorageManager::CREATE);
 
 
-  logger_->log(LOG_INFO, "executor_->query_processor()->join_irregular_with_extra_tiles");
+  logger_->log_start(LOG_INFO, "Do local join with the extra tiles");
   executor_->query_processor()->join_irregular_with_extra_tiles(
           all_received_tiles_A,
           all_received_tiles_B,
           fd_A, fd_B, result_fd,
           precedes_local_A, succeeds_local_A,
           precedes_local_B, succeeds_local_B);
+  logger_->log_end(LOG_INFO);
 
   // Clean up
   executor_->storage_manager()->close_array(ad_A);
@@ -1350,7 +1342,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   executor_->update_fragment_info(result_array_name);
 
 
-  // TODO CLEANUP
+  // CLEANUP
   for (int i = 0; i < nprocs_; ++i) {
     delete rstreams[i];
   }
@@ -1365,7 +1357,29 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   }
 
 
+
+  for (std::vector<Tile**>::iterator it = all_received_tiles_A->begin();
+      it != all_received_tiles_A->end(); ++it) {
+    delete *it;
+  }
+
+  delete [] tiles_A;
+  delete [] received_tiles_A;
+  delete [] init_received_tiles_A;
+  delete [] start_ranks_A;
+
   delete all_received_tiles_A;
+
+  delete [] tiles_B;
+  delete [] received_tiles_B;
+  delete [] init_received_tiles_B;
+  delete [] start_ranks_B;
+
+  for (std::vector<Tile**>::iterator it = all_received_tiles_B->begin();
+      it != all_received_tiles_B->end(); ++it) {
+    delete *it;
+  }
+
   delete all_received_tiles_B;
 }
 

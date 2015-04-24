@@ -703,8 +703,6 @@ std::pair<std::vector<double>, std::vector<double> >
 
 template<class T> 
 const std::vector<T>& CoordinateTile<T>::cell(uint64_t i) const {
-  //std::cout << "[CoordinateTile] i: " << i << " cell_num_: " << cell_num_ << "\n";
-  //std::cout << "[CoordinateTile] cell_num_: " << cell_num_ << "\n";
   assert(i<cell_num_);
 
   return payload_[i];

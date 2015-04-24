@@ -346,7 +346,6 @@ void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
     uint64_t *start_ranks,
     bool *init_received_tiles) {
 
-  //logger_->log(LOG_INFO, "In send_and_recv_tiles_a2a receiver: " + util::to_string(receiver));
 
   // blocking
   int nprocs = node_ids_.size() + 1;
@@ -384,38 +383,7 @@ void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
   }
 
   /* tell the other processors how much data is coming */
-  //logger_->log(LOG_INFO, "tell the other processors how much data is coming");
-
-#ifdef DEBUG
-  std::stringstream sss;
-  sss << "[send_and_recv_tiles]:: before scounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    sss << scounts[i] << " ";
-  }
-  sss << "], rcounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    sss << rcounts[i] << " ";
-  }
-  sss << "]";
-  //logger_->log(LOG_INFO, sss.str());
-#endif
-
   MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
-
-#ifdef DEBUG
-  std::stringstream ssss;
-  ssss << "[send_and_recv_tiles]:: after scounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    ssss << scounts[i] << " ";
-  }
-  ssss << "], rcounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    ssss << rcounts[i] << " ";
-  }
-  ssss << "]";
-  //logger_->log(LOG_INFO, ssss.str());
-#endif
-
 
   int recv_total = rcounts[0];
   rdispls[0] = 0;
@@ -426,11 +394,8 @@ void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
 
   // receive content from all nodes
   char recvbuf[recv_total];
-
-  //logger_->log(LOG_INFO, "MPI_Alltoallv");
   MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
-  //logger_->log(LOG_INFO, "MPI_Alltoallv FINISHED");
   // start after rcounts[0] offset
   assert(rcounts[0] == rdispls[1]);
 
@@ -445,19 +410,17 @@ void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
       }
 
       if (rcounts[sender] > 0) {
-        //logger_->log(LOG_INFO, "Received physical tile from sender " + util::to_string(sender));
         TileMsg* new_msg = TileMsg::deserialize(&recvbuf[rdispls[sender]], rcounts[sender]);
 
-        //logger_->log(LOG_INFO, "Deserialized physical tile from sender " + util::to_string(sender) + " with attr_id: " + util::to_string(new_msg->attr_id()));
         if (new_msg->attr_id() == 0) {
-          //logger_->log(LOG_INFO, "Attr id is 0, creating new logical tile from sender " + util::to_string(sender));
           received_tiles[sender] = new Tile*[num_attr + 1];
-          init_received_tiles[sender] = false;
+          init_received_tiles[sender] = true;
         }
 
         received_tiles[sender][new_msg->attr_id()] = executor->storage_manager()->new_tile(array_schema, new_msg->attr_id(), start_ranks[sender], capacity);
+        received_tiles[sender][new_msg->attr_id()]->set_payload(new_msg->payload(), new_msg->payload_size());
 
-        // TODO make sure this is ok
+        // safe b/c set_payload does memcpy
         delete new_msg;
       }
 
@@ -525,36 +488,7 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
 
 
     /* tell the other processors how much data is coming */
-#ifdef DEBUG
-  std::stringstream sss;
-  sss << "BEFORE scounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    sss << scounts[i] << " ";
-  }
-  sss << "], rcounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    sss << rcounts[i] << " ";
-  }
-  sss << "]";
-  //logger_->log(LOG_INFO, sss.str());
-#endif
-
     MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
-
-#ifdef DEBUG
-  std::stringstream ssss;
-  ssss << "AFTER scounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    ssss << scounts[i] << " ";
-  }
-  ssss << "], rcounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    ssss << rcounts[i] << " ";
-  }
-  ssss << "]";
-  //logger_->log(LOG_INFO, ssss.str());
-#endif
-
 
     // how much data I am expecting from everyone else
     recv_total = rcounts[0];
@@ -568,7 +502,6 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
     char recvbuf[recv_total];
 
     MPI_Alltoallv((char *)ss.str().c_str(), scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
-    //MPI_Alltoallv(sendbuf, scounts, sdispls, MPI_CHAR, recvbuf, rcounts, rdispls, MPI_CHAR, MPI_COMM_WORLD);
 
     if (recv_total > 0) {
       // start after rcounts[0] offset
@@ -660,8 +593,6 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
 
 
     /* tell the other processors how much data is coming */
-
-    //logger_->log(LOG_INFO, "[finish_receive_tiles]: tell the other processors how much data is coming");
 #ifdef DEBUG
   std::stringstream sss;
   sss << "finish_recv_a2a before scounts[ ";
@@ -725,7 +656,7 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
             continue;
           }
 
-          //logger_->log(LOG_INFO, "Received physical tile from sender: " + util::to_string(sender));
+          logger_->log(LOG_INFO, "Received physical tile from sender: " + util::to_string(sender));
           if (rcounts[sender] > 0) {
 
             TileMsg* new_msg = TileMsg::deserialize(&recvbuf[rdispls[sender]], rcounts[sender]);
@@ -766,9 +697,8 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
 
   } while (keep_receiving);
 
-  //logger_->log(LOG_INFO, "[MPIHandler::finish_recv_a2a] ENDED");
   // cleanup
-  //delete [] received_tiles;
+  delete [] received_tiles;
 }
 
 

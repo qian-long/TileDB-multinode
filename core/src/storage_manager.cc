@@ -436,7 +436,6 @@ void StorageManager::append_tile(const Tile* tile,
                                  const FragmentDescriptor* fd,
                                  unsigned int attribute_id) {
 
-  //std::cout << "[StorageManager::append_tile]\n";
   // If tile is empty, delete it and exit
   if(tile->cell_num() == 0) {
     delete tile;
@@ -500,7 +499,6 @@ Tile* StorageManager::new_tile(
     unsigned int attribute_id, 
     uint64_t tile_id, 
     uint64_t cell_num) const {
-  //std::cout << "[StorageManater]::new_tile START\n";
   // For easy reference
   unsigned int attribute_num = array_schema.attribute_num();
   assert(attribute_id <= attribute_num);
@@ -533,7 +531,6 @@ Tile* StorageManager::new_tile(
       tile = new CoordinateTile<double>(tile_id, dim_num, cell_num);
   }
 
-  //std::cout << "[StorageManater]::new_tile END\n";
   return tile; 
 }
 
@@ -604,10 +601,6 @@ bool StorageManager::const_iterator::operator!=(
 }
 
 const Tile& StorageManager::const_iterator::operator*() const {
-
-  //std::cout << "[StorageManager::operator*] rank_: " << rank_ << "\n";
-
-  //std::cout << "[StorageManager::operator*] tile_ids: " << fd_->fragment_info_->tile_ids_.size() << "\n";
 
   assert(rank_ < fd_->fragment_info_->tile_ids_.size());
   assert(storage_manager_->check_on_get_tile( 
@@ -1358,7 +1351,6 @@ void StorageManager::flush_tiles(
 void StorageManager::flush_tiles(
     FragmentInfo& fragment_info,
     unsigned int attribute_id) const {
-  //std::cout <<"[StorageManager::flush_tiles]\n";
   // For easy reference
   const ArraySchema& array_schema = *(fragment_info.array_schema_);
   uint64_t segment_size = fragment_info.payload_sizes_[attribute_id];
