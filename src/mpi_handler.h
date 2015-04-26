@@ -173,8 +173,10 @@ class MPIHandler {
     void finish_recv_a2a(std::vector<std::ostream *> rstreams);
     void finish_recv_a2a(std::ostream& file);
     void finish_recv_a2a();
-    // Same as first one, but form tiles and append to rtiles
-    void finish_recv_a2a(std::vector<Tile** > *rtiles,
+
+    // Same as first one, but form tiles and append to rtiles to the appropriate
+    // slots
+    void finish_recv_a2a(std::vector<Tile** > **arr_received_tiles,
         int num_attr,
         Executor* executor,
         const ArraySchema& array_schema,

@@ -105,25 +105,26 @@ void CoordinatorNode::run() {
   LoadMsg lmsg = LoadMsg(filename, array_schema, ORDERED_PARTITION);
   send_and_receive(lmsg);
 
-  ArraySchema array_schema_B = array_schema.clone("test_E_copy");
+  ArraySchema array_schema_B = array_schema.clone("test_D");
   std::string filename_B = array_schema_B.array_name() + ".csv";
 
 
-  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_E_copy");
+
+  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array " + array_schema_B.array_name());
   DefineArrayMsg damsg2 = DefineArrayMsg(array_schema_B);
   send_and_receive(damsg2);
 
   DEBUG_MSG("Sending ordered partition load instructions to all workers");
-  LoadMsg lmsg2 = LoadMsg(filename, array_schema_B, ORDERED_PARTITION);
+  LoadMsg lmsg2 = LoadMsg(filename_B, array_schema_B, ORDERED_PARTITION);
   send_and_receive(lmsg2);
 
-  DEBUG_MSG("Join on test_E and test_E hash partition");
-  std::string join_ordered_result = "join_ordered";
-  JoinMsg jmsg = JoinMsg("test_E_copy", "test_E", join_ordered_result);
+  DEBUG_MSG("Sending join");
+  std::string join_result = "join_ordered_" + array_schema.array_name() + "_" + array_schema_B.array_name();
+  JoinMsg jmsg = JoinMsg("test_D", "test_E", join_result);
   send_and_receive(jmsg);
 
   DEBUG_MSG("Sending GET result to all workers");
-  GetMsg gmsg1 = GetMsg(join_ordered_result);
+  GetMsg gmsg1 = GetMsg(join_result);
   send_and_receive(gmsg1);
 
 
@@ -281,18 +282,23 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
 
 }
 
-void CoordinatorNode::handle_acks() {
+int CoordinatorNode::handle_acks() {
 
+  bool all_success = true;
   for (int nodeid = 1; nodeid <= nworkers_; nodeid++) {
     logger_->log(LOG_INFO, "Waiting for ack from worker " + util::to_string(nodeid));
     AckMsg* ack = mpi_handler_->receive_ack(nodeid);
+    if (ack->result() == AckMsg::ERROR) {
+      all_success = false;
+    }
+
     logger_->log(LOG_INFO, "Received ack " + ack->to_string() + " from worker: " + util::to_string(nodeid));
 
       // cleanup
     delete ack;
   }
 
-  
+  return all_success ? 0 : -1;
 }
 
 /******************************************************
@@ -705,66 +711,29 @@ void CoordinatorNode::handle_join(JoinMsg& msg) {
   MetaData *md_A = md_manager_->retrieve_metadata(msg.array_name_A());
   MetaData *md_B = md_manager_->retrieve_metadata(msg.array_name_B());
 
-  // handle checking partition type somewhere else, by the time it gets here, it
-  // should be verified the 2 arrays have matching types
   assert(md_A->partition_type() == md_B->partition_type());
+
   MetaData md_C;
-  bool all_success = true;
+  int r;
   switch (md_A->partition_type()) {
     case ORDERED_PARTITION:
       handle_join_ordered(msg);
-      // after data shuffle
-      // write metadata if all successful acks
-      for (int nodeid = 1; nodeid <= nworkers_; ++nodeid) {
-        AckMsg* ack = mpi_handler_->receive_ack(nodeid);
-        if (ack->result() == AckMsg::ERROR) {
-          all_success = false;
-        }
-
-        // no memory leak
-        delete ack;
-      }
-
-      // write metadata for new data
-      if (all_success) {
-        logger_->log_start(LOG_INFO, "Query successful, writing new metadata");
-        md_C = MetaData(HASH_PARTITION);
-        md_manager_->store_metadata(msg.result_array_name(), md_C);
-
-        logger_->log_end(LOG_INFO);
-      } else {
-        logger_->log(LOG_INFO, "Query failed, no new array created");
-      }
-
       break;
     case HASH_PARTITION:
-      // workers all do local join with no need for data shuffling
-      // write metadata if all successful acks
-      for (int nodeid = 1; nodeid <= nworkers_; ++nodeid) {
-        AckMsg* ack = mpi_handler_->receive_ack(nodeid);
-        if (ack->result() == AckMsg::ERROR) {
-          all_success = false;
-        }
-
-        // no memory leak
-        delete ack;
-      }
-
-      // write metadata for new data
-      if (all_success) {
-        logger_->log_start(LOG_INFO, "Query successful, writing new metadata");
-        md_C = MetaData(HASH_PARTITION);
-        md_manager_->store_metadata(msg.result_array_name(), md_C);
-
-        logger_->log_end(LOG_INFO);
-      } else {
-        logger_->log(LOG_INFO, "Query failed, no new array created");
-      }
-
-      break;
+     break;
     default:
       // shouldn't get here
-      break;
+     break;
+  }
+
+  r = handle_acks();
+  if (r == 0) {
+    logger_->log_start(LOG_INFO, "Query successful, writing new metadata");
+    md_C = MetaData(md_A->partition_type());
+    md_manager_->store_metadata(msg.result_array_name(), md_C);
+    logger_->log_end(LOG_INFO);
+  } else {
+    logger_->log(LOG_INFO, "Query failed, no new array created");
   }
 
   // cleanup

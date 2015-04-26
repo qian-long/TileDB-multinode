@@ -540,7 +540,7 @@ void MPIHandler::finish_recv_a2a(std::vector<std::ostream *> rstreams) {
 }
 
 // keep receiving from other nodes
-void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles, 
+void MPIHandler::finish_recv_a2a(std::vector<Tile** > **arr_received_tiles,
     int num_attr,
     Executor* executor,
     const ArraySchema& array_schema,
@@ -593,25 +593,7 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
 
 
     /* tell the other processors how much data is coming */
-#ifdef DEBUG
-  std::stringstream sss;
-  sss << "finish_recv_a2a before scounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    sss << scounts[i] << " ";
-  }
-  sss << "], rcounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    sss << rcounts[i] << " ";
-  }
-  sss << "]";
-  //logger_->log(LOG_INFO, sss.str());
-#endif
-
-
     MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, MPI_COMM_WORLD);
-
-    //logger_->log(LOG_INFO, "[finish_receive_tiles]: FINISHED tell the other processors how much data is coming");
-    //
 
     // how much data I am expecting from everyone else
     recv_total = rcounts[0];
@@ -620,21 +602,6 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
       recv_total += rcounts[i];
       rdispls[i] = rcounts[i-1] + rdispls[i-1];
     }
-
-#ifdef DEBUG
-  std::stringstream ssss;
-  ssss << "finish_recv_a2a after mpi_alltoall rdispls[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    ssss << rdispls[i] << " ";
-  }
-  ssss << "], rcounts[ ";
-  for (int i = 0; i < nprocs; ++i) {
-    ssss << rcounts[i] << " ";
-  }
-  ssss << "]";
-  //logger_->log(LOG_INFO, ssss.str());
-#endif
-
 
     // receive content from all nodes
     char recvbuf[recv_total];
@@ -656,7 +623,6 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
             continue;
           }
 
-          logger_->log(LOG_INFO, "Received physical tile from sender: " + util::to_string(sender));
           if (rcounts[sender] > 0) {
 
             TileMsg* new_msg = TileMsg::deserialize(&recvbuf[rdispls[sender]], rcounts[sender]);
@@ -670,7 +636,8 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > *rtiles,
             received_tiles[sender][new_msg->attr_id()]->set_payload(new_msg->payload(), new_msg->payload_size());
 
             if (new_msg->attr_id() == num_attr) {
-              rtiles->push_back(received_tiles[sender]);
+              //rtiles->push_back(received_tiles[sender]);
+              arr_received_tiles[sender]->push_back(received_tiles[sender]);
               start_ranks[sender] = start_ranks[sender] + 1;
             }
 

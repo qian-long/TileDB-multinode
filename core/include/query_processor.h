@@ -133,14 +133,13 @@ class QueryProcessor {
             const StorageManager::FragmentDescriptor* result_fd) const;
 
   void join_irregular_with_extra_tiles(
-      std::vector<Tile** > *extra_tiles_A,
-      std::vector<Tile** > *extra_tiles_B,
+      std::vector<Tile** > *extra_precedes_tiles_A,
+      std::vector<Tile** > *extra_succeeds_tiles_A,
+      std::vector<Tile** > *extra_precedes_tiles_B,
+      std::vector<Tile** > *extra_succeeds_tiles_B,
       const StorageManager::FragmentDescriptor* fd_A,
       const StorageManager::FragmentDescriptor* fd_B,
-      const StorageManager::FragmentDescriptor* result_fd,
-      bool precedes_local_A, bool succeeds_local_A,
-      bool precedes_local_B, bool succeeds_local_B) const;
-
+      const StorageManager::FragmentDescriptor* result_fd) const;
 
   /** 
    * Joins the two input arrays (say, A and B). The result contains a cell only

@@ -202,13 +202,13 @@ void QueryProcessor::join(
 
 // TODO
 void QueryProcessor::join_irregular_with_extra_tiles(
-    std::vector<Tile** > *extra_tiles_A,
-    std::vector<Tile** > *extra_tiles_B,
+    std::vector<Tile** > *extra_precedes_tiles_A,
+    std::vector<Tile** > *extra_succeeds_tiles_A,
+    std::vector<Tile** > *extra_precedes_tiles_B,
+    std::vector<Tile** > *extra_succeeds_tiles_B,
     const StorageManager::FragmentDescriptor* fd_A, 
     const StorageManager::FragmentDescriptor* fd_B,
-    const StorageManager::FragmentDescriptor* fd_C,
-    bool precedes_local_A, bool succeeds_local_A,
-    bool precedes_local_B, bool succeeds_local_B) const {
+    const StorageManager::FragmentDescriptor* fd_C) const {
 
   // For easy reference
   const ArraySchema& array_schema_A = *(fd_A->array_schema());
@@ -260,13 +260,13 @@ void QueryProcessor::join_irregular_with_extra_tiles(
   new_tiles(array_schema_C, 0, tiles_C); 
 
   // extra tiles precede local array A partition
-  if (precedes_local_A) {
+  if (extra_precedes_tiles_A->size() > 0) {
 
     // initialize local B iterators
     initialize_cell_its(tile_its_B, attribute_num_B, cell_its_B, cell_it_end_B);
 
     join_irregular_partial(
-        attribute_num_A, extra_tiles_A, cell_its_A, cell_it_end_A,
+        attribute_num_A, extra_precedes_tiles_A, cell_its_A, cell_it_end_A,
         attribute_num_B, tile_its_B, tile_it_end_B,
         cell_its_B, cell_it_end_B,
         fd_C, tiles_C);
@@ -283,12 +283,12 @@ void QueryProcessor::join_irregular_with_extra_tiles(
   }
 
   // extra tiles precede local array B partition, so iterate on local array A
-  if (precedes_local_B) {
+  if (extra_precedes_tiles_B->size() > 0) {
     // initialize local A iterators;
     initialize_cell_its(tile_its_A, attribute_num_A, cell_its_A, cell_it_end_A);
 
     join_irregular_partial(
-        attribute_num_B, extra_tiles_B, cell_its_B, cell_it_end_B,
+        attribute_num_B, extra_precedes_tiles_B, cell_its_B, cell_it_end_B,
         attribute_num_A, tile_its_A, tile_it_end_A,
         cell_its_A, cell_it_end_A,
         fd_C, tiles_C);
@@ -362,14 +362,13 @@ void QueryProcessor::join_irregular_with_extra_tiles(
     }
   }
 
- 
-  // TODO
-  if (succeeds_local_A) {
+
+  if (extra_succeeds_tiles_A->size() > 0) {
     // end of local A, still cells/tiles left in B
-    
+
     assert(tile_its_A[attribute_num_A] == tile_it_end_A);
     assert(tile_its_B[attribute_num_B] != tile_it_end_B);
- 
+
     // initialize and synchronize all attribute iterators
     if (!attribute_cell_its_initialized_B) {
       initialize_cell_its(tile_its_B, attribute_num_B, cell_its_B, cell_it_end_B);
@@ -387,20 +386,19 @@ void QueryProcessor::join_irregular_with_extra_tiles(
     }
 
     join_irregular_partial(
-        attribute_num_A, extra_tiles_A, cell_its_A, cell_it_end_A,
+        attribute_num_A, extra_succeeds_tiles_A, cell_its_A, cell_it_end_A,
         attribute_num_B, tile_its_B, tile_it_end_B,
         cell_its_B, cell_it_end_B,
         fd_C, tiles_C);
   }
 
-
-  if (succeeds_local_B) {
+  if(extra_succeeds_tiles_B->size() > 0) {
 
     // end of local B, A should not have run out of cells
     assert(tile_its_B[attribute_num_B] == tile_it_end_B);
     assert(tile_its_A[attribute_num_A] != tile_it_end_A);
-    
-    
+
+
     // initialize and synchronize all attribute iterators
     if (!attribute_cell_its_initialized_A) {
       initialize_cell_its(tile_its_A, attribute_num_A, cell_its_A, cell_it_end_A);
@@ -418,7 +416,7 @@ void QueryProcessor::join_irregular_with_extra_tiles(
     }
 
     join_irregular_partial(
-        attribute_num_B, extra_tiles_B, cell_its_B, cell_it_end_B,
+        attribute_num_B, extra_succeeds_tiles_B, cell_its_B, cell_it_end_B,
         attribute_num_A, tile_its_A, tile_it_end_A,
         cell_its_A, cell_it_end_A,
         fd_C, tiles_C);
