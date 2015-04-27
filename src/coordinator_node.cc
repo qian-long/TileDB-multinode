@@ -51,7 +51,7 @@ void CoordinatorNode::run() {
   send_all("hello", DEF_TAG);
 
   // Set array name
-  std::string array_name = "test_E";
+  std::string array_name = "test_F";
   std::string filename = array_name + ".csv";
 
   // Set attribute names
@@ -85,45 +85,65 @@ void CoordinatorNode::run() {
       types,
       ArraySchema::HILBERT);
 
-  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array test_E");
+  
+  ArraySchema array_schema_C = array_schema.clone("test_F_ordered");
+  std::string filename_C = "test_F.csv";
+  ArraySchema array_schema_D = array_schema.clone("test_G_ordered");
+  std::string filename_D = "test_G.csv";
+
+
+  DEBUG_MSG("Sending DEFINE ARRAY to all workers for " + array_schema_C.array_name());
+  DefineArrayMsg damsg_C = DefineArrayMsg(array_schema_C);
+  send_and_receive(damsg_C);
+
+  DEBUG_MSG("Sending ordered partition load instructions to all workers");
+  LoadMsg lmsg_C = LoadMsg(filename_C, array_schema_C, ORDERED_PARTITION);
+  send_and_receive(lmsg_C);
+
+  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array " + array_schema_D.array_name());
+  DefineArrayMsg damsg_D = DefineArrayMsg(array_schema_D);
+  send_and_receive(damsg_D);
+
+  DEBUG_MSG("Sending ordered partition load instructions to all workers");
+  LoadMsg lmsg_D = LoadMsg(filename_D, array_schema_D, ORDERED_PARTITION);
+  send_and_receive(lmsg_D);
+
+
+  DEBUG_MSG("Sending join");
+  std::string join_ordered_result = "join_ordered_" + array_schema_C.array_name() + "_" + array_schema_D.array_name();
+  JoinMsg jmsg2 = JoinMsg(array_schema_C.array_name(), array_schema_D.array_name(), join_ordered_result);
+  send_and_receive(jmsg2);
+
+  DEBUG_MSG("Sending GET result to all workers");
+  GetMsg gmsg2 = GetMsg(join_ordered_result);
+  send_and_receive(gmsg2);
+
+  logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_schema.array_name());
   DefineArrayMsg damsg = DefineArrayMsg(array_schema);
   send_and_receive(damsg);
 
-  /*
-  DEBUG_MSG("Sending parallel hash partition load instructions to all workers");
-  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
-  send_and_receive(pmsg2);
-  */
-  /*
-
-  DEBUG_MSG("Sending parallel ordered partition load instructions to all workers");
-  ParallelLoadMsg pmsg2 = ParallelLoadMsg(filename, ORDERED_PARTITION, array_schema);
-  send_and_receive(pmsg2);
-  */
-
-  DEBUG_MSG("Sending ordered partition load instructions to all workers");
-  LoadMsg lmsg = LoadMsg(filename, array_schema, ORDERED_PARTITION);
+  logger_->log(LOG_INFO, "Sending ordered partition load instructions to all workers");
+  LoadMsg lmsg = LoadMsg(filename, array_schema, HASH_PARTITION);
   send_and_receive(lmsg);
 
-  ArraySchema array_schema_B = array_schema.clone("test_D");
+  ArraySchema array_schema_B = array_schema.clone("test_G");
   std::string filename_B = array_schema_B.array_name() + ".csv";
 
 
-
-  DEBUG_MSG("Sending DEFINE ARRAY to all workers for array " + array_schema_B.array_name());
+  logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_schema_B.array_name());
   DefineArrayMsg damsg2 = DefineArrayMsg(array_schema_B);
   send_and_receive(damsg2);
 
-  DEBUG_MSG("Sending ordered partition load instructions to all workers");
-  LoadMsg lmsg2 = LoadMsg(filename_B, array_schema_B, ORDERED_PARTITION);
+  logger_->log(LOG_INFO, "Sending ordered partition load instructions to all workers");
+  LoadMsg lmsg2 = LoadMsg(filename_B, array_schema_B, HASH_PARTITION);
   send_and_receive(lmsg2);
 
-  DEBUG_MSG("Sending join");
-  std::string join_result = "join_ordered_" + array_schema.array_name() + "_" + array_schema_B.array_name();
-  JoinMsg jmsg = JoinMsg("test_D", "test_E", join_result);
+  logger_->log(LOG_INFO, "Sending join hash");
+  std::string join_result = "join_hash_" + array_schema.array_name() + "_" + array_schema_B.array_name();
+  JoinMsg jmsg = JoinMsg("test_F", "test_G", join_result);
   send_and_receive(jmsg);
 
-  DEBUG_MSG("Sending GET result to all workers");
+  logger_->log(LOG_INFO, "Sending GET result to all workers");
   GetMsg gmsg1 = GetMsg(join_result);
   send_and_receive(gmsg1);
 
@@ -228,6 +248,7 @@ void CoordinatorNode::run() {
   send_and_receive(gmsg1);
   */
 
+
   quit_all();
 }
 
@@ -254,6 +275,7 @@ void CoordinatorNode::send_and_receive(Msg& msg) {
   switch(msg.msg_tag) {
     case GET_TAG:
       handle_get(dynamic_cast<GetMsg&>(msg));
+      handle_acks();
       break;
     case LOAD_TAG:
       handle_load(dynamic_cast<LoadMsg&>(msg));
@@ -305,20 +327,17 @@ int CoordinatorNode::handle_acks() {
  **                  HANDLE GET                      **
  ******************************************************/
 void CoordinatorNode::handle_get(GetMsg& gmsg) {
+  logger_->log(LOG_INFO, "In handle_get");
   std::string outpath = my_workspace_ + "/GET_" + gmsg.array_name() + ".csv";
   std::ofstream outfile;
   outfile.open(outpath.c_str());
   bool keep_receiving = true;
-  std::stringstream ss;
   for (int nodeid = 1; nodeid < nprocs_; ++nodeid) {
     // error handling if file is not found on sender
     keep_receiving = mpi_handler_->receive_keep_receiving(nodeid);
-    ss << "Sender: " << nodeid << " Keep receiving: " << keep_receiving;
-    logger_->log(LOG_INFO, ss.str());
+    logger_->log(LOG_INFO, "Sender: " + util::to_string(nodeid) + " Keep receiving: " + util::to_string(keep_receiving));
     if (keep_receiving == true) {
-      ss.str(std::string());
-      ss << "Waiting for sender " << nodeid;
-      logger_->log(LOG_INFO, ss.str());
+      logger_->log(LOG_INFO, "Waiting for sender " + util::to_string(nodeid));
       mpi_handler_->receive_content(outfile, nodeid, GET_TAG);
     }
   }
@@ -764,6 +783,7 @@ void CoordinatorNode::handle_join_ordered(JoinMsg& msg) {
 
 
 void CoordinatorNode::quit_all() {
+  logger_->log(LOG_INFO, "Sending quit all");
   send_all("quit", QUIT_TAG);
 }
 

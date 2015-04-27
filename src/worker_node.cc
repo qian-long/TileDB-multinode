@@ -88,6 +88,7 @@ void WorkerNode::run() {
       MPI_Get_count(&status, MPI_CHAR, &length);
       switch (status.MPI_TAG) {
         case QUIT_TAG:
+          logger_->log(LOG_INFO, "Quitting...");
           loop = false;
           break;
         case GET_TAG:
@@ -166,7 +167,7 @@ int WorkerNode::handle(GetMsg* msg) {
     logger_->log(LOG_INFO, "csv " + result_filename + " not found, telling master to stop receiving from me");
     mpi_handler_->send_keep_receiving(false, MASTER);
   } else {
-    logger_->log(LOG_INFO, "sending file to master");
+    logger_->log(LOG_INFO, "Found file, sending to master");
     mpi_handler_->send_keep_receiving(true, MASTER);
     mpi_handler_->send_file(result_filename, MASTER, GET_TAG);
   }

@@ -175,8 +175,6 @@ int main(int argc, char** argv) {
   std::stringstream ssd;
   ssd << "Pid: " << pid << " Parent pid: " << ppid << "\n";
   std::cout << ssd.str();
-  //int DebugWait = 1;
-  //while (DebugWait);
 
 #endif
 
@@ -186,7 +184,7 @@ int main(int argc, char** argv) {
   // 4 -> precedes_local_A
   // 6 -> succeeds_local_A
   //srand(2);
-  srand(time(NULL));
+  srand(2);
 
   std::string datadir = "./data";
   if (myrank == MASTER) {

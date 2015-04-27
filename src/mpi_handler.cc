@@ -39,6 +39,7 @@ MPIHandler::~MPIHandler() {}
  *********** POINT TO POINT COMM FUNCTIONS ************
  ******************************************************/
 void MPIHandler::send_file(std::string filepath, int receiver, int tag) {
+  assert(all_buffers_empty());
   CSVFile file(filepath, CSVFile::READ); 
   CSVLine line;
   std::stringstream content;
@@ -71,8 +72,7 @@ bool MPIHandler::receive_keep_receiving(int sender) {
   MPI_Recv((char *)buf, mpi_buffer_length_, MPI_CHAR, sender, KEEP_RECEIVING_TAG, MPI_COMM_WORLD, &status);
   MPI_Get_count(&status, MPI_CHAR, &length);
 
-  //keep_receiving = (bool) buf[0];
-  memcpy(&keep_receiving, &buf[0], sizeof(bool));
+  memcpy(&keep_receiving, &buf[0], length);
 
   delete [] buf;
   return keep_receiving;
@@ -80,25 +80,25 @@ bool MPIHandler::receive_keep_receiving(int sender) {
 
 void MPIHandler::receive_content(std::ostream& stream, int sender, int tag) {
   bool keep_receiving = true;
-  char *buf = new char[mpi_buffer_length_];
   MPI_Status status;
   int length;
 
   do {
 
+    char *buf = new char[mpi_buffer_length_];
     MPI_Recv(buf, mpi_buffer_length_, MPI_CHAR, sender, tag, MPI_COMM_WORLD, &status);
     MPI_Get_count(&status, MPI_CHAR, &length);
 
     // write to out stream
-    stream << std::string(buf, length);
+    stream.write(buf, length);
 
     // see if we should continue receiving
     keep_receiving = this->receive_keep_receiving(sender);
 
+    delete [] buf;
   } while (keep_receiving);
 
   // Cleanup
-  delete [] buf;
 }
 
 // Maintain buffer for each worker, send data to worker only when buffer is full
@@ -129,6 +129,7 @@ void MPIHandler::send_content(const char* in_buf, int64_t length, int receiver, 
   } else {
     // save data to buffer
     std::memmove(&(buffers_[buf_id][pos_[buf_id]]), in_buf, length);
+    //std::memcpy(&(buffers_[buf_id][pos_[buf_id]]), in_buf, length);
     pos_[buf_id] += length;
   }
 
@@ -139,8 +140,8 @@ void MPIHandler::flush_send(int receiver, int tag, bool keep_receiving) {
   assert(search != node_to_buf_.end());
   int buf_id = search->second;
 
-  // TODO handle not found case
   int buf_length = pos_[buf_id];
+  // TODO handle not found case
   if (buf_length > 0) {
     MPI_Send((char *)buffers_[buf_id], buf_length, MPI_CHAR, receiver, tag, MPI_COMM_WORLD);
     this->send_keep_receiving(keep_receiving, receiver);
@@ -614,7 +615,6 @@ void MPIHandler::finish_recv_a2a(std::vector<Tile** > **arr_received_tiles,
       assert(rcounts[0] == rdispls[1]);
 
       // ignore "blob" msg from coordinator
-      // TODO form tiles for each sender
       uint64_t buf_len = recv_total - rcounts[0];
       if (buf_len > 0) {
         for (int sender = 1; sender < nprocs; ++sender) {
