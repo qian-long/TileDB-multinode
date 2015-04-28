@@ -66,11 +66,11 @@ const char* get_filename(int dataset_num, int numprocs) {
 }
 
 
-void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, std::string filename) {
+void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, std::string filename, std::string array_name_base2 = "", std::string filename2 = "") {
   struct timeval tim;  
   gettimeofday(&tim, NULL);  
   double t1 = tim.tv_sec+(tim.tv_usec/1000000.0);  
-  char buffer[100];
+  char buffer[1000];
   int len;
   std::string array_name;
   int num_samples = 1000;
@@ -91,6 +91,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   */
 
   // PARALLEL ORDERED LOAD TEST
+  /*
   array_name = array_name_base + "_pordered";
   gettimeofday(&tim, NULL);  
   tstart = tim.tv_sec+(tim.tv_usec/1000000.0);  
@@ -102,32 +103,91 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   len = snprintf(buffer, 100, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), tend - tstart);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
+  */
 
-  /*
   // HASH LOAD TEST
+  gettimeofday(&tim, NULL);
+  tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
+
   array_name = array_name_base + "_hash";
   coordinator->test_load(array_name, filename, HASH_PARTITION);
 
   gettimeofday(&tim, NULL);  
-  double t4 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+  tend = tim.tv_sec+(tim.tv_usec/1000000.0);  
 
-  len = snprintf(buffer, 100, "Hash Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t4 - t3);
+  len = snprintf(buffer, 100, "Load Hash Partition %s wall time: %.6lf secs\n", array_name.c_str(), tend - tstart);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
 
 
   // ORDERED LOAD TEST
+  gettimeofday(&tim, NULL);
+  tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
+
   array_name = array_name_base + "_ordered";
-  coordinator->test_load(array_name, filename, ORDERED_PARTITION, LoadMsg::SORT);
+  coordinator->test_load(array_name, filename, ORDERED_PARTITION, LoadMsg::SAMPLE);
 
-  gettimeofday(&tim, NULL);  
-  double t5 = tim.tv_sec+(tim.tv_usec/1000000.0);  
+  gettimeofday(&tim, NULL);
+  tend = tim.tv_sec+(tim.tv_usec/1000000.0);
 
-  len = snprintf(buffer, 100, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t5 - t4);
+  len = snprintf(buffer, 1000, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), tend - tstart);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
-  */
 
+
+  std::string array_name2;
+  // HASH JOIN TEST
+  std::cout << "HASH JOIN TEST\n";
+  if (array_name_base2.empty() && filename2.empty()) {
+    std::cout << "Missing 2nd array name\n";
+  } else {
+    // hash load array 2
+    array_name2 = array_name_base2 + "_hash";
+    std::cout << "Loading array 2\n";
+    coordinator->test_load(array_name2, filename2, HASH_PARTITION);
+
+    gettimeofday(&tim, NULL);
+    tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
+
+    std::cout << "Start test join\n";
+    array_name = array_name_base + "_hash";
+    coordinator->test_join(array_name, array_name2, "join_" + array_name + "_" + array_name2);
+
+    gettimeofday(&tim, NULL);
+    tend = tim.tv_sec+(tim.tv_usec/1000000.0);
+
+    len = snprintf(buffer, 1000, "Hash Partition Join %s and %s wall time: %.6lf secs\n", array_name.c_str(), array_name2.c_str(), tend - tstart);
+    coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+    printf("%s", buffer);
+  }
+
+
+  // ORDERED JOIN TEST
+  std::cout << "ORDERED JOIN TEST\n";
+  if (array_name_base2.empty() && filename2.empty()) {
+    std::cout << "MIssing 2nd array name\n";
+  } else {
+
+    // order load array 2
+    array_name2 = array_name_base2 + "_ordered";
+    std::cout << "Loading array 2\n";
+    coordinator->test_load(array_name2, filename2, ORDERED_PARTITION, LoadMsg::SAMPLE);
+
+    gettimeofday(&tim, NULL);
+    tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
+
+    std::cout << "Start test join for ordered partition\n";
+    array_name = array_name_base + "_ordered";
+    coordinator->test_join(array_name, array_name2, "join_" + array_name + "_" + array_name2);
+
+    gettimeofday(&tim, NULL);
+    tend = tim.tv_sec+(tim.tv_usec/1000000.0);
+
+    len = snprintf(buffer, 100, "Ordered Partition Join %s and %s wall time: %.6lf secs\n", array_name.c_str(), array_name2.c_str(), tend - tstart);
+    coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+    printf("%s", buffer);
+
+  }
 
   /*
   // FILTER TEST
@@ -158,6 +218,16 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   //coordinator->test_subarray(array_name);
   */
 
+}
+
+std::string get_array_name(std::string filename) {
+  std::stringstream ss(filename);
+  std::string item;
+  std::vector<std::string> elems;
+  while (std::getline(ss, item, '.')) {
+    elems.push_back(item);
+  }
+  return elems[0];
 }
 
 // This is the user
@@ -196,12 +266,18 @@ int main(int argc, char** argv) {
 
     std::string filename;
     std::string array_name;
+    std::string filename2 = "";
+    std::string array_name2 = "";
 
     std::cout << "argc: " << argc << "\n";
     if (argc <= 1) {
       filename = "test_C.csv";
-    } else {
+    } else if (argc <= 2) {
       filename = argv[1];
+    } else if (argc <= 3) {
+
+      filename = argv[1];
+      filename2 = argv[2];
     }
 
     /*
@@ -217,14 +293,14 @@ int main(int argc, char** argv) {
     */
 
 #ifdef ISTC
-    std::stringstream ss(filename);
-    std::string item;
-    std::vector<std::string> elems;
-    while (std::getline(ss, item, '.')) {
-      elems.push_back(item);
+    array_name = get_array_name(filename);
+
+    if (filename2.size() > 0) {
+      array_name2 = get_array_name(filename2);
     }
-    array_name = elems[0];
-    run_test_suite(coordinator, array_name, filename);
+
+    std::cout << "array_name: " << array_name << " array_name2: " << array_name2 << "\n";
+    run_test_suite(coordinator, array_name, filename, array_name2, filename2);
     coordinator->quit_all();
 #else
     std::cout << "Running debug\n";

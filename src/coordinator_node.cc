@@ -871,6 +871,17 @@ void CoordinatorNode::test_parallel_load(std::string array_name,
   delete array_schema;
 }
 
+void CoordinatorNode::test_join(std::string array_name_A,
+    std::string array_name_B, std::string result_array_name) {
+  logger_->log(LOG_INFO, "Test join on array_name_A: " + array_name_A + " array_name_B: " + array_name_B + " result_array_name: " + result_array_name);
+
+  logger_->log(LOG_INFO, "Sending JOIN MSG to all workers");
+  JoinMsg msg = JoinMsg(array_name_A, array_name_B, result_array_name); 
+  send_and_receive(msg);
+
+  logger_->log(LOG_INFO, "Test join on hash partition Done");
+}
+
 void CoordinatorNode::test_filter(std::string array_name) {
   logger_->log(LOG_INFO, "Start Filter");
   ArraySchema* array_schema = get_test_arrayschema(array_name);

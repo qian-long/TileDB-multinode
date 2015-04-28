@@ -794,8 +794,11 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   std::map<int, BoundingCoordsMsg *> bc_msgs_A;
   for (int i = 1; i < rstreams.size(); ++i) {
+    logger_->log(LOG_INFO, "assembling bcmsg for node " + util::to_string(i));
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
+
+    logger_->log(LOG_INFO, "Created boundingCoordsMsg for node " + util::to_string(i));
     bc_msgs_A[i] = bcm;
   }
 
@@ -825,8 +828,12 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   // maps worker id to bc_msg ptr
   std::map<int, BoundingCoordsMsg *> bc_msgs_B;
   for (int i = 1; i < rstreams.size(); ++i) {
+
+    logger_->log(LOG_INFO, "assembling bcmsg for node " + util::to_string(i));
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
+
+    logger_->log(LOG_INFO, "Created boundingCoordsMsg for node " + util::to_string(i));
     bc_msgs_B[i] = bcm;
   }
 
@@ -848,6 +855,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   // my tile ranks from array B that overlap with partition boundaries in array A from other workers
   std::map<int, std::vector<uint64_t> > my_overlap_tiles_B;
 
+  //logger_->log(LOG_INFO, "Initializing cost matrix");
   // initialize costs matrix
   for (int i = 0; i < nworkers_; ++i) {
     for (int j = i; j < nworkers_; ++j) {
@@ -858,6 +866,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     }
   }
 
+  //logger_->log(LOG_INFO, "Computing data shuffle costs");
   StorageManager::BoundingCoordinates bounding_coords_A;
   StorageManager::BoundingCoordinates bounding_coords_B;
 
