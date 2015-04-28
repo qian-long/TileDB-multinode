@@ -843,7 +843,7 @@ BoundingCoordsMsg* BoundingCoordsMsg::deserialize(char* buffer, uint64_t buffer_
     return new BoundingCoordsMsg(bounding_coords);
   }
 
-  uint64_t pos;
+  uint64_t pos = 0;
 
   // deserialize num_dim
   int num_dim;
