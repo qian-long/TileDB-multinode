@@ -839,6 +839,10 @@ std::pair<char*, uint64_t> BoundingCoordsMsg::serialize() {
 BoundingCoordsMsg* BoundingCoordsMsg::deserialize(char* buffer, uint64_t buffer_length) {
 
   StorageManager::BoundingCoordinates bounding_coords;
+  if (buffer_length == 0) {
+    return new BoundingCoordsMsg(bounding_coords);
+  }
+
   uint64_t pos;
 
   // deserialize num_dim

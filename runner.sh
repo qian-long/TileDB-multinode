@@ -1,10 +1,12 @@
 #! /bin/bash
-NUM_NODES=9
-DATASET=ais_2009_01_allzones
-FILENAME=$DATASET.csv
+NUM_NODES=3
+DATASET1=test_D
+FILENAME1=$DATASET1.csv
+DATASET2=test_E
+FILENAME2=$DATASET2.csv
 TEMP_NAME=$( date +"%m-%dT%H:%M")
 TRIAL=${3:-$TEMP_NAME}
-RUN_NAME=t$NUM_NODES\_$DATASET\_$TRIAL
+RUN_NAME=t$NUM_NODES\_$DATASET1\_$DATASET2\_$TRIAL
 DATA_FOLDER=Result/$RUN_NAME
 mkdir -p $DATA_FOLDER
 
@@ -20,7 +22,7 @@ done;
 # run the actual thing
 make multi-istc
 ./setup_env.sh
-mpiexec.mpich2 -n $NUM_NODES -f machinefile_istc ./multinode_launcher $FILENAME > $DATA_FOLDER/master.txt
+mpiexec.mpich2 -n $NUM_NODES -f machinefile_istc ./multinode_launcher $FILENAME1 $FILENAME2 > $DATA_FOLDER/master.txt
 cat $DATA_FOLDER/master.txt
 
 
