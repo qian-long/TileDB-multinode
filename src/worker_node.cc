@@ -794,6 +794,11 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   std::map<int, BoundingCoordsMsg *> bc_msgs_A;
   for (int i = 1; i < rstreams.size(); ++i) {
+    // skip myself
+    if (i == myrank_) {
+      continue;
+    }
+
     logger_->log(LOG_INFO, "assembling bcmsg for node " + util::to_string(i));
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
@@ -806,8 +811,8 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   BoundingCoordsMsg bcm_B(fd_B->fragment_info()->bounding_coordinates_);
 #ifdef DEBUG
   logger_->log(LOG_INFO, "My bounding coords B: " + util::to_string(fd_B->fragment_info()->bounding_coordinates_));
-  logger_->log_start(LOG_INFO, "Send and recv bounding coords of " + array_name_B);
 #endif
+  logger_->log_start(LOG_INFO, "Send and recv bounding coords of " + array_name_B);
   // reuse rstreams b/c memory is copied into the BCMsg
   for (int i = 0; i < nprocs_; ++i) {
     delete rstreams[i];
@@ -828,6 +833,10 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   // maps worker id to bc_msg ptr
   std::map<int, BoundingCoordsMsg *> bc_msgs_B;
   for (int i = 1; i < rstreams.size(); ++i) {
+    // skip myself
+    if (i == myrank_) {
+      continue;
+    }
     logger_->log(LOG_INFO, "assembling bcmsg for node " + util::to_string(i));
     std::string s = ((std::stringstream *)rstreams[i])->str();
     BoundingCoordsMsg *bcm = BoundingCoordsMsg::deserialize((char *)s.c_str(), s.size());
