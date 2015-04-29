@@ -17,7 +17,8 @@
 class CoordinatorNode {
   public:
     // CONSTRUCTORS
-    CoordinatorNode(int rank, int nprocs, std::string datadir);
+    CoordinatorNode(int rank, int nprocs, 
+        std::string datadir, std::string workspace_base);
 
     // DESTRUCTOR
     ~CoordinatorNode();

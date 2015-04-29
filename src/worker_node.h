@@ -25,6 +25,7 @@ class WorkerNode {
     WorkerNode(int rank, 
         int nprocs, 
         std::string datadir, 
+        std::string workspace_base,
         int64_t mpi_buffer_length = MPI_BUFFER_LENGTH, 
         int64_t mpi_handler_total_buf_size = MH_TOTAL_BUF_SIZE);
 

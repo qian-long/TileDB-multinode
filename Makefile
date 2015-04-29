@@ -195,6 +195,7 @@ multi-run-local: $(MULTINODE_EXEC)
 multi-istc: CXX = mpic++.mpich2
 multi-istc: CXX += -DISTC -DNDEBUG
 multi-istc: multi
+	./setup_prod.sh
 
 multi-istc-debug: CXX = mpic++.mpich2
 multi-istc-debug: CXX += -DISTC -DDEBUG -g
@@ -206,9 +207,10 @@ multi-run-istc: $(MULTINODE_EXEC)
 	./setup_env.sh
 	mpiexec.mpich2 -f machinefile_local ./$(MULTINODE_EXEC)
 
+# running on distributed istc
 multi-run-istc-prod: CXX += -DISTC
 multi-run-istc-prod: $(MULTINODE_EXEC)
-	./setup_env.sh
+	./setup_prod.sh
 	mpirun.mpich2 -f machinefile_istc ./$(MULTINODE_EXEC)
 
 

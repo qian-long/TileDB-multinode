@@ -17,6 +17,7 @@
 WorkerNode::WorkerNode(int rank,
     int nprocs,
     std::string datadir,
+    std::string workspace_base,
     int64_t mpi_buffer_length,
     int64_t mpi_handler_total_buf_size) {
 
@@ -28,7 +29,7 @@ WorkerNode::WorkerNode(int rank,
 
   std::stringstream workspace;
   // TODO put in config file
-  workspace << "./workspaces/workspace-" << myrank_;
+  workspace << workspace_base << "/workspace-" << myrank_;
   my_workspace_ = workspace.str();
   datadir_ = datadir;
   executor_ = new Executor(my_workspace_);

@@ -17,13 +17,15 @@
 #include "constants.h"
 #include "util.h"
 
-CoordinatorNode::CoordinatorNode(int rank, int nprocs, std::string datadir) {
+CoordinatorNode::CoordinatorNode(int rank, int nprocs,
+    std::string datadir, std::string workspace_base) {
   myrank_ = rank;
   nprocs_ = nprocs;
   nworkers_ = nprocs - 1;
 
   // TODO put in config file
-  my_workspace_ = "./workspaces/workspace-0";
+  //my_workspace_ = "./workspaces/workspace-0";
+  my_workspace_ = workspace_base + "/workspace-0";
   logger_ = new Logger(my_workspace_ + "/logfile");
   executor_ = new Executor(my_workspace_);
 

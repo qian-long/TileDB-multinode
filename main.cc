@@ -257,12 +257,19 @@ int main(int argc, char** argv) {
   srand(time(NULL));
 
   std::string datadir = "./data";
+  std::string workspace_base = "./workspaces";
+
+#ifdef ISTC
+  workspace_base = "/data/qlong/workspaces";
+#endif
+
   if (myrank == MASTER) {
 
 #ifdef ISTC
     datadir = "/data/qlong/ais_final";
 #endif
-    CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs, datadir);
+
+    CoordinatorNode * coordinator = new CoordinatorNode(myrank, nprocs, datadir, workspace_base);
 
     std::string filename;
     std::string array_name;
@@ -314,7 +321,7 @@ int main(int argc, char** argv) {
 #ifdef ISTC
     datadir = "/data/qlong/processed_ais_data";
 #endif
-    WorkerNode * worker = new WorkerNode(myrank, nprocs, datadir);
+    WorkerNode * worker = new WorkerNode(myrank, nprocs, datadir, workspace_base);
     worker->run();
   }
 

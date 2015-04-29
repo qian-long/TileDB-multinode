@@ -1,8 +1,8 @@
 #! /bin/bash
 NUM_NODES=3
-DATASET1=test_D
+DATASET1=ais_2009_01_allzones
 FILENAME1=$DATASET1.csv
-DATASET2=test_E
+DATASET2=ais_2009_09_allzones
 FILENAME2=$DATASET2.csv
 TEMP_NAME=$( date +"%m-%dT%H:%M")
 TRIAL=${3:-$TEMP_NAME}
