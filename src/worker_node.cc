@@ -1036,7 +1036,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   logger_->log(LOG_INFO, "Finished gathering overlapping tiles for sending");
 
-#ifdef DEBUG
   for (std::map<int, std::vector<uint64_t> >::iterator it = to_send_tile_ranks_A.begin(); it != to_send_tile_ranks_A.end(); ++it) {
     assert(it->first != myrank_);
     logger_->log(LOG_INFO, "I'm sending these tile ranks from array A that overlap with partition boundaries of array B to node " + util::to_string(it->first) + ": " + util::to_string(it->second));
@@ -1054,8 +1053,6 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   if (to_send_tile_ranks_B.size() == 0) {
     logger_->log(LOG_INFO, "No array B join fragments to send");
   }
-#endif
-
 
   // Sending array A fragments over the network
   int num_attr_A = fd_A->fragment_info()->array_schema_->attribute_num();
@@ -1551,7 +1548,7 @@ std::pair<std::vector<uint64_t>, std::vector<uint64_t> > WorkerNode::get_overlap
   // partitions do not overlap
   if (first_last_pair_A.second < first_last_pair_B.first ||
       first_last_pair_A.first > first_last_pair_B.second) {
-    logger_->log(LOG_INFO, "No overlap");
+    //logger_->log(LOG_INFO, "No overlap");
     return std::pair<int, int>(0,0);
   }
 
