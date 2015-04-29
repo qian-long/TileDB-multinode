@@ -175,7 +175,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
     // order load array 2
     array_name2 = array_name_base2 + "_pordered";
     std::cout << "Loading array 2\n";
-    coordinator->test_load(array_name2, filename2, ORDERED_PARTITION, LoadMsg::SAMPLE);
+    coordinator->test_parallel_load(array_name2, filename2, ORDERED_PARTITION, num_samples);
 
     gettimeofday(&tim, NULL);
     tstart = tim.tv_sec+(tim.tv_usec/1000000.0);

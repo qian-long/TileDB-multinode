@@ -892,13 +892,13 @@ void CoordinatorNode::test_parallel_load(std::string array_name,
 
 void CoordinatorNode::test_join(std::string array_name_A,
     std::string array_name_B, std::string result_array_name) {
-  logger_->log(LOG_INFO, "Test join on array_name_A: " + array_name_A + " array_name_B: " + array_name_B + " result_array_name: " + result_array_name);
+  logger_->log(LOG_INFO, "Test join Start on array_name_A: " + array_name_A + " array_name_B: " + array_name_B + " result_array_name: " + result_array_name);
 
   logger_->log(LOG_INFO, "Sending JOIN MSG to all workers");
   JoinMsg msg = JoinMsg(array_name_A, array_name_B, result_array_name); 
   send_and_receive(msg);
 
-  logger_->log(LOG_INFO, "Test join on hash partition Done");
+  logger_->log(LOG_INFO, "Test join Done");
 }
 
 void CoordinatorNode::test_filter(std::string array_name) {
