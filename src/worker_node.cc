@@ -632,7 +632,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   md_manager_->store_metadata(array_schema.array_name(), metadata);
   logger_->log_end(LOG_INFO);
 
-  // TODO cleanup
+  // cleanup
   delete smsg;
 
   return 0;

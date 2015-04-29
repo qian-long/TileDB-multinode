@@ -173,7 +173,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   } else {
 
     // order load array 2
-    array_name2 = array_name_base2 + "_ordered";
+    array_name2 = array_name_base2 + "_pordered";
     std::cout << "Loading array 2\n";
     coordinator->test_load(array_name2, filename2, ORDERED_PARTITION, LoadMsg::SAMPLE);
 
@@ -181,7 +181,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
     tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
 
     std::cout << "Start test join for ordered partition\n";
-    array_name = array_name_base + "_ordered";
+    array_name = array_name_base + "_pordered";
     coordinator->test_join(array_name, array_name2, "join_" + array_name + "_" + array_name2);
 
     gettimeofday(&tim, NULL);

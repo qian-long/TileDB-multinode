@@ -668,12 +668,19 @@ void CoordinatorNode::handle_load_hash(LoadMsg& pmsg) {
 void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
   logger_->log(LOG_INFO, "In handle_parallel_load");
 
+  MetaData metadata;
   switch (pmsg.partition_type()) {
     case ORDERED_PARTITION:
       handle_parallel_load_ordered(pmsg);
       break;
     case HASH_PARTITION:
       handle_parallel_load_hash(pmsg);
+
+      logger_->log_start(LOG_INFO, "Writing metadata to disk");
+      metadata = MetaData(HASH_PARTITION);
+      md_manager_->store_metadata(pmsg.array_schema().array_name(), metadata);
+      logger_->log_end(LOG_INFO);
+
       break;
     default:
       // TODO return error?
@@ -721,6 +728,16 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
   logger_->log_start(LOG_INFO, "Participating in all to all communication");
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
+
+  // store metadata to disk
+  logger_->log_start(LOG_INFO, "Writing metadata to disk");
+  MetaData metadata(ORDERED_PARTITION,
+      std::pair<uint64_t, uint64_t>(partitions[0], partitions[partitions.size()-1]),
+      partitions);
+  md_manager_->store_metadata(pmsg.array_schema().array_name(), metadata);
+  logger_->log_end(LOG_INFO);
+
+
   // cleanup
 }
 
