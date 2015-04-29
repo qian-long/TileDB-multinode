@@ -91,7 +91,6 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   */
 
   // PARALLEL ORDERED LOAD TEST
-  /*
   array_name = array_name_base + "_pordered";
   gettimeofday(&tim, NULL);  
   tstart = tim.tv_sec+(tim.tv_usec/1000000.0);  
@@ -103,9 +102,9 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   len = snprintf(buffer, 100, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), tend - tstart);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
-  */
 
   // HASH LOAD TEST
+  /*
   gettimeofday(&tim, NULL);
   tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
 
@@ -118,9 +117,11 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   len = snprintf(buffer, 100, "Load Hash Partition %s wall time: %.6lf secs\n", array_name.c_str(), tend - tstart);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
+  */
 
 
   // ORDERED LOAD TEST
+  /*
   gettimeofday(&tim, NULL);
   tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
 
@@ -133,10 +134,12 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   len = snprintf(buffer, 1000, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), tend - tstart);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
+  */
 
 
   std::string array_name2;
   // HASH JOIN TEST
+  /*
   std::cout << "HASH JOIN TEST\n";
   if (array_name_base2.empty() && filename2.empty()) {
     std::cout << "Missing 2nd array name\n";
@@ -160,6 +163,7 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
     coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
     printf("%s", buffer);
   }
+  */
 
 
   // ORDERED JOIN TEST

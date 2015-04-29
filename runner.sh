@@ -1,8 +1,10 @@
 #! /bin/bash
 NUM_NODES=3
-DATASET1=ais_2009_01_allzones
+#DATASET1=ais_2009_01_allzones
+DATASET1=test_D
 FILENAME1=$DATASET1.csv
-DATASET2=ais_2009_09_allzones
+#DATASET2=ais_2009_09_allzones
+DATASET2=test_E
 FILENAME2=$DATASET2.csv
 TEMP_NAME=$( date +"%m-%dT%H:%M")
 TRIAL=${3:-$TEMP_NAME}
@@ -21,19 +23,19 @@ done;
 
 # run the actual thing
 make multi-istc
-./setup_env.sh
+./setup_prod.sh
 mpiexec.mpich2 -n $NUM_NODES -f machinefile_istc ./multinode_launcher $FILENAME1 $FILENAME2 > $DATA_FOLDER/master.txt
-cat $DATA_FOLDER/master.txt
+cat $DATA_FOLDER/master.txt > /dev/null
 
 
 #get the data from each machine
 if [ "$?" -eq "0" ]
 then
   #get data from master
-  cp ~/TileDB-multinode/workspaces/workspace-0/logfile $DATA_FOLDER/master_logfile.txt
+  cp /data/qlong/workspaces/workspace-0/logfile $DATA_FOLDER/master_logfile.txt
   for i in `seq 2 $NUM_NODES`;
   do
-    scp istc$i:~/TileDB-multinode/workspaces/workspace-$(($i-1))/logfile $DATA_FOLDER/istc_machine_$i.txt
+    scp istc$i:/data/qlong/workspaces/workspace-$(($i-1))/logfile $DATA_FOLDER/istc_machine_$i.txt
   done;
 else
   echo "Test script failed"
