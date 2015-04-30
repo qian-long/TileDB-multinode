@@ -7,7 +7,7 @@ for NODE in `seq 0 8`
 do
   mkdir -p /data/qlong/workspaces/workspace-$NODE/data
   touch /data/qlong/workspaces/workspace-$NODE/logfile
-  cat /dev/null > workspaces/workspace-$NODE/logfile
+  cat /dev/null > /data/qlong/workspaces/workspace-$NODE/logfile
 done;
 
 rm -rf /data/qlong/workspaces/workspace-[0-9]/Loader \

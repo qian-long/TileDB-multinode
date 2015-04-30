@@ -106,7 +106,7 @@ class CoordinatorNode {
     void test_parallel_load(std::string array_name,
         std::string filename, 
         PartitionType partition_type,
-        int num_samples);
+        int num_samples = 100);
     void test_join(std::string array_name_A, std::string array_name_B,
         std::string result_array_name);
     void test_filter(std::string);

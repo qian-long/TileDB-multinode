@@ -1,12 +1,9 @@
 #run all the 8 node tests
 
-for num in 8 4 2 1;
+for num_nodes in 9 5 3;
 do
-  for dataset in 500 1 2;
+  for trial in 1 2 3;
   do
-    for trial in 1 2 3;
-    do 
-      ./runner $dataset $num $trial
-    done;
+    ./runner.sh $num_nodes $trial
   done;
 done;

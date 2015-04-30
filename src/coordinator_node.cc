@@ -869,7 +869,7 @@ void CoordinatorNode::test_load(std::string array_name,
 
 void CoordinatorNode::test_parallel_load(std::string array_name,
     std::string filename,
-    PartitionType partition_type, int num_samples = 10) {
+    PartitionType partition_type, int num_samples) {
     logger_->log(LOG_INFO, "Test parallel loading array_name: " + array_name + " filename: " + filename);
 
     logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_name);
