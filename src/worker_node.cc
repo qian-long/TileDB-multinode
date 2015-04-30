@@ -712,6 +712,11 @@ int WorkerNode::handle(JoinMsg* msg) {
           msg->array_name_B(),
           msg->result_array_name());
 
+      logger_->log_start(LOG_INFO, "Write metadata to disk");
+      metadata = MetaData(ORDERED_PARTITION);
+      md_manager_->store_metadata(msg->result_array_name(), metadata);
+      logger_->log_end(LOG_INFO);
+
       break;
     case HASH_PARTITION:
       logger_->log_start(LOG_INFO, "Join hash partition on " + msg->array_name_A() + " and " + msg->array_name_B()); 
@@ -732,7 +737,7 @@ int WorkerNode::handle(JoinMsg* msg) {
   delete md_A;
   delete md_B;
 
-
+  return 0;
 }
 
 int WorkerNode::handle_join_ordered(std::string array_name_A,
@@ -1429,11 +1434,15 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   logger_->log_end(LOG_INFO);
 
   // Clean up
+  logger_->log(LOG_INFO, "Closing ad_A");
   executor_->storage_manager()->close_array(ad_A);
+  logger_->log(LOG_INFO, "Closing ad_B");
   executor_->storage_manager()->close_array(ad_B);
+  logger_->log(LOG_INFO, "Closing result_fd");
   executor_->storage_manager()->close_fragment(result_fd);
 
   // Update the fragment information of result array at the consolidator
+  logger_->log(LOG_INFO, "Updating fragment information");
   executor_->update_fragment_info(result_array_name);
 
 
