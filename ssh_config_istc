@@ -34,6 +34,22 @@ Host istc9
   HostName istc9.csail.mit.edu
   User qlong
   IdentityFile ~/.ssh/qlong
+Host istc10
+  HostName istc10.csail.mit.edu
+  User qlong
+  IdentityFile ~/.ssh/qlong
+Host istc11
+  HostName istc11.csail.mit.edu
+  User qlong
+  IdentityFile ~/.ssh/qlong
+Host istc12
+  HostName istc12.csail.mit.edu
+  User qlong
+  IdentityFile ~/.ssh/qlong
+Host istc13
+  HostName istc13.csail.mit.edu
+  User qlong
+  IdentityFile ~/.ssh/qlong
 Host istc1.csail.mit.edu
   User qlong
   IdentityFile ~/.ssh/qlong
@@ -59,5 +75,17 @@ Host istc8.csail.mit.edu
   User qlong
   IdentityFile ~/.ssh/qlong
 Host istc9.csail.mit.edu
+  User qlong
+  IdentityFile ~/.ssh/qlong
+Host istc10.csail.mit.edu
+  User qlong
+  IdentityFile ~/.ssh/qlong
+Host istc11.csail.mit.edu
+  User qlong
+  IdentityFile ~/.ssh/qlong
+Host istc12.csail.mit.edu
+  User qlong
+  IdentityFile ~/.ssh/qlong
+Host istc13.csail.mit.edu
   User qlong
   IdentityFile ~/.ssh/qlong
