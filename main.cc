@@ -264,11 +264,13 @@ std::string get_array_name(std::string filename) {
 
 // This is the user
 int main(int argc, char** argv) {
+  /*
   double c = .99;
   double e = .05;
   for (int i = 2; i <= 12; ++i) {
   std::cout << "confidence = " << c << " error = " << e << " p = " << i << " num_samples: " << get_num_samples(c, e, i) << "\n";
   }
+  */
 
   int myrank, nprocs;
 
