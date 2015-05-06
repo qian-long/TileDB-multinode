@@ -676,7 +676,7 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
     case HASH_PARTITION:
       handle_parallel_load_hash(pmsg);
 
-      logger_->log_start(LOG_INFO, "Writing metadata to disk");
+      logger_->log_start(LOG_INFO, "write metadata");
       metadata = MetaData(HASH_PARTITION);
       md_manager_->store_metadata(pmsg.array_schema().array_name(), metadata);
       logger_->log_end(LOG_INFO);
@@ -690,15 +690,15 @@ void CoordinatorNode::handle_parallel_load(ParallelLoadMsg& pmsg) {
 
 // participates in all to all mpi exchange
 void CoordinatorNode::handle_parallel_load_hash(ParallelLoadMsg& pmsg) {
-  logger_->log(LOG_INFO, "Participating in all to all communication");
+  logger_->log(LOG_INFO, "{Query Start: pload hash}");
   mpi_handler_->finish_recv_a2a();
 }
 
 void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
-  logger_->log(LOG_INFO, "In handle parallel load ordered");
+  logger_->log(LOG_INFO, "{Query Start: pload ordered}");
 
   // receive samples from all workers
-  logger_->log(LOG_INFO, "Receiving samples from workers");
+  logger_->log_start(LOG_INFO, "Receive samples");
   std::vector<uint64_t> samples;
   std::stringstream ss;
   for (int worker = 1; worker <= nworkers_; ++worker) {
@@ -712,25 +712,28 @@ void CoordinatorNode::handle_parallel_load_ordered(ParallelLoadMsg& pmsg) {
     }
     // TODO cleanup
   }
+  logger_->log_end(LOG_INFO);
 
   // pick nworkers - 1 samples for the n - 1 "stumps"
-  logger_->log(LOG_INFO, "Getting partitions");
+  logger_->log_start(LOG_INFO, "compute partitions");
   std::vector<uint64_t> partitions = get_partitions(samples, nworkers_ - 1);
+  logger_->log_end(LOG_INFO);
 
-  logger_->log(LOG_INFO, "sending partitions back to all workers");
+  logger_->log_start(LOG_INFO, "send partitions");
   // send partition infor back to all workers
   logger_->log(LOG_INFO, "Partitions: " + util::to_string(partitions));
   SamplesMsg msg(partitions);
   for (int worker = 1; worker <= nworkers_ ; worker++) {
     mpi_handler_->send_samples_msg(&msg, worker);
   }
+  logger_->log_end(LOG_INFO);
 
-  logger_->log_start(LOG_INFO, "Participating in all to all communication");
+  logger_->log_start(LOG_INFO, "N to N Shuffle");
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
 
   // store metadata to disk
-  logger_->log_start(LOG_INFO, "Writing metadata to disk");
+  logger_->log_start(LOG_INFO, "Write metadata");
   MetaData metadata(ORDERED_PARTITION,
       std::pair<uint64_t, uint64_t>(partitions[0], partitions[partitions.size()-1]),
       partitions);
@@ -782,19 +785,19 @@ void CoordinatorNode::handle_join(JoinMsg& msg) {
 // TODO
 void CoordinatorNode::handle_join_ordered(JoinMsg& msg) {
 
-  logger_->log_start(LOG_INFO, "All to all shuffle array A bounding coords");
+  logger_->log_start(LOG_INFO, "N to N shuffle array A bounding coords");
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
 
-  logger_->log_start(LOG_INFO, "All to all shuffle of array B bounding coords");
+  logger_->log_start(LOG_INFO, "N to N shuffle array B bounding coords");
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
 
-  logger_->log_start(LOG_INFO, "All to all shuffle of array A join fragments");
+  logger_->log_start(LOG_INFO, "N to N shuffle array A join fragments");
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
 
-  logger_->log_start(LOG_INFO, "All to all shuffle of array B join fragments");
+  logger_->log_start(LOG_INFO, "N to N shuffle array B join fragments");
   mpi_handler_->finish_recv_a2a();
   logger_->log_end(LOG_INFO);
 
@@ -848,7 +851,8 @@ void CoordinatorNode::test_load(std::string array_name,
     std::string filename, 
     PartitionType partition_type,
     LoadMsg::LoadMethod method) {
-  logger_->log(LOG_INFO, "Test loading array_name: " + array_name + " filename: " + filename);
+
+  logger_->log(LOG_INFO, "TEST START load array_name: " + array_name + " filename: " + filename);
   logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_name);
 
   ArraySchema * array_schema = get_test_arrayschema(array_name);
@@ -861,16 +865,15 @@ void CoordinatorNode::test_load(std::string array_name,
 
   send_and_receive(lmsg);
 
-  logger_->log(LOG_INFO, "Test Load Done");
-
   // TODO don't leak memory
-  delete array_schema;
+  //delete array_schema;
 }
 
 void CoordinatorNode::test_parallel_load(std::string array_name,
     std::string filename,
     PartitionType partition_type, int num_samples) {
-    logger_->log(LOG_INFO, "Test parallel loading array_name: " + array_name + " filename: " + filename);
+
+    logger_->log(LOG_INFO, "TEST START pload array_name: " + array_name + " filename: " + filename);
 
     logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_name);
 
@@ -884,21 +887,17 @@ void CoordinatorNode::test_parallel_load(std::string array_name,
 
   send_and_receive(msg);
 
-  logger_->log(LOG_INFO, "Test Parallel Load Done");
-
-
-  delete array_schema;
+  //delete array_schema;
 }
 
 void CoordinatorNode::test_join(std::string array_name_A,
     std::string array_name_B, std::string result_array_name) {
-  logger_->log(LOG_INFO, "Test join Start on array_name_A: " + array_name_A + " array_name_B: " + array_name_B + " result_array_name: " + result_array_name);
+  logger_->log(LOG_INFO, "TEST START join Start on array_name_A: " + array_name_A + " array_name_B: " + array_name_B + " result_array_name: " + result_array_name);
 
   logger_->log(LOG_INFO, "Sending JOIN MSG to all workers");
   JoinMsg msg = JoinMsg(array_name_A, array_name_B, result_array_name); 
   send_and_receive(msg);
 
-  logger_->log(LOG_INFO, "Test join Done");
 }
 
 void CoordinatorNode::test_filter(std::string array_name) {
@@ -922,18 +921,45 @@ void CoordinatorNode::test_filter(std::string array_name) {
   //delete array_schema;
 }
 
-void CoordinatorNode::test_subarray(std::string array_name) {
-  logger_->log(LOG_INFO, "Start SubArray");
+void CoordinatorNode::test_subarray_sparse(std::string array_name) {
+  logger_->log(LOG_INFO, "TEST START subarray sparse array_name: " + array_name);
   ArraySchema* array_schema = get_test_arrayschema(array_name);
   std::vector<double> vec;
 
-  // .5 selectivity
-  vec.push_back(0); vec.push_back(1000000);
-  vec.push_back(0); vec.push_back(500000);
 
-  SubarrayMsg sbmsg(array_name+"_subarray", *array_schema, vec);
+  if (array_name.compare(0, 4, "test") == 0) {
+    // .5 selectivity [0, 10000]
+    vec.push_back(0); vec.push_back(10000);
+    vec.push_back(0); vec.push_back(5000);
+  } else {
+    vec.push_back(40000000); vec.push_back(51500000);
+    vec.push_back(125000000); vec.push_back(136500000);
+  }
+
+  SubarrayMsg sbmsg(array_name + "_subarrays", *array_schema, vec);
   send_and_receive(sbmsg);
-  logger_->log(LOG_INFO, "Test Subarray Done");
+
+  // don't leak memory
+  //delete array_schema;
+}
+
+void CoordinatorNode::test_subarray_dense(std::string array_name) {
+  logger_->log(LOG_INFO, "TEST START subarray sparse array_name: " + array_name);
+  ArraySchema* array_schema = get_test_arrayschema(array_name);
+  std::vector<double> vec;
+
+
+  if (array_name.compare(0, 4, "test") == 0) {
+    // .5 selectivity [0, 10000]
+    vec.push_back(0); vec.push_back(10000);
+    vec.push_back(0); vec.push_back(5000);
+  } else {
+    vec.push_back(106000000); vec.push_back(106050000);
+    vec.push_back(130700000); vec.push_back(130750000);
+  }
+
+  SubarrayMsg sbmsg(array_name + "_subarrayd", *array_schema, vec);
+  send_and_receive(sbmsg);
 
   // don't leak memory
   //delete array_schema;

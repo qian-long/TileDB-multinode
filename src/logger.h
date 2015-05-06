@@ -37,8 +37,12 @@ class Logger {
     std::string time_message_;
 
     // current timing start (in seconds)
-    double start_time_;
+    double tstart_wall_;
+    double tstart_cpu_;
 
+    // helper methods
+    double get_wall_time();
+    double get_cpu_time();
 
 };
 

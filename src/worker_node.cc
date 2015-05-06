@@ -192,11 +192,11 @@ int WorkerNode::handle(DefineArrayMsg* msg) {
  **               HANDLE SubarrayMsg                 **
  ******************************************************/
 int WorkerNode::handle(SubarrayMsg* msg) {
-  logger_->log(LOG_INFO, "Received subarray \n");
+  logger_->log_start(LOG_INFO, "Local subarray");
 
   executor_->subarray(msg->array_schema().array_name(), msg->ranges(), msg->result_array_name());
 
-  logger_->log(LOG_INFO, "Finished subarray ");
+  logger_->log_end(LOG_INFO);
 
   return 0;
 }
@@ -478,12 +478,12 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
 }
 
 int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema, int num_samples) {
-  logger_->log(LOG_INFO, "Handle parallel load ordered");
+  logger_->log(LOG_INFO, "{Query Start: pload ordered}");
 
   std::string filepath = get_data_path(filename);
 
   // inject cell_ids
-  logger_->log_start(LOG_INFO, "Inject cell ids and resevoir sample");
+  logger_->log_start(LOG_INFO, "inject cell_ids and sample");
   CSVFile csv_in(filepath, CSVFile::READ);
   CSVLine line_in, line_out;
   ArraySchema::Order order = array_schema.order();
@@ -556,7 +556,7 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   logger_->log_end(LOG_INFO);
 
   // receive partitions from coordinator
-  logger_->log_start(LOG_INFO, "Receiving partitions from coordinator");
+  logger_->log_start(LOG_INFO, "Receive boundaries from coordinator");
   SamplesMsg* smsg = mpi_handler_->receive_samples_msg(MASTER);
   std::vector<uint64_t> partitions = smsg->samples();
   logger_->log_end(LOG_INFO);
@@ -595,12 +595,14 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   // sort and make tiles
   std::string sorted_filepath = executor_->loader()->workspace() + "/PORDERED_sorted_" + array_schema.array_name() + "_" + frag_name + ".csv";
 
-  logger_->log_start(LOG_INFO, "Sorting csv file " + outpath + " into " + sorted_filepath);
+  logger_->log(LOG_INFO, "Sorting csv file " + outpath + " into " + sorted_filepath);
+  logger_->log_start(LOG_INFO, "sort csv");
   executor_->loader()->sort_csv_file(outpath, sorted_filepath, array_schema);
   logger_->log_end(LOG_INFO);
 
   // Make tiles
-  logger_->log_start(LOG_INFO, "Starting make tiles on " + sorted_filepath);
+  logger_->log(LOG_INFO, "Starting make tiles on " + sorted_filepath);
+  logger_->log_start(LOG_INFO, "make tiles");
   StorageManager::FragmentDescriptor* fd =
     executor_->storage_manager()->open_fragment(&array_schema, frag_name,
                                                 StorageManager::CREATE);
@@ -624,8 +626,9 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   logger_->log_end(LOG_INFO);
   executor_->storage_manager()->close_fragment(fd);
 
+
   // set metadata
-  logger_->log_start(LOG_INFO, "Storing metadata");
+  logger_->log_start(LOG_INFO, "store metadata");
   MetaData metadata(ORDERED_PARTITION,
       std::pair<uint64_t, uint64_t>(partitions[myrank_-1], partitions[myrank_]),
       partitions);
@@ -635,13 +638,21 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
   // cleanup
   delete smsg;
 
+#ifdef NDEBUG
+  remove(sorted_filepath.c_str());
+  remove(outpath.c_str());
+  remove(injected_filepath.c_str());
+#endif
+
+
   return 0;
 }
 
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
 
-  logger_->log(LOG_INFO, "Handle parallel load hash array : " + array_schema.array_name());
-  logger_->log_start(LOG_INFO, "Hashing + Data Shuffle");
+  logger_->log(LOG_INFO, "{Query Start: pload hash}");
+
+  logger_->log_start(LOG_INFO, "hash while data shuffle");
   std::string filepath = get_data_path(filename);
   std::string outpath = executor_->loader()->workspace() + "/PHASH_" + filename;
 
@@ -683,15 +694,20 @@ int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& arr
   mpi_handler_->finish_recv_a2a(outfile);
   outfile.close();
 
+  logger_->log_end(LOG_INFO); // finish timing for hash and data shuffle
 
-  logger_->log_end(LOG_INFO);
   // invoke local load on received data
   logger_->log(LOG_INFO, "Invoking local executor load filename: " + outpath + " array_name: " + array_schema.array_name());
 
-  logger_->log(LOG_INFO, "Local Load");
+  logger_->log_start(LOG_INFO, "Local Load");
   executor_->load(outpath, array_schema.array_name());
 
   logger_->log_end(LOG_INFO);
+
+  // cleanup
+#ifdef NDEBUG
+  remove(outpath.c_str());
+#endif
 }
 
 /******************************************************
@@ -719,7 +735,10 @@ int WorkerNode::handle(JoinMsg* msg) {
 
       break;
     case HASH_PARTITION:
-      logger_->log_start(LOG_INFO, "Join hash partition on " + msg->array_name_A() + " and " + msg->array_name_B()); 
+      logger_->log(LOG_INFO, "Join hash partition on " + msg->array_name_A() + " and " + msg->array_name_B()); 
+
+      logger_->log(LOG_INFO, "{Query Start: join hash}");
+      logger_->log_start(LOG_INFO, "Local join");
       executor_->join(msg->array_name_A(), msg->array_name_B(), msg->result_array_name());
       logger_->log_end(LOG_INFO);
 
@@ -743,6 +762,8 @@ int WorkerNode::handle(JoinMsg* msg) {
 int WorkerNode::handle_join_ordered(std::string array_name_A,
     std::string array_name_B,
     std::string result_array_name) {
+
+  logger_->log_start(LOG_INFO, "{Query Start: join ordered}");
   logger_->log(LOG_INFO, "In handle join ordered, joining " + array_name_A + " and " + array_name_B + " into " + result_array_name);
 
   // Check that arrays A and B exist but result doesn't
@@ -785,7 +806,10 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 #ifdef DEBUG
   logger_->log(LOG_INFO, "My bounding coords A: " + util::to_string(fd_A->fragment_info()->bounding_coordinates_));
 #endif
-  logger_->log_start(LOG_INFO, "Sending and receiving bounding coords of " + array_name_A + " to everyone");
+  logger_->log(LOG_INFO, "Sending and receiving bounding coords of " + array_name_A + " to everyone");
+
+
+  logger_->log_start(LOG_INFO, "N to N shuffle array A bounding coords");
   std::vector<std::ostream *> rstreams;
   for (int i = 0; i < nprocs_; ++i) {
     std::stringstream *ss = new std::stringstream();
@@ -818,7 +842,9 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 #ifdef DEBUG
   logger_->log(LOG_INFO, "My bounding coords B: " + util::to_string(fd_B->fragment_info()->bounding_coordinates_));
 #endif
-  logger_->log_start(LOG_INFO, "Send and recv bounding coords of " + array_name_B);
+  logger_->log(LOG_INFO, "Send and recv bounding coords of " + array_name_B);
+
+  logger_->log_start(LOG_INFO, "N to N shuffle array B bounding coords");
   // reuse rstreams b/c memory is copied into the BCMsg
   for (int i = 0; i < nprocs_; ++i) {
     delete rstreams[i];
@@ -880,7 +906,8 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     }
   }
 
-  //logger_->log(LOG_INFO, "Computing data shuffle costs");
+  logger_->log(LOG_INFO, "Computing data shuffle costs");
+  logger_->log_start(LOG_INFO, "compute cost matrix");
   StorageManager::BoundingCoordinates bounding_coords_A;
   StorageManager::BoundingCoordinates bounding_coords_B;
 
@@ -929,6 +956,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
     }
   }
+  logger_->log_end(LOG_INFO);
 
   // TODO move to helper functions, ugh
 #ifdef DEBUG
@@ -967,6 +995,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
 #endif
 
+  logger_->log_start(LOG_INFO, "compute overlaps");
   std::map<int, std::vector<uint64_t> > to_send_tile_ranks_A;
   std::map<int, std::vector<uint64_t> > to_send_tile_ranks_B;
 
@@ -1039,7 +1068,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
 
   }
 
-  logger_->log(LOG_INFO, "Finished gathering overlapping tiles for sending");
+  logger_->log_end(LOG_INFO);
 
   for (std::map<int, std::vector<uint64_t> >::iterator it = to_send_tile_ranks_A.begin(); it != to_send_tile_ranks_A.end(); ++it) {
     assert(it->first != myrank_);
@@ -1083,6 +1112,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     init_received_tiles_A[i] = false;
   }
 
+  logger_->log_start(LOG_INFO, "N to N shuffle array A join fragments");
   // for each receiver
   for(std::map<int, std::vector<uint64_t> >::iterator it_rank_A = to_send_tile_ranks_A.begin(); 
       it_rank_A != to_send_tile_ranks_A.end(); ++it_rank_A) {
@@ -1168,6 +1198,8 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       fd_A->fragment_info()->array_schema_->capacity(),
       start_ranks_A);
 
+  logger_->log_end(LOG_INFO);
+
 #ifdef DEBUG
 
   for (int i = 1; i < nprocs_; ++i) {
@@ -1224,6 +1256,8 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   }
 
   // for each receiver
+
+  logger_->log_start(LOG_INFO, "N to N shuffle array B join fragments");
   for(std::map<int, std::vector<uint64_t> >::iterator it_rank_B = to_send_tile_ranks_B.begin(); 
       it_rank_B != to_send_tile_ranks_B.end(); ++it_rank_B) {
 
@@ -1311,6 +1345,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
       fd_B->fragment_info()->array_schema_->capacity(),
       start_ranks_B);
 
+  logger_->log_end(LOG_INFO);
 #ifdef DEBUG
 
   for (int i = 1; i < nprocs_; ++i) {
@@ -1338,6 +1373,7 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
   }
 #endif
 
+  logger_->log_start(LOG_INFO, "compute precedes or succeeds");
   std::vector<Tile**> *all_precedes_local_A = new std::vector<Tile**>();
   std::vector<Tile**> *all_succeeds_local_A = new std::vector<Tile**>();
   std::vector<Tile**> *all_precedes_local_B = new std::vector<Tile**>();
@@ -1401,6 +1437,8 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     }
   }
 
+  logger_->log_end(LOG_INFO);
+
   // check received tiles A either precede or succeed local array A partition
   // TODO add assertions
 
@@ -1426,7 +1464,9 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
                                       StorageManager::CREATE);
 
 
-  logger_->log_start(LOG_INFO, "Do local join with the extra tiles");
+  logger_->log(LOG_INFO, "Do local join with the extra tiles");
+
+  logger_->log_start(LOG_INFO, "Local join");
   executor_->query_processor()->join_irregular_with_extra_tiles(
           all_precedes_local_A, all_succeeds_local_A,
           all_precedes_local_B, all_succeeds_local_B,

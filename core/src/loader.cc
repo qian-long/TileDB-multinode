@@ -369,7 +369,7 @@ void Loader::sort_csv_file(const std::string& to_be_sorted_filename,
   cmd += to_be_sorted_filename + " > " + sorted_filename;
 
   // Invoke Linux sort command
-  std::cout << "linux sort command: " << cmd << "\n";
+  //std::cout << "linux sort command: " << cmd << "\n";
   system(cmd.c_str());
 }
 

@@ -25,14 +25,13 @@ void Logger::log(std::string log_info, std::string message) {
 
   myfile << "[" << cur_time << "] " << log_info << ": " << message << "\n";
   myfile.close();  
-  
+
   LOGGER_DEBUG_MSG(message, log_info);
 }
 
 void Logger::log_start(std::string log_info, std::string message) {
-  struct timeval tim;
-  gettimeofday(&tim, NULL);
-  start_time_ = tim.tv_sec+(tim.tv_usec/1000000.0);
+  tstart_wall_ = get_wall_time();
+  tstart_cpu_ = get_wall_time();
   time_message_ = message;
   log(log_info, "LOG_START " + message);
 }
@@ -40,10 +39,11 @@ void Logger::log_start(std::string log_info, std::string message) {
 void Logger::log_end(std::string log_info) {
   struct timeval tim;
   gettimeofday(&tim, NULL);
-  double tend = tim.tv_sec+(tim.tv_usec/1000000.0);
+  double tend_wall = get_wall_time();
+  double tend_cpu = get_cpu_time();
 
   std::stringstream ss;
-  ss << "LOG_END " << time_message_ << " DURATION: " << tend - start_time_ << " secs";
+  ss << "LOG_END {" << time_message_ << "} WALL TIME: {" << tend_wall - tstart_wall_ << "} secs " << "CPU TIME: {" << tend_cpu - tstart_cpu_ << "} secs ";
   log(log_info, ss.str());
 }
 
@@ -59,5 +59,18 @@ std::string Logger::current_timestring() {
 
   std::string timestring = std::string(buffer, len);
   return timestring;
+}
+
+double Logger::get_wall_time() {
+  struct timeval time;
+  if (gettimeofday(&time,NULL)) {
+    //Handle error
+    return 0;
+  }
+  return (double)time.tv_sec + (double)time.tv_usec * .000001;
+}
+
+double Logger::get_cpu_time() {
+  return (double)clock() / CLOCKS_PER_SEC;
 }
 

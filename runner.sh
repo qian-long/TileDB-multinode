@@ -1,10 +1,10 @@
 #! /bin/bash
 declare -a NODES=("istc2" "istc3" "istc4" "istc5" "istc6" "istc7" "istc8" "istc9" "istc10" "istc11" "istc12" "istc13")
 NUM_NODES=$1
-#DATASET1=ais_2009_01_to_06_allzones
+#DATASET1=ais_2009_01_allzones
 DATASET1=test_D
 FILENAME1=$DATASET1.csv
-#DATASET2=ais_2009_07_to_12_allzones
+#DATASET2=ais_2009_09_allzones
 DATASET2=test_E
 FILENAME2=$DATASET2.csv
 TEMP_NAME=$( date +"%m-%dT%H:%M")

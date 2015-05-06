@@ -110,7 +110,8 @@ class CoordinatorNode {
     void test_join(std::string array_name_A, std::string array_name_B,
         std::string result_array_name);
     void test_filter(std::string);
-    void test_subarray(std::string);
+    void test_subarray_sparse(std::string);
+    void test_subarray_dense(std::string);
     void test_aggregate(std::string);
 
     ArraySchema* get_test_arrayschema(std::string array_name);

@@ -98,6 +98,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   array_name = array_name_base + "_phash";
   std::cout << "Parallel Load Hash Test " << array_name << "\n";
 
+  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [pload hash]");
   tstart = get_wall_time();
   ctstart = get_cpu_time();
 
@@ -106,7 +107,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   ctend = get_cpu_time();
   tend = get_wall_time();
 
-  len = snprintf(buffer, 1000, "[TIME] [pload hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+  len = snprintf(buffer, 1000, "\n[END TEST] [pload hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
 
@@ -114,6 +115,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   drop_caches();
   array_name = array_name_base + "_pordered";
   std::cout << "Parallel Load Ordered Test " << array_name << "\n";
+  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [pload ordered]");
 
   tstart = get_wall_time();
   ctstart = get_cpu_time();
@@ -124,16 +126,82 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   ctend = get_cpu_time();
   tend = get_wall_time();
 
-
-  len = snprintf(buffer, 1000, "[TIME] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+  len = snprintf(buffer, 1000, "\n[END TEST] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
 
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
 
-  // SUBARRAY TEST
-  //coordinator->test_subarray_sparse(array_name);
-  //
-  //coordinator->test_subarray_dense(array_name);
+  // SUBARRAY HASH SPARSE TEST
+  drop_caches();
+  array_name = array_name_base + "_phash";
+  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [subarrays hash]");
+
+  tstart = get_wall_time();
+  ctstart = get_cpu_time();
+
+  coordinator->test_subarray_sparse(array_name);
+
+  ctend = get_cpu_time();
+  tend = get_wall_time();
+
+  len = snprintf(buffer, 1000, "\n[END TEST] [subarrays hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
+
+
+
+  // SUBARRAY ORDERED SPARSE TEST
+  drop_caches();
+  array_name = array_name_base + "_pordered";
+  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [subarrays ordered]");
+
+  tstart = get_wall_time();
+  ctstart = get_cpu_time();
+
+  coordinator->test_subarray_sparse(array_name);
+
+  ctend = get_cpu_time();
+  tend = get_wall_time();
+
+  len = snprintf(buffer, 1000, "\n[END TEST] [subarrays ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
+
+
+  // SUBARRAY HASH DENSE TEST
+  drop_caches();
+  array_name = array_name_base + "_phash";
+  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [subarrayd hash]");
+
+  tstart = get_wall_time();
+  ctstart = get_cpu_time();
+
+  coordinator->test_subarray_dense(array_name);
+
+  ctend = get_cpu_time();
+  tend = get_wall_time();
+
+  len = snprintf(buffer, 1000, "\n[END TEST] [subarrayd hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
+
+
+  // SUBARRAY ORDERED DENSE TEST
+  drop_caches();
+  array_name = array_name_base + "_pordered";
+  coordinator->logger()->log(LOG_INFO, "[RUN TEST] [subarrayd ordered]");
+
+  tstart = get_wall_time();
+  ctstart = get_cpu_time();
+
+  coordinator->test_subarray_dense(array_name);
+
+  ctend = get_cpu_time();
+  tend = get_wall_time();
+
+  len = snprintf(buffer, 1000, "\n[END TEST] [subarrayd ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
 
 
   std::string array_name2;
@@ -147,6 +215,8 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     array_name2 = array_name_base2 + "_phash";
     std::cout << "Loading array 2 " << array_name2 << "\n";
 
+    coordinator->logger()->log(LOG_INFO, "[RUN TEST] [pload hash]");
+
     tstart = get_wall_time();
     ctstart = get_cpu_time();
 
@@ -155,7 +225,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     ctend = get_cpu_time();
     tend = get_wall_time();
 
-    len = snprintf(buffer, 1000, "[TIME] [pload hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+    len = snprintf(buffer, 1000, "\n[END TEST] [pload hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
 
     coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
     printf("%s", buffer);
@@ -164,6 +234,8 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     std::cout << "Start test join\n";
     drop_caches();
     array_name = array_name_base + "_phash";
+    coordinator->logger()->log(LOG_INFO, "[RUN TEST] [join hash]");
+
 
     tstart = get_wall_time();
     ctstart = get_cpu_time();
@@ -174,7 +246,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     tend = get_wall_time();
 
 
-    len = snprintf(buffer, 1000, "[TIME] [join hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+    len = snprintf(buffer, 1000, "\n[END TEST] [join hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
     coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
     printf("%s", buffer);
   }
@@ -190,6 +262,8 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     array_name2 = array_name_base2 + "_pordered";
     std::cout << "Loading array 2 " << array_name2 << "\n";
     drop_caches();
+    
+    coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [pload ordered]");
 
     tstart = get_wall_time();
     ctstart = get_cpu_time();
@@ -199,7 +273,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     ctend = get_cpu_time();
     tend = get_wall_time();
 
-    len = snprintf(buffer, 1000, "[TIME] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+    len = snprintf(buffer, 1000, "\n[END TEST] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
     coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
     printf("%s", buffer);
 
@@ -208,6 +282,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     array_name = array_name_base + "_pordered";
     drop_caches();
 
+    coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [join ordered]");
     tstart = get_wall_time();
     ctstart = get_cpu_time();
 
@@ -217,7 +292,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     tend = get_wall_time();
 
 
-    len = snprintf(buffer, 1000, "[TIME] [join ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+    len = snprintf(buffer, 1000, "\n[END TEST] [join ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
     coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
     printf("%s", buffer);
 
