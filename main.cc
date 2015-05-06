@@ -135,7 +135,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   //
   //coordinator->test_subarray_dense(array_name);
 
-  
+
   std::string array_name2;
   // HASH JOIN TEST
   std::cout << "HASH JOIN TEST\n";
@@ -143,6 +143,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     std::cout << "Missing 2nd array name\n";
   } else {
     // hash load array 2
+    drop_caches();
     array_name2 = array_name_base2 + "_phash";
     std::cout << "Loading array 2 " << array_name2 << "\n";
 
@@ -161,6 +162,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
 
 
     std::cout << "Start test join\n";
+    drop_caches();
     array_name = array_name_base + "_phash";
 
     tstart = get_wall_time();
@@ -187,6 +189,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     // order load array 2
     array_name2 = array_name_base2 + "_pordered";
     std::cout << "Loading array 2 " << array_name2 << "\n";
+    drop_caches();
 
     tstart = get_wall_time();
     ctstart = get_cpu_time();
@@ -203,6 +206,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
 
     std::cout << "Start test join for ordered partition\n";
     array_name = array_name_base + "_pordered";
+    drop_caches();
 
     tstart = get_wall_time();
     ctstart = get_cpu_time();
