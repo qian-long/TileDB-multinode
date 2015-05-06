@@ -7,103 +7,40 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cmath>
 #include "debug.h"
 #include "coordinator_node.h"
 #include "worker_node.h"
 #include "constants.h"
 #include "logger.h"
 
-
-const char* get_filename(int dataset_num, int numprocs) {
-  numprocs--;
-  switch(dataset_num) {
-    case 1:
-      switch(numprocs) {
-        case 1:
-          return "500MB_500MB";
-        case 2:
-          return "250MB_500MB";
-        case 4:
-          return "125MB_500MB";
-        case 8:
-          return "62.5MB_500MB";
-        default:
-          DEBUG_MSG("not a valid number of machines"); 
-          std::exit(-1);
-      }
-    case 2:
-      switch(numprocs) {
-        case 1:
-          return "1GB_1GB";
-        case 2:
-          return "500MB_1GB";
-        case 4:
-          return "250MB_1GB";
-        case 8:
-          return "125MB_1GB";
-        default:
-          DEBUG_MSG("not a valid number of machines"); 
-          std::exit(-1);
-      }
-    case 3:
-      switch(numprocs) {
-        case 1:
-          return "2GB_2GB";
-        case 2:
-          return "1GB_2GB";
-        case 4:
-          return "500MB_2GB";
-        case 8:
-          return "250MB_2GB";
-        default:
-          DEBUG_MSG("not a valid number of machines"); 
-          std::exit(-1);
-      }
-    default:
-      DEBUG_MSG("not a valid data set number"); 
-      std::exit(-1);
+// helpers
+void drop_caches() {
+  std::string command = "/usr/local/bin/drop_caches";
+  if (system(command.c_str()) == 0) {
+    std::cout << "Drop caches successful\n";
+  } else {
+    std::cout << "Drop caches unsuccessful\n";
   }
 }
 
+double get_wall_time(){
+  struct timeval time;
+  if (gettimeofday(&time,NULL)) {
+    //Handle error
+    return 0;
+  }
+  return (double)time.tv_sec + (double)time.tv_usec * .000001;
+}
 
-void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, std::string filename, std::string array_name_base2 = "", std::string filename2 = "") {
-  struct timeval tim;  
-  gettimeofday(&tim, NULL);  
-  double t1 = tim.tv_sec+(tim.tv_usec/1000000.0);  
-  char buffer[1000];
-  int len;
-  std::string array_name;
-  int num_samples = 1000;
-  double tstart;
-  double tend;
+double get_cpu_time(){
+  return (double)clock() / CLOCKS_PER_SEC;
+}
 
-  // PARALLEL HASH LOAD TEST
-  array_name = array_name_base + "_phash";
-  std::cout << "Parallel Load Hash Test " << array_name << "\n";
-  coordinator->test_parallel_load(array_name, filename, HASH_PARTITION);
 
-  gettimeofday(&tim, NULL);  
-  double t2 = tim.tv_sec+(tim.tv_usec/1000000.0);  
-
-  len = snprintf(buffer, 1000, "Hash Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), t2 - t1);
-  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
-  printf("%s", buffer);
-
-  // PARALLEL ORDERED LOAD TEST
-  array_name = array_name_base + "_pordered";
-
-  std::cout << "Parallel Load Ordered Test " << array_name << "\n";
-  gettimeofday(&tim, NULL);  
-  tstart = tim.tv_sec+(tim.tv_usec/1000000.0);  
-  coordinator->test_parallel_load(array_name, filename, ORDERED_PARTITION, num_samples);
-
-  gettimeofday(&tim, NULL);  
-  tend = tim.tv_sec+(tim.tv_usec/1000000.0);  
-
-  len = snprintf(buffer, 1000, "Ordered Partition Load %s wall time: %.6lf secs\n", array_name.c_str(), tend - tstart);
-  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
-  printf("%s", buffer);
-
+// TODO
+void load_test_suite() {
+  // test centralized loads and baseline, will be super slow...
   // HASH LOAD TEST
   /*
   gettimeofday(&tim, NULL);
@@ -138,6 +75,67 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   */
 
 
+}
+
+int get_num_samples(double confidence, double error, double p) {
+  // round up
+  return (1.0 / (error * error)) * log(2*p/(1.0 - confidence)) + 0.5;
+}
+
+void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string array_name_base, std::string filename, std::string array_name_base2 = "", std::string filename2 = "") {
+  char buffer[1000];
+  int len;
+  std::string array_name;
+  double tstart = 0;
+  double tend = 0;
+  double ctstart = 0;
+  double ctend = 0;
+
+  int num_samples = get_num_samples(.99, .05, num_workers - 1);
+  std::cout << "num_workers: " << num_workers << " num_samples_per_worker: " << num_samples << "\n";
+
+  // PARALLEL HASH LOAD TEST
+  array_name = array_name_base + "_phash";
+  std::cout << "Parallel Load Hash Test " << array_name << "\n";
+
+  tstart = get_wall_time();
+  ctstart = get_cpu_time();
+
+  coordinator->test_parallel_load(array_name, filename, HASH_PARTITION);
+
+  ctend = get_cpu_time();
+  tend = get_wall_time();
+
+  len = snprintf(buffer, 1000, "[TIME] [pload hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
+
+  // PARALLEL ORDERED LOAD TEST
+  drop_caches();
+  array_name = array_name_base + "_pordered";
+  std::cout << "Parallel Load Ordered Test " << array_name << "\n";
+
+  tstart = get_wall_time();
+  ctstart = get_cpu_time();
+
+
+  coordinator->test_parallel_load(array_name, filename, ORDERED_PARTITION, num_samples);
+
+  ctend = get_cpu_time();
+  tend = get_wall_time();
+
+
+  len = snprintf(buffer, 1000, "[TIME] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
+
+  // SUBARRAY TEST
+  //coordinator->test_subarray_sparse(array_name);
+  //
+  //coordinator->test_subarray_dense(array_name);
+
+  
   std::string array_name2;
   // HASH JOIN TEST
   std::cout << "HASH JOIN TEST\n";
@@ -147,19 +145,34 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
     // hash load array 2
     array_name2 = array_name_base2 + "_phash";
     std::cout << "Loading array 2 " << array_name2 << "\n";
+
+    tstart = get_wall_time();
+    ctstart = get_cpu_time();
+
     coordinator->test_parallel_load(array_name2, filename2, HASH_PARTITION);
 
-    gettimeofday(&tim, NULL);
-    tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
+    ctend = get_cpu_time();
+    tend = get_wall_time();
+
+    len = snprintf(buffer, 1000, "[TIME] [pload hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+
+    coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+    printf("%s", buffer);
+
 
     std::cout << "Start test join\n";
     array_name = array_name_base + "_phash";
+
+    tstart = get_wall_time();
+    ctstart = get_cpu_time();
+
     coordinator->test_join(array_name, array_name2, "join_" + array_name + "_" + array_name2);
 
-    gettimeofday(&tim, NULL);
-    tend = tim.tv_sec+(tim.tv_usec/1000000.0);
+    ctend = get_cpu_time();
+    tend = get_wall_time();
 
-    len = snprintf(buffer, 1000, "Hash Partition Join %s and %s wall time: %.6lf secs\n", array_name.c_str(), array_name2.c_str(), tend - tstart);
+
+    len = snprintf(buffer, 1000, "[TIME] [join hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
     coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
     printf("%s", buffer);
   }
@@ -174,19 +187,33 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
     // order load array 2
     array_name2 = array_name_base2 + "_pordered";
     std::cout << "Loading array 2 " << array_name2 << "\n";
+
+    tstart = get_wall_time();
+    ctstart = get_cpu_time();
+
     coordinator->test_parallel_load(array_name2, filename2, ORDERED_PARTITION, num_samples);
 
-    gettimeofday(&tim, NULL);
-    tstart = tim.tv_sec+(tim.tv_usec/1000000.0);
+    ctend = get_cpu_time();
+    tend = get_wall_time();
+
+    len = snprintf(buffer, 1000, "[TIME] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+    coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+    printf("%s", buffer);
+
 
     std::cout << "Start test join for ordered partition\n";
     array_name = array_name_base + "_pordered";
+
+    tstart = get_wall_time();
+    ctstart = get_cpu_time();
+
     coordinator->test_join(array_name, array_name2, "join_" + array_name + "_" + array_name2);
 
-    gettimeofday(&tim, NULL);
-    tend = tim.tv_sec+(tim.tv_usec/1000000.0);
+    ctend = get_cpu_time();
+    tend = get_wall_time();
 
-    len = snprintf(buffer, 1000, "Ordered Partition Join %s and %s wall time: %.6lf secs\n", array_name.c_str(), array_name2.c_str(), tend - tstart);
+
+    len = snprintf(buffer, 1000, "[TIME] [join ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
     coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
     printf("%s", buffer);
 
@@ -213,12 +240,10 @@ void run_test_suite(CoordinatorNode * coordinator, std::string array_name_base, 
   printf("%s", buffer);
 
 
-  len = snprintf(buffer, 100, "%.6lf seconds elapsed running dataset %s\n", t4-t1, array_name.c_str());  
+  len = snprintf(buffer, 100, "%.6lf seconds elapsed running dataset %s\n", t4-t1, array_name.c_str());
   coordinator->logger()->log(LOG_INFO,std::string(buffer, len));
   printf("%s", buffer);
 
-  // SUBARRAY TEST
-  //coordinator->test_subarray(array_name);
   */
 
 }
@@ -235,6 +260,12 @@ std::string get_array_name(std::string filename) {
 
 // This is the user
 int main(int argc, char** argv) {
+  double c = .99;
+  double e = .05;
+  for (int i = 2; i <= 12; ++i) {
+  std::cout << "confidence = " << c << " error = " << e << " p = " << i << " num_samples: " << get_num_samples(c, e, i) << "\n";
+  }
+
   int myrank, nprocs;
 
   MPI_Init(&argc, &argv);
@@ -310,7 +341,7 @@ int main(int argc, char** argv) {
     }
 
     std::cout << "array_name: " << array_name << " array_name2: " << array_name2 << "\n";
-    run_test_suite(coordinator, array_name, filename, array_name2, filename2);
+    run_test_suite(nprocs - 1, coordinator, array_name, filename, array_name2, filename2);
     coordinator->quit_all();
 #else
     std::cout << "Running debug\n";
