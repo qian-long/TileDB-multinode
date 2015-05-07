@@ -79,7 +79,7 @@ void load_test_suite() {
 
 int get_num_samples(double confidence, double error, double p) {
   // round up
-  return (1.0 / (error * error)) * log(2*p/(1.0 - confidence)) + 0.5;
+  return (1.0 / (2*error * error)) * log(2*p/(1.0 - confidence)) + 0.5;
 }
 
 void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string array_name_base, std::string filename, std::string array_name_base2 = "", std::string filename2 = "") {
@@ -91,7 +91,9 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   double ctstart = 0;
   double ctend = 0;
 
-  int num_samples = get_num_samples(.99, .05, num_workers - 1);
+  double confidence = .99;
+  double error = .02;
+  int num_samples = get_num_samples(confidence, error, num_workers - 1) / num_workers;
   std::cout << "num_workers: " << num_workers << " num_samples_per_worker: " << num_samples << "\n";
 
   // PARALLEL HASH LOAD TEST
@@ -127,7 +129,6 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   tend = get_wall_time();
 
   len = snprintf(buffer, 1000, "\n[END TEST] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
-
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
 

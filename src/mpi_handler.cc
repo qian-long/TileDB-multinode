@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <sys/stat.h>
 #include "mpi.h"
 #include "mpi_handler.h"
 #include "csv_file.h"
@@ -437,7 +438,16 @@ void MPIHandler::send_and_recv_tiles_a2a(const char* in_buf,
  **                finish_recv_a2a                   **
  ******************************************************/
 void MPIHandler::finish_recv_a2a() {
-  finish_recv_a2a(std::cout);
+  struct stat st;
+  std::string devnull = "/dev/null";
+  if (stat(devnull.c_str(), &st) == 0) {
+    std::ofstream out;
+    out.open(devnull.c_str());
+    finish_recv_a2a(out);
+    out.close();
+  } else {
+    finish_recv_a2a(std::cout);
+  }
 }
 
 void MPIHandler::finish_recv_a2a(std::ostream& file) {
