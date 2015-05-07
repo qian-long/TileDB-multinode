@@ -1,8 +1,10 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <cstdlib>
 #include "csv_file.h"
 #include "storage_manager.h"
+
 
 namespace util {
   std::vector<uint64_t> resevoir_sample(std::string csvpath, int num_samples);
@@ -24,6 +26,7 @@ namespace util {
   std::string to_string(std::pair<uint64_t, uint64_t> p);
 
 
+  int drop_caches();
 };
 
 #endif

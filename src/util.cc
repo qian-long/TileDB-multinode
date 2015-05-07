@@ -44,6 +44,14 @@ namespace util {
     return recv;
   }
   */
+
+  int drop_caches() {
+    std::string command = "/usr/local/bin/drop_caches";
+    int r = system(command.c_str());
+    return r;
+  }
+
+  // TO STRINGS
   std::string to_string(std::vector<uint64_t> array) {
 
     if (array.size() == 0) {

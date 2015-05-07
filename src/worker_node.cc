@@ -194,7 +194,16 @@ int WorkerNode::handle(DefineArrayMsg* msg) {
  **               HANDLE SubarrayMsg                 **
  ******************************************************/
 int WorkerNode::handle(SubarrayMsg* msg) {
-  logger_->log_start(LOG_INFO, "{Query Start: subarray}");
+  logger_->log(LOG_INFO, "{Query Start: subarray}");
+
+#ifdef ISTC
+  if (util::drop_caches() == 0) {
+    logger_->log(LOG_INFO, "Drop caches successful");
+  } else {
+    logger_->log(LOG_INFO, "Drop caches unsuccessful");
+  }
+#endif
+
   logger_->log_start(LOG_INFO, "Local subarray");
 
   executor_->subarray(msg->array_schema().array_name(), msg->ranges(), msg->result_array_name());
@@ -482,6 +491,14 @@ int WorkerNode::handle(ParallelLoadMsg* msg) {
 
 int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& array_schema, int num_samples) {
   logger_->log(LOG_INFO, "{Query Start: pload ordered}");
+#ifdef ISTC
+  if (util::drop_caches() == 0) {
+    logger_->log(LOG_INFO, "Drop caches successful");
+  } else {
+    logger_->log(LOG_INFO, "Drop caches unsuccessful");
+  }
+#endif
+
 
   std::string filepath = get_data_path(filename);
 
@@ -654,6 +671,14 @@ int WorkerNode::handle_parallel_load_ordered(std::string filename, ArraySchema& 
 int WorkerNode::handle_parallel_load_hash(std::string filename, ArraySchema& array_schema) {
 
   logger_->log(LOG_INFO, "{Query Start: pload hash}");
+#ifdef ISTC
+  if (util::drop_caches() == 0) {
+    logger_->log(LOG_INFO, "Drop caches successful");
+  } else {
+    logger_->log(LOG_INFO, "Drop caches unsuccessful");
+  }
+#endif
+
 
   logger_->log_start(LOG_INFO, "hash while data shuffle");
   std::string filepath = get_data_path(filename);
@@ -741,6 +766,13 @@ int WorkerNode::handle(JoinMsg* msg) {
       logger_->log(LOG_INFO, "Join hash partition on " + msg->array_name_A() + " and " + msg->array_name_B()); 
 
       logger_->log(LOG_INFO, "{Query Start: join hash}");
+#ifdef ISTC
+  if (util::drop_caches() == 0) {
+    logger_->log(LOG_INFO, "Drop caches successful");
+  } else {
+    logger_->log(LOG_INFO, "Drop caches unsuccessful");
+  }
+#endif
       logger_->log_start(LOG_INFO, "Local join");
       executor_->join(msg->array_name_A(), msg->array_name_B(), msg->result_array_name());
       logger_->log_end(LOG_INFO);
@@ -766,7 +798,16 @@ int WorkerNode::handle_join_ordered(std::string array_name_A,
     std::string array_name_B,
     std::string result_array_name) {
 
-  logger_->log_start(LOG_INFO, "{Query Start: join ordered}");
+  logger_->log(LOG_INFO, "{Query Start: join ordered}");
+#ifdef ISTC
+  if (util::drop_caches() == 0) {
+    logger_->log(LOG_INFO, "Drop caches successful");
+  } else {
+    logger_->log(LOG_INFO, "Drop caches unsuccessful");
+  }
+#endif
+
+
   logger_->log(LOG_INFO, "In handle join ordered, joining " + array_name_A + " and " + array_name_B + " into " + result_array_name);
 
   // Check that arrays A and B exist but result doesn't
