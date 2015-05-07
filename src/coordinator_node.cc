@@ -929,14 +929,14 @@ void CoordinatorNode::test_subarray_sparse(std::string array_name) {
 
   if (array_name.compare(0, 4, "test") == 0) {
     // .5 selectivity [0, 10000]
-    vec.push_back(0); vec.push_back(10000);
-    vec.push_back(0); vec.push_back(5000);
+    vec.push_back(0); vec.push_back(1000);
+    vec.push_back(0); vec.push_back(1000);
   } else {
     vec.push_back(40000000); vec.push_back(51500000);
     vec.push_back(125000000); vec.push_back(136500000);
   }
 
-  SubarrayMsg sbmsg(array_name + "_subarrays", *array_schema, vec);
+  SubarrayMsg sbmsg("subarrays_" + array_name, *array_schema, vec);
   send_and_receive(sbmsg);
 
   // don't leak memory
@@ -951,14 +951,14 @@ void CoordinatorNode::test_subarray_dense(std::string array_name) {
 
   if (array_name.compare(0, 4, "test") == 0) {
     // .5 selectivity [0, 10000]
-    vec.push_back(0); vec.push_back(10000);
-    vec.push_back(0); vec.push_back(5000);
+    vec.push_back(0); vec.push_back(1000);
+    vec.push_back(0); vec.push_back(1000);
   } else {
     vec.push_back(106000000); vec.push_back(106050000);
     vec.push_back(130700000); vec.push_back(130750000);
   }
 
-  SubarrayMsg sbmsg(array_name + "_subarrayd", *array_schema, vec);
+  SubarrayMsg sbmsg("subarrayd_" + array_name, *array_schema, vec);
   send_and_receive(sbmsg);
 
   // don't leak memory

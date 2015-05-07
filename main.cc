@@ -83,6 +83,8 @@ int get_num_samples(double confidence, double error, double p) {
 }
 
 void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string array_name_base, std::string filename, std::string array_name_base2 = "", std::string filename2 = "") {
+
+  std::string array_name2;
   char buffer[1000];
   int len;
   std::string array_name;
@@ -95,23 +97,6 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   double error = .02;
   int num_samples = get_num_samples(confidence, error, num_workers - 1) / num_workers;
   std::cout << "num_workers: " << num_workers << " num_samples_per_worker: " << num_samples << "\n";
-
-  // PARALLEL HASH LOAD TEST
-  array_name = array_name_base + "_phash";
-  std::cout << "Parallel Load Hash Test " << array_name << "\n";
-
-  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [pload hash]");
-  tstart = get_wall_time();
-  ctstart = get_cpu_time();
-
-  coordinator->test_parallel_load(array_name, filename, HASH_PARTITION);
-
-  ctend = get_cpu_time();
-  tend = get_wall_time();
-
-  len = snprintf(buffer, 1000, "\n[END TEST] [pload hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
-  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
-  printf("%s", buffer);
 
   // PARALLEL ORDERED LOAD TEST
   drop_caches();
@@ -132,24 +117,50 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
 
-  // SUBARRAY HASH SPARSE TEST
-  drop_caches();
-  array_name = array_name_base + "_phash";
-  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [subarrays hash]");
+  // ORDERED JOIN TEST
+  std::cout << "ORDERED JOIN TEST\n";
+  if (array_name_base2.empty() && filename2.empty()) {
+    std::cout << "MIssing 2nd array name\n";
+  } else {
 
-  tstart = get_wall_time();
-  ctstart = get_cpu_time();
+    // order load array 2
+    array_name2 = array_name_base2 + "_pordered";
+    std::cout << "Parallel Loading array 2 " << array_name2 << "\n";
+    drop_caches();
+    coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [pload ordered]");
 
-  coordinator->test_subarray_sparse(array_name);
+    tstart = get_wall_time();
+    ctstart = get_cpu_time();
 
-  ctend = get_cpu_time();
-  tend = get_wall_time();
+    coordinator->test_parallel_load(array_name2, filename2, ORDERED_PARTITION, num_samples);
 
-  len = snprintf(buffer, 1000, "\n[END TEST] [subarrays hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
-  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
-  printf("%s", buffer);
+    ctend = get_cpu_time();
+    tend = get_wall_time();
+
+    len = snprintf(buffer, 1000, "\n[END TEST] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+    coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+    printf("%s", buffer);
 
 
+    std::cout << "Start test join for ordered partition\n";
+    array_name = array_name_base + "_pordered";
+    drop_caches();
+
+    coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [join ordered]");
+    tstart = get_wall_time();
+    ctstart = get_cpu_time();
+
+    coordinator->test_join(array_name, array_name2, "join_" + array_name + "_" + array_name2);
+
+    ctend = get_cpu_time();
+    tend = get_wall_time();
+
+
+    len = snprintf(buffer, 1000, "\n[END TEST] [join ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+    coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+    printf("%s", buffer);
+
+  }
 
   // SUBARRAY ORDERED SPARSE TEST
   drop_caches();
@@ -165,24 +176,6 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   tend = get_wall_time();
 
   len = snprintf(buffer, 1000, "\n[END TEST] [subarrays ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
-  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
-  printf("%s", buffer);
-
-
-  // SUBARRAY HASH DENSE TEST
-  drop_caches();
-  array_name = array_name_base + "_phash";
-  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [subarrayd hash]");
-
-  tstart = get_wall_time();
-  ctstart = get_cpu_time();
-
-  coordinator->test_subarray_dense(array_name);
-
-  ctend = get_cpu_time();
-  tend = get_wall_time();
-
-  len = snprintf(buffer, 1000, "\n[END TEST] [subarrayd hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
   coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
   printf("%s", buffer);
 
@@ -205,7 +198,23 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   printf("%s", buffer);
 
 
-  std::string array_name2;
+  // PARALLEL HASH LOAD TEST
+  array_name = array_name_base + "_phash";
+  std::cout << "Parallel Load Hash Test " << array_name << "\n";
+
+  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [pload hash]");
+  tstart = get_wall_time();
+  ctstart = get_cpu_time();
+
+  coordinator->test_parallel_load(array_name, filename, HASH_PARTITION);
+
+  ctend = get_cpu_time();
+  tend = get_wall_time();
+
+  len = snprintf(buffer, 1000, "\n[END TEST] [pload hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
+
   // HASH JOIN TEST
   std::cout << "HASH JOIN TEST\n";
   if (array_name_base2.empty() && filename2.empty()) {
@@ -252,52 +261,41 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     printf("%s", buffer);
   }
 
+  // SUBARRAY HASH SPARSE TEST
+  drop_caches();
+  array_name = array_name_base + "_phash";
+  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [subarrays hash]");
 
-  // ORDERED JOIN TEST
-  std::cout << "ORDERED JOIN TEST\n";
-  if (array_name_base2.empty() && filename2.empty()) {
-    std::cout << "MIssing 2nd array name\n";
-  } else {
+  tstart = get_wall_time();
+  ctstart = get_cpu_time();
 
-    // order load array 2
-    array_name2 = array_name_base2 + "_pordered";
-    std::cout << "Loading array 2 " << array_name2 << "\n";
-    drop_caches();
-    
-    coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [pload ordered]");
+  coordinator->test_subarray_sparse(array_name);
 
-    tstart = get_wall_time();
-    ctstart = get_cpu_time();
+  ctend = get_cpu_time();
+  tend = get_wall_time();
 
-    coordinator->test_parallel_load(array_name2, filename2, ORDERED_PARTITION, num_samples);
+  len = snprintf(buffer, 1000, "\n[END TEST] [subarrays hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
 
-    ctend = get_cpu_time();
-    tend = get_wall_time();
+  // SUBARRAY HASH DENSE TEST
+  drop_caches();
+  array_name = array_name_base + "_phash";
+  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [subarrayd hash]");
 
-    len = snprintf(buffer, 1000, "\n[END TEST] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
-    coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
-    printf("%s", buffer);
+  tstart = get_wall_time();
+  ctstart = get_cpu_time();
 
+  coordinator->test_subarray_dense(array_name);
 
-    std::cout << "Start test join for ordered partition\n";
-    array_name = array_name_base + "_pordered";
-    drop_caches();
+  ctend = get_cpu_time();
+  tend = get_wall_time();
 
-    coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [join ordered]");
-    tstart = get_wall_time();
-    ctstart = get_cpu_time();
-
-    coordinator->test_join(array_name, array_name2, "join_" + array_name + "_" + array_name2);
-
-    ctend = get_cpu_time();
-    tend = get_wall_time();
+  len = snprintf(buffer, 1000, "\n[END TEST] [subarrayd hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+  coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
+  printf("%s", buffer);
 
 
-    len = snprintf(buffer, 1000, "\n[END TEST] [join ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
-    coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
-    printf("%s", buffer);
-
-  }
 
   /*
   // FILTER TEST
