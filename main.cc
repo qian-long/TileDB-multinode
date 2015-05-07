@@ -137,7 +137,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     ctend = get_cpu_time();
     tend = get_wall_time();
 
-    len = snprintf(buffer, 1000, "\n[END TEST] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+    len = snprintf(buffer, 1000, "\n[END TEST] [pload ordered] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name2.c_str(), tend - tstart, ctend - ctstart);
     coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
     printf("%s", buffer);
 
@@ -235,7 +235,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     ctend = get_cpu_time();
     tend = get_wall_time();
 
-    len = snprintf(buffer, 1000, "\n[END TEST] [pload hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name.c_str(), tend - tstart, ctend - ctstart);
+    len = snprintf(buffer, 1000, "\n[END TEST] [pload hash] %s total wall time: [%.6lf] secs, total cpu time: [%.6lf]\n", array_name2.c_str(), tend - tstart, ctend - ctstart);
 
     coordinator->logger()->log(LOG_INFO, std::string(buffer, len));
     printf("%s", buffer);

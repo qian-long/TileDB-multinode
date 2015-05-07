@@ -174,7 +174,7 @@ SamplesMsg* MPIHandler::receive_samples_msg(int sender) {
 // Sending and Receiving acks
 void MPIHandler::send_ack(AckMsg* msg, int receiver) {
   std::pair<char *, int> buf_pair = msg->serialize();
-  send_content(buf_pair.first, buf_pair.second, receiver, SAMPLES_TAG);
+  send_content(buf_pair.first, buf_pair.second, receiver, ACK_TAG);
   flush_send(receiver, ACK_TAG);
 }
 

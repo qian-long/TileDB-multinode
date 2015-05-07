@@ -312,13 +312,14 @@ int CoordinatorNode::handle_acks() {
   for (int nodeid = 1; nodeid <= nworkers_; nodeid++) {
     logger_->log(LOG_INFO, "Waiting for ack from worker " + util::to_string(nodeid));
     AckMsg* ack = mpi_handler_->receive_ack(nodeid);
+
     if (ack->result() == AckMsg::ERROR) {
       all_success = false;
     }
 
     logger_->log(LOG_INFO, "Received ack " + ack->to_string() + " from worker: " + util::to_string(nodeid));
 
-      // cleanup
+    // cleanup
     delete ack;
   }
 

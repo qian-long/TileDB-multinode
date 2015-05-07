@@ -139,11 +139,13 @@ void WorkerNode::respond_ack(int r, int tag, double time) {
   logger_->log(LOG_INFO, "Responding ack: " + util::to_string(r));
 
   AckMsg::Result result = (r < 0) ? AckMsg::ERROR : AckMsg::DONE;
-  AckMsg ack(result, tag, time); 
+  AckMsg *ack = new AckMsg(result, tag, time); 
 
-  logger_->log(LOG_INFO, "Sending ack: " + ack.to_string());
-  mpi_handler_->send_ack(&ack, MASTER);
+  logger_->log(LOG_INFO, "Sending ack: " + ack->to_string());
+  mpi_handler_->send_ack(ack, MASTER);
 
+  // cleanup
+  delete ack;
 }
 
 /******************************************************
@@ -192,6 +194,7 @@ int WorkerNode::handle(DefineArrayMsg* msg) {
  **               HANDLE SubarrayMsg                 **
  ******************************************************/
 int WorkerNode::handle(SubarrayMsg* msg) {
+  logger_->log_start(LOG_INFO, "{Query Start: subarray}");
   logger_->log_start(LOG_INFO, "Local subarray");
 
   executor_->subarray(msg->array_schema().array_name(), msg->ranges(), msg->result_array_name());
