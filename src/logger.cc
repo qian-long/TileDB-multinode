@@ -31,7 +31,7 @@ void Logger::log(std::string log_info, std::string message) {
 
 void Logger::log_start(std::string log_info, std::string message) {
   tstart_wall_ = get_wall_time();
-  tstart_cpu_ = get_wall_time();
+  tstart_cpu_ = get_cpu_time();
   time_message_ = message;
   log(log_info, "LOG_START " + message);
 }
