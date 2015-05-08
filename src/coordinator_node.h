@@ -32,7 +32,7 @@ class CoordinatorNode {
     void send_and_receive(Msg&);
     void send_all(Msg&);
     void send_all(std::string serial_str, int tag);
-    void send_all(const char* buffer, int buffer_size, int tag);
+    void send_all(const char* buffer, uint64_t buffer_size, int tag);
     void quit_all();
 
 

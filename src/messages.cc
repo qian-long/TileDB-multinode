@@ -48,7 +48,7 @@ SubarrayMsg::SubarrayMsg(std::string result_name, ArraySchema schema, std::vecto
 std::pair<char*, uint64_t> SubarrayMsg::serialize() {
   uint64_t buffer_size = 0, pos = 0;
   char* buffer;
-  uint64_t length;
+  uint64_t length = 0;
 
   // serialize relevant sub components
   std::pair<char*, uint64_t> as_pair = array_schema_.serialize();
@@ -58,13 +58,14 @@ std::pair<char*, uint64_t> SubarrayMsg::serialize() {
   buffer_size += result_array_name_.size(); // result_arrayname
   buffer_size += sizeof(uint64_t); // array schema length
   buffer_size += as_pair.second; // array schema
-  buffer_size += ranges_.size(); // ranges length
+  buffer_size += sizeof(size_t); // ranges length
 
   for (int i = 0; i < ranges_.size(); ++i) {
     buffer_size += sizeof(double); // add each range part
   }
 
   // creating buffer
+
   buffer = new char[buffer_size];
 
   // serialize filename
@@ -89,7 +90,6 @@ std::pair<char*, uint64_t> SubarrayMsg::serialize() {
   std::vector<double>::iterator it = ranges_.begin();
   for (; it != ranges_.end(); it++, pos += sizeof(double)) {
     double extent = *it;
-
     memcpy(&buffer[pos], &extent, sizeof(double));
   }
 
@@ -97,7 +97,6 @@ std::pair<char*, uint64_t> SubarrayMsg::serialize() {
 }
 
 SubarrayMsg* SubarrayMsg::deserialize(char* buffer, uint64_t buffer_length){
-
   uint64_t counter = 0;
   std::stringstream ss;
   std::vector<double> ranges;
@@ -125,15 +124,13 @@ SubarrayMsg* SubarrayMsg::deserialize(char* buffer, uint64_t buffer_length){
   memcpy(&num_doubles, &buffer[counter], sizeof(size_t));
   counter += sizeof(size_t);
 
-  for (size_t i = 0; i < num_doubles; i++) {
+  for (size_t i = 0; i < num_doubles; i++, counter += sizeof(double)) {
     double extent;
     memcpy(&extent, &buffer[counter], sizeof(double));
     ranges.push_back(extent);
-    counter += sizeof(double);
   }
 
   return new SubarrayMsg(array_name, *schema, ranges);
-
 }
 
 /******************************************************
