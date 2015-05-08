@@ -3,6 +3,7 @@ import re
 import os
 import sys
 
+
 HEADERS = ["num_nodes", 
           "trial", 
           "ds1", 
@@ -27,7 +28,7 @@ SIZES_HEADERS = []
 SIZES_CSV = []
 
 # Regex for parsing log files
-RE_START_TEST = re.compile("\[RUN TEST\].*")
+RE_START_TEST = re.compile(".*\[RUN TEST\] \[(.*) (.*)\].*")
 RE_END_TEST = re.compile("\[END TEST\] \[(\w*) (\w*)\] (.*) total wall time: \[(.*)\].*\[(.*)\]")
 RE_ACK = re.compile(".*Received ack (.*)\[(\w*)\] Time\[(.*) secs\] from worker: (\d+)")
 def parse_coord(dirpath, nworkers, row_prefix):
@@ -35,44 +36,55 @@ def parse_coord(dirpath, nworkers, row_prefix):
   cur_acks = [] # worker, wall time, status
   headers = ['test_name', 'partition', 'array_name', 'total_wall_time', 'total_cpu_time']
   csv_row = row_prefix[:]
+  test_row = []
   with open(logfile_path) as f:
     for line in f:
+
+      mstart = RE_START_TEST.match(line)
+      if mstart:
+        # reset
+        cur_acks = []
+        csv_row = row_prefix[:]
+        test_row = []
+
+
+        test_row = [mstart.group(1), mstart.group(2), "", "", ""]
+        test = dict(zip(headers, test_row))
+        TESTS.append(test)
+        csv_row.extend(test_row)
+
+
 
       # search for ack
       mack = RE_ACK.match(line)
       if mack:
         if mack.group(1) != "DEFINE_ARRAY_TAG":
-          cur_acks.append([mack.group(2), mack.group(3), mack.group(4)])
-
-      # search for end of test
-      mend = RE_END_TEST.match(line)
-      if mend:
-        test_row = [mend.group(1), mend.group(2), mend.group(3), mend.group(4), mend.group(5)]
-        test = dict(zip(headers, test_row))
-        TESTS.append(test)
-        #print test['test_name']
-        csv_row.extend(test_row)
-        assert(len(cur_acks) == nworkers)
-
-        for ack in cur_acks:
-          status = ack[0]
-          time = ack[1]
-          worker = ack[2]
+          status, time, worker = (mack.group(2), mack.group(3), mack.group(4))
+          cur_acks.append([status, time, worker])
           if status == "DONE":
-            headers.append('worker' + str(worker))
             csv_row.append(time)
           else:
             csv_row.append("ERROR")
 
-        for i in xrange(len(cur_acks), nworkers):
-          csv_row.append("n/a")
-        #print "csv_row", csv_row
+
+      # search for end of test
+      mend = RE_END_TEST.match(line)
+      if mend:
+        array_name, total_wall_time, total_cpu_time = (mend.group(3), mend.group(4), mend.group(5))
+        #print "test_row", test_row
+        test_row[-1] = total_cpu_time
+        test_row[-2] = total_wall_time
+        test_row[-3] = array_name
+
+        test = dict(zip(headers, test_row))
+        TESTS[-1] = test
+        csv_row[len(row_prefix) + 2] = array_name
+        csv_row[len(row_prefix) + 3] = total_wall_time
+        csv_row[len(row_prefix) + 4] = total_cpu_time
         CSV.append(csv_row)
 
-        # reset
-        cur_acks = []
-        csv_row = row_prefix[:]
-
+  # errors with not end tag
+  CSV.append(csv_row)
 
 # REGEX for parsing worker logfile
 RE_START_QUERY = re.compile(".*\{Query Start: (.*)\}")
@@ -96,14 +108,13 @@ def parse_worker(dirpath, worker, nworkers, ts, test_breakdowns):
             test_header.append(breakdown['header'])
             test_row.append(breakdown['wall_time'])
           if test_label not in test_breakdowns:
-            print "test_label", test_label
+            #print "test_label", test_label
             test_breakdowns[test_label] = [test_header]
 
           test_breakdowns[test_label].append(test_row)
 
 
-
-        print qstart.group(1), TESTS[test_num]['test_name'], TESTS[test_num]['partition']
+        #print qstart.group(1), TESTS[test_num]['test_name'], TESTS[test_num]['partition']
         test_label = "n{0} t{1} {2} {3} {4}".format(nworkers, trial,
             TESTS[test_num]['test_name'], TESTS[test_num]['partition'],
             TESTS[test_num]['array_name'])
@@ -132,24 +143,21 @@ def parse_dir(dirpath):
 def print_csv(headers, csv):
   print ','.join([str(x) for x in headers])
   for row in csv:
-    assert(len(headers) == len(row))
-    print ','.join([str(x) for x in row])
-    print
+    print ','.join([str(x) for x in row] + [""]*(len(headers) - len(row)))
 
 
 def print_test_breakdowns(test_breakdowns):
   max_ncol = 0
   for k,v in test_breakdowns.iteritems():
     # header row
-    if len(v[0]) > max_col:
+    if len(v[0]) > max_ncol:
       max_ncol = len(v[0])
 
   for k,v in test_breakdowns.iteritems():
+    #print "test label:", k
     print k
-    if len(v) > max_cols:
-      max_cols = len(v)
     for row in v:
-      print ','.join([str(x) for x in row])
+      print ','.join([str(x) for x in row] + [""]*(max_ncol - len(row)))
 
 if __name__ == "__main__":
   dirpath = os.path.normpath(sys.argv[1])
@@ -157,6 +165,7 @@ if __name__ == "__main__":
   #print "num_nodes: {0}, trial: {1}, dataset1: {2}, dataset2: {3}, timestamp: {4}".format(num_nodes, trial, ds1, ds2, ts)
 
   row_prefix = [num_nodes, trial, ds1, ds2, ts]
+  #print "row_prefix", row_prefix
 
   parse_coord(dirpath, num_nodes - 1, row_prefix)
   test_breakdowns = {}
