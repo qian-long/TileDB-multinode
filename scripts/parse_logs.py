@@ -2,6 +2,7 @@
 import re
 import os
 import sys
+import math
 
 
 HEADERS = ["num_nodes", 
@@ -115,7 +116,7 @@ def parse_worker(dirpath, worker, nworkers, ts, test_breakdowns):
 
 
         #print qstart.group(1), TESTS[test_num]['test_name'], TESTS[test_num]['partition']
-        test_label = "n{0} t{1} {2} {3} {4}".format(nworkers, trial,
+        test_label = "n{0},t{1},{2},{3},{4}".format(nworkers, trial,
             TESTS[test_num]['test_name'], TESTS[test_num]['partition'],
             TESTS[test_num]['array_name'])
         test_num += 1
@@ -145,19 +146,38 @@ def print_csv(headers, csv):
   for row in csv:
     print ','.join([str(x) for x in row] + [""]*(len(headers) - len(row)))
 
+def stddev(lst):
+  """returns the standard deviation of lst"""
+  mn = sum(lst) / float(len(lst))
+  variance = sum([(e-mn)**2 for e in lst])
+  return math.sqrt(variance)
 
 def print_test_breakdowns(test_breakdowns):
-  max_ncol = 0
   for k,v in test_breakdowns.iteritems():
-    # header row
-    if len(v[0]) > max_ncol:
-      max_ncol = len(v[0])
-
-  for k,v in test_breakdowns.iteritems():
-    #print "test label:", k
+    # prints test label
     print k
     for row in v:
-      print ','.join([str(x) for x in row] + [""]*(max_ncol - len(row)))
+      # print breakdown names and times for each worker
+      print ','.join([str(x) for x in row])
+
+    # compute and print min, max, avg, std for each breakdown
+    data_cols = zip(*v[1:])
+    mins = []
+    maxs = []
+    avgs = []
+    stds = []
+    for i in xrange(1, len(data_cols)):
+      data = [float(x) for x in data_cols[i]]
+      mins.append(min(data))
+      maxs.append(max(data))
+      avgs.append(sum(data) / float(len(data)))
+      stds.append(stddev(data));
+    print "min," + ",".join([str(x) for x in mins])
+    print "max," + ",".join([str(x) for x in maxs])
+    print "avg," + ",".join([str(x) for x in avgs])
+    print "std," + ",".join([str(x) for x in stds])
+    print # new line between tests
+
 
 if __name__ == "__main__":
   dirpath = os.path.normpath(sys.argv[1])
