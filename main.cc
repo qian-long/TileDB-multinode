@@ -183,7 +183,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
   // SUBARRAY ORDERED DENSE TEST
   drop_caches();
   array_name = array_name_base + "_pordered";
-  coordinator->logger()->log(LOG_INFO, "[RUN TEST] [subarrayd ordered]");
+  coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [subarrayd ordered]");
 
   tstart = get_wall_time();
   ctstart = get_cpu_time();
@@ -225,7 +225,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     array_name2 = array_name_base2 + "_phash";
     std::cout << "Loading array 2 " << array_name2 << "\n";
 
-    coordinator->logger()->log(LOG_INFO, "[RUN TEST] [pload hash]");
+    coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [pload hash]");
 
     tstart = get_wall_time();
     ctstart = get_cpu_time();
@@ -244,7 +244,7 @@ void run_test_suite(int num_workers, CoordinatorNode * coordinator, std::string 
     std::cout << "Start test join\n";
     drop_caches();
     array_name = array_name_base + "_phash";
-    coordinator->logger()->log(LOG_INFO, "[RUN TEST] [join hash]");
+    coordinator->logger()->log(LOG_INFO, "\n[RUN TEST] [join hash]");
 
 
     tstart = get_wall_time();

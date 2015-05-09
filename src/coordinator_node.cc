@@ -255,16 +255,19 @@ void CoordinatorNode::run() {
 }
 
 void CoordinatorNode::send_all(Msg& msg) {
-  logger_->log(LOG_INFO, "send_all");
-  std::pair<char*, int> serial_pair = msg.serialize();
+  logger_->log(LOG_INFO, "send_all msg");
+  std::pair<char*, uint64_t> serial_pair = msg.serialize();
   this->send_all(serial_pair.first, serial_pair.second, msg.msg_tag);
 }
 
 void CoordinatorNode::send_all(std::string serial_str, int tag) {
+  logger_->log(LOG_INFO, "send all str");
   this->send_all(serial_str.c_str(), serial_str.length(), tag);
 }
 
-void CoordinatorNode::send_all(const char* buffer, int buffer_size, int tag) {
+void CoordinatorNode::send_all(const char* buffer, uint64_t buffer_size, int tag) {
+
+  logger_->log(LOG_INFO, "send_all to nprocs: " + util::to_string(nprocs_));
   assert(buffer_size < MPI_BUFFER_LENGTH);
   for (int i = 1; i < nprocs_; i++) {
     MPI_Send((char *)buffer, buffer_size, MPI::CHAR, i, tag, MPI_COMM_WORLD);
@@ -941,11 +944,11 @@ void CoordinatorNode::test_subarray_sparse(std::string array_name) {
   send_and_receive(sbmsg);
 
   // don't leak memory
-  //delete array_schema;
+  delete array_schema;
 }
 
 void CoordinatorNode::test_subarray_dense(std::string array_name) {
-  logger_->log(LOG_INFO, "TEST START subarray sparse array_name: " + array_name);
+  logger_->log(LOG_INFO, "TEST START subarray dense array_name: " + array_name);
   ArraySchema* array_schema = get_test_arrayschema(array_name);
   std::vector<double> vec;
 
@@ -963,7 +966,7 @@ void CoordinatorNode::test_subarray_dense(std::string array_name) {
   send_and_receive(sbmsg);
 
   // don't leak memory
-  //delete array_schema;
+  delete array_schema;
 }
 
 void CoordinatorNode::test_aggregate(std::string array_name) {
