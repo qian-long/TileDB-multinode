@@ -1,11 +1,13 @@
 #!/bin/bash
 declare -a NODES=("istc2" "istc3" "istc4" "istc5" "istc6" "istc1" "istc8" "istc9" "istc10" "istc11" "istc12" "istc13")
+mkdir -p Result
+
 NUM_NODES=$1
-DATASET1=ais_2010_allzones
-#DATASET1=test_D
+#DATASET1=ais_2010_allzones
+DATASET1=test_D
 FILENAME1=$DATASET1.csv
-DATASET2=ais_2011_allzones
-#DATASET2=test_E
+#DATASET2=ais_2011_allzones
+DATASET2=test_E
 FILENAME2=$DATASET2.csv
 TEMP_NAME=$( date +"%m%dT%H:%M")
 TRIAL=$2
@@ -38,8 +40,8 @@ then
   cp /data/qlong/workspaces/workspace-0/logfile $DATA_FOLDER/master_logfile.txt
   for i in `seq 0 $(($NUM_NODES-2))`;
   do
-    WORKER=i
-    WS_PATH=/data/qlong/workspaces/workspace-$(($WORKER+1))
+    WORKER=$(($i+1))
+    WS_PATH=/data/qlong/workspaces/workspace-$WORKER
     NODE="${NODES[$i]}"
 
     echo grabbing files from $WS_PATH on node $NODE
