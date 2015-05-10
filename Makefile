@@ -191,6 +191,11 @@ multi-run-local: $(MULTINODE_EXEC)
 	./setup_env.sh
 	mpiexec -f machinefile_local ./$(MULTINODE_EXEC)
 
+# compiling with no debug locally
+multi-prod: CXX = mpic++
+multi-prod: CXX += -DNDEBUG
+multi-prod: multi
+
 # compiling and runing on istc machines
 multi-istc: CXX = mpic++.mpich2
 multi-istc: CXX += -DISTC -DNDEBUG

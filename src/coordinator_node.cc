@@ -819,6 +819,7 @@ void CoordinatorNode::quit_all() {
 std::vector<uint64_t> CoordinatorNode::get_partitions(std::vector<uint64_t> samples, int k) {
   // We are picking k partition boundaries that will divide the
   // entire distributed dataset into k + 1 somewhat equal (hopefully) partitions
+  logger_->log(LOG_INFO, "total samples: " + util::to_string(samples.size()) + " k: " + util::to_string(k));
   std::sort(samples.begin(), samples.end());
   std::vector<uint64_t> partitions;
 
@@ -854,7 +855,8 @@ inline int CoordinatorNode::get_receiver(std::vector<uint64_t> partitions, uint6
 void CoordinatorNode::test_load(std::string array_name, 
     std::string filename, 
     PartitionType partition_type,
-    LoadMsg::LoadMethod method) {
+    LoadMsg::LoadMethod method,
+    int num_samples) {
 
   logger_->log(LOG_INFO, "TEST START load array_name: " + array_name + " filename: " + filename);
   logger_->log(LOG_INFO, "Sending DEFINE ARRAY to all workers for array " + array_name);
@@ -865,7 +867,7 @@ void CoordinatorNode::test_load(std::string array_name,
 
 
   logger_->log(LOG_INFO, "Sending LOAD ARRAY to all workers for array " + array_name);
-  LoadMsg lmsg = LoadMsg(filename, *array_schema, partition_type, method);
+  LoadMsg lmsg = LoadMsg(filename, *array_schema, partition_type, method, num_samples);
 
   send_and_receive(lmsg);
 
