@@ -766,7 +766,7 @@ std::pair<char*, uint64_t> SamplesMsg::serialize() {
 SamplesMsg* SamplesMsg::deserialize(char* buffer, uint64_t buffer_length) {
 
   std::vector<uint64_t> samples; 
-  uint64_t pos;
+  uint64_t pos = 0;
 
   assert(buffer_length % 8 == 0);
   for (pos = 0; pos < buffer_length; pos += sizeof(uint64_t)) {
