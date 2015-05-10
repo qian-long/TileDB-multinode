@@ -1,11 +1,13 @@
 #!/bin/bash
-declare -a NODES=("istc2" "istc3" "istc4" "istc5" "istc6" "istc7" "istc8" "istc9" "istc10" "istc11" "istc12" "istc13")
+declare -a NODES=("istc2" "istc3" "istc4" "istc5" "istc6" "istc1" "istc8" "istc9" "istc10" "istc11" "istc12" "istc13")
+mkdir -p Result
+
 NUM_NODES=$1
-DATASET1=ais_2009_01_to_06_allzones
-#DATASET1=test_D
+#DATASET1=ais_2010_allzones
+DATASET1=test_D
 FILENAME1=$DATASET1.csv
-DATASET2=ais_2009_07_to_12_allzones
-#DATASET2=test_E
+#DATASET2=ais_2011_allzones
+DATASET2=test_E
 FILENAME2=$DATASET2.csv
 TEMP_NAME=$( date +"%m%dT%H:%M")
 TRIAL=$2
@@ -38,14 +40,15 @@ then
   cp /data/qlong/workspaces/workspace-0/logfile $DATA_FOLDER/master_logfile.txt
   for i in `seq 0 $(($NUM_NODES-2))`;
   do
-    WS_PATH=/data/qlong/workspaces/workspace-$(($i+1))
+    WORKER=$(($i+1))
+    WS_PATH=/data/qlong/workspaces/workspace-$WORKER
     NODE="${NODES[$i]}"
 
     echo grabbing files from $WS_PATH on node $NODE
 
     ssh -i ~/.ssh/qlong $NODE -t "du -ab $WS_PATH > $WS_PATH/sizes.txt"
-    scp -i ~/.ssh/qlong $NODE:$WS_PATH/logfile $DATA_FOLDER/$NODE\_log.txt
-    scp -i ~/.ssh/qlong $NODE:$WS_PATH/sizes.txt $DATA_FOLDER/$NODE\_sizes.txt
+    scp -i ~/.ssh/qlong $NODE:$WS_PATH/logfile $DATA_FOLDER/w$WORKER\_$NODE\_log.txt
+    scp -i ~/.ssh/qlong $NODE:$WS_PATH/sizes.txt $DATA_FOLDER/w$WORKER\_$NODE\_sizes.txt
   done;
 else
   echo "Test script failed"
