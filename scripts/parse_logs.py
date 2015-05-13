@@ -3,12 +3,12 @@ import re
 import os
 import sys
 import math
+import glob
 
-
-HEADERS = ["num_nodes", 
-          "trial", 
-          "ds1", 
-          "ds2", 
+HEADERS = ["num_nodes",
+          "trial",
+          "ds1",
+          "ds2",
           "timestamp",
           "test_name",
           "partition",
@@ -93,7 +93,9 @@ RE_TIMING = re.compile(".*LOG_END \{(.*)\} WALL TIME: \{(.*)\} secs CPU TIME: \{
 
 # test_breakdowns: {test_label: [[headers], [worker1], [worker2], ...]}
 def parse_worker(dirpath, worker, nworkers, ts, test_breakdowns):
-  logfile = os.path.join(dirpath, "istc{0}_log.txt".format(worker + 1))
+
+  matches = glob.glob(os.path.join(dirpath, "w{0}_istc*_log.txt".format(worker)))
+  logfile = matches[0]
   test_num = 0
   cur_breakdowns = [] # dicts {header, walltime, cputime}
   test_label = ""
