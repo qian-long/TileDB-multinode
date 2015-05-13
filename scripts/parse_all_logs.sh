@@ -1,8 +1,8 @@
 #!/bin/bash
 
-OUTPUT=results_4GB_breakdowns_raw.csv
+OUTPUT=results_50GB_breakdowns_raw.csv
 cat /dev/null > $OUTPUT
-ls -d ../Result/n*-t*-ais_2009_01_allzones* |
+ls -d ../Result/n*-t*-ais_2010* |
 while read i;
 do
   echo $i
