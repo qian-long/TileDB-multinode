@@ -4,6 +4,7 @@ import os
 import sys
 import math
 import glob
+import pprint
 
 HEADERS = ["num_nodes",
           "trial",
@@ -111,7 +112,6 @@ def parse_worker(dirpath, worker, nworkers, ts, test_breakdowns):
             test_header.append(breakdown['header'])
             test_row.append(breakdown['wall_time'])
           if test_label not in test_breakdowns:
-            #print "test_label", test_label
             test_breakdowns[test_label] = [test_header]
 
           test_breakdowns[test_label].append(test_row)
@@ -132,6 +132,19 @@ def parse_worker(dirpath, worker, nworkers, ts, test_breakdowns):
         cur_breakdowns.append({'header': mtiming.group(1) + " (secs)",
           'wall_time': mtiming.group(2),
           'cpu_time': mtiming.group(3)})
+
+  # append last query
+  if test_label != "":
+    test_header = ['worker']
+    test_row = [worker]
+    for breakdown in cur_breakdowns:
+      test_header.append(breakdown['header'])
+      test_row.append(breakdown['wall_time'])
+    if test_label not in test_breakdowns:
+      #print "test_label", test_label
+      test_breakdowns[test_label] = [test_header]
+
+    test_breakdowns[test_label].append(test_row)
 
 
 
@@ -190,6 +203,8 @@ if __name__ == "__main__":
   #print "row_prefix", row_prefix
 
   parse_coord(dirpath, num_nodes - 1, row_prefix)
+  pp = pprint.PrettyPrinter(depth=6)
+  pp.pprint(TESTS)
   test_breakdowns = {}
   for worker in xrange(1, num_nodes):
     parse_worker(dirpath, worker, num_nodes - 1, ts, test_breakdowns)

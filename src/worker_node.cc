@@ -85,6 +85,7 @@ void WorkerNode::run() {
   double tend;
   while (loop) {
     try {
+      // TODO should've put drop caches here for experiments...
       MPI_Recv(buf, MPI_BUFFER_LENGTH, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_CHAR, &length);
       switch (status.MPI_TAG) {
